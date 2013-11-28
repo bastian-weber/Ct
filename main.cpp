@@ -50,7 +50,11 @@ void convertTo32bit(cv::Mat& img){
 }
 
 int main(){
-	cv::Mat image = cv::imread("../sourcefiles/data/uncompressed16.tif", CV_LOAD_IMAGE_ANYDEPTH);
+	cv::Mat image = cv::imread("sourcefiles/data/uncompressed16.tif", CV_LOAD_IMAGE_ANYDEPTH);
+	if (!image.data){
+		std::cout << "Image file not found" << std::endl;
+		return 1;
+	}
 	convertTo32bit(image);
 	imshow("Image", image);
 	applyHighpassFilter(image);
@@ -58,4 +62,5 @@ int main(){
 	applyRampFilter(image);
 	imshow("Ramp", image);
 	cv::waitKey(0);
+	return 0;
 }
