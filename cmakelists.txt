@@ -1,0 +1,38 @@
+cmake_minimum_required (VERSION 2.6)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+
+#specify here which version of openCV you use
+set(OpenCV_VERSION 247)
+
+project(Cv)
+
+file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
+
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+add_executable(Cv ${SOURCEFILES})
+
+if(DEFINED OpenCV_LIBRARIES_DEBUG)
+
+	message("Everything fine, ready to generate.")
+
+	foreach(element ${OpenCV_LIBRARIES_DEBUG})
+
+
+
+		target_link_libraries(Cv debug ${element})
+
+	endforeach(element ${OpenCV_LIBRARIES_DEBUG})
+
+endif(DEFINED OpenCV_LIBRARIES_DEBUG)
+
+if(DEFINED OpenCV_LIBRARIES_RELEASE)
+
+	foreach(element ${OpenCV_LIBRARIES_RELEASE})
+
+		target_link_libraries(Cv optimized ${element})
+
+	endforeach(element ${OpenCV_LIBRARIES_RELEASE})	
+
+endif(DEFINED OpenCV_LIBRARIES_RELEASE)
