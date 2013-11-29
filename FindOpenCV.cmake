@@ -10,6 +10,8 @@ if("${OpenCV_ROOT_DIR}" STREQUAL "")
 
 else("${OpenCV_ROOT_DIR}" STREQUAL "")
 
+	set(OpenCV_MODULE_NAMES opencv_core opencv_highgui opencv_imgproc)
+
 	IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		
 		#This is 64bit
@@ -36,44 +38,36 @@ else("${OpenCV_ROOT_DIR}" STREQUAL "")
 
 	endif("${OpenCV_INCLUDE_DIR}" STREQUAL "OpenCV_INCLUDE_DIR-NOTFOUND")
 
-	FIND_LIBRARY(OpenCV_CORE_RELEASE 
-	NAMES "opencv_core${OpenCV_VERSION}"
-	HINTS ${LIBRARY_PATH_HINTS})
+	foreach(element ${OpenCV_MODULE_NAMES})
 
-	FIND_LIBRARY(OpenCV_CORE_DEBUG 
-	NAMES "opencv_core${OpenCV_VERSION}d"
-	HINTS ${LIBRARY_PATH_HINTS})
+		FIND_LIBRARY(${element}_MODULE_RELEASE 
+		NAMES "${element}${OpenCV_VERSION}"
+		HINTS ${LIBRARY_PATH_HINTS})
 
-	FIND_LIBRARY(OpenCV_HIGHGUI_RELEASE 
-	NAMES "opencv_highgui${OpenCV_VERSION}"
-	HINTS ${LIBRARY_PATH_HINTS})
+		FIND_LIBRARY(${element}_MODULE_DEBUG 
+		NAMES "${element}${OpenCV_VERSION}d"
+		HINTS ${LIBRARY_PATH_HINTS})
 
-	FIND_LIBRARY(OpenCV_HIGHGUI_DEBUG 
-	NAMES "opencv_highgui${OpenCV_VERSION}d"
-	HINTS ${LIBRARY_PATH_HINTS})
+		if(${element}_MODULE_RELEASE)
 
-	FIND_LIBRARY(OpenCV_IMGPROC_RELEASE 
-	NAMES "opencv_imgproc${OpenCV_VERSION}"
-	HINTS ${LIBRARY_PATH_HINTS})
+			list(APPEND OpenCV_LIBRARIES_RELEASE ${${element}_MODULE_RELEASE})
 
-	FIND_LIBRARY(OpenCV_IMGPROC_DEBUG 
-	NAMES "opencv_imgproc${OpenCV_VERSION}d"
-	HINTS ${LIBRARY_PATH_HINTS})	
+		else(${element}_MODULE_RELEASE)
 
-	if(OpenCV_CORE_RELEASE AND OpenCV_CORE_DEBUG AND OpenCV_HIGHGUI_RELEASE AND OpenCV_HIGHGUI_DEBUG AND OpenCV_IMGPROC_RELEASE AND OpenCV_IMGPROC_DEBUG)
+			message("ERROR: couldn't find the OpenCV release library ${element}. Choose the correct root folder or try specifying the library paths manually.")
 
-		SET(OpenCV_LIBRARIES_RELEASE ${OpenCV_CORE_RELEASE} 
-									 ${OpenCV_HIGHGUI_RELEASE} 
-									 ${OpenCV_IMGPROC_RELEASE})
+		endif(${element}_MODULE_RELEASE)
 
-		SET(OpenCV_LIBRARIES_DEBUG ${OpenCV_CORE_DEBUG} 
-								   ${OpenCV_HIGHGUI_DEBUG} 
-								   ${OpenCV_IMGPROC_DEBUG})	
+		if(${element}_MODULE_DEBUG)
 
-	else(OpenCV_CORE_RELEASE AND OpenCV_CORE_DEBUG AND OpenCV_HIGHGUI_RELEASE AND OpenCV_HIGHGUI_DEBUG AND OpenCV_IMGPROC_RELEASE AND OpenCV_IMGPROC_DEBUG)
+			list(APPEND OpenCV_LIBRARIES_DEBUG ${${element}_MODULE_DEBUG})
 
-		message("Not all openCV library files could be found. Please correct your openCV directory. Otherwise you can also choose each libary file manually.")
+		else(${element}_MODULE_DEBUG)
 
-	endif(OpenCV_CORE_RELEASE AND OpenCV_CORE_DEBUG AND OpenCV_HIGHGUI_RELEASE AND OpenCV_HIGHGUI_DEBUG AND OpenCV_IMGPROC_RELEASE AND OpenCV_IMGPROC_DEBUG)	
+			message("ERROR: couldn't find the OpenCV debug library ${element}. Choose the correct root folder or try specifying the library paths manually.")
+
+		endif(${element}_MODULE_DEBUG)
+
+	endforeach(element ${OpenCV_MODULE_NAMES})
 
 endif("${OpenCV_ROOT_DIR}" STREQUAL "")
