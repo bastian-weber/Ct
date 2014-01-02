@@ -1,7 +1,8 @@
 #include <iostream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/core/core.hpp>			//core functionality of OpenCV
+#include <opencv2/highgui/highgui.hpp>		//GUI functionality of OpenCV (display images etc)
+#include <opencv2/imgproc/imgproc.hpp>		//image processing functionality of OpenCV (filter masks etc)
+#include "dirent.h"							//library for accessing the filesystem
 
 //Applies a filter mask to a 32bit float image
 //Mind that the values after applying the filter may be greater than 1 and negative
@@ -50,6 +51,18 @@ void convertTo32bit(cv::Mat& img){
 }
 
 int main(){
+	
+	//a little test
+	DIR* dir;
+	struct dirent* ent;
+	if ((dir = opendir("./")) != NULL){
+		/* print all the files and directories within directory */
+		while((ent = readdir(dir)) != NULL){
+			std::cout<<ent->d_name<<std::endl;
+		}
+		closedir(dir);
+	}
+
 	cv::Mat image = cv::imread("sourcefiles/data/uncompressed16.tif", CV_LOAD_IMAGE_ANYDEPTH);
 	if (!image.data){
 		std::cout << "Image file not found" << std::endl;
