@@ -48,17 +48,31 @@ void CtVolume::sinogramFromImages(std::string path){
 			}
 		}
 		closedir(dir);
+	} else{
+		std::cout << "Could not open the specified directory." << std::endl;
+	}
+	//now convert them to 32bit float and apply the filters
+	for (std::vector<cv::Mat>::iterator it = sinogram.begin(); it != sinogram.end(); ++it){
+		convertTo32bit(*it);
+		//applyHighpassFilter(*it);
+		//applyRampFilter(*it);
 	}
 }
 
-void CtVolume::displaySinogram(){
-	imshow("Image", sinogram[currentlyDisplayedImage]);
-	handleKeystrokes();
+void CtVolume::displaySinogram() const{
+	if (sinogram.size() > 0){
+		if (currentlyDisplayedImage < 0)currentlyDisplayedImage = sinogram.size() - 1;
+		if (currentlyDisplayedImage >= sinogram.size())currentlyDisplayedImage = 0;
+		imshow("Image", sinogram[currentlyDisplayedImage]);
+		handleKeystrokes();
+	} else{
+		std::cout << "Could not display sinogram, it is empty." << std::endl;
+	}
 }
 
 //============================================== PRIVATE ==============================================\\
 
-void CtVolume::handleKeystrokes(){
+void CtVolume::handleKeystrokes() const{
 	int key = cv::waitKey(0);				//wait for a keystroke forever
 	if (key == 2424832){					//left arrow key
 		++currentlyDisplayedImage;	
@@ -77,7 +91,7 @@ void CtVolume::handleKeystrokes(){
 
 //converts an image to 32 bit float
 //only unsigned types are allowed as input
-void CtVolume::convertTo32bit(cv::Mat& img){
+void CtVolume::convertTo32bit(cv::Mat& img) const{
 	CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
 	if (img.depth() == CV_8U){
 		img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 8));
@@ -87,7 +101,7 @@ void CtVolume::convertTo32bit(cv::Mat& img){
 }
 
 //Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
-void CtVolume::applyRampFilter(cv::Mat& img){
+void CtVolume::applyRampFilter(cv::Mat& img) const{
 	CV_Assert(img.channels() == 1);
 	CV_Assert(img.depth() == CV_32F);
 
@@ -113,7 +127,7 @@ void CtVolume::applyRampFilter(cv::Mat& img){
 
 //Applies a filter mask to a 32bit float image
 //Mind that the values after applying the filter may be greater than 1 and negative
-void CtVolume::applyHighpassFilter(cv::Mat& img){
+void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 	CV_Assert(img.depth() == CV_32F);
 	cv::Mat mask = (cv::Mat_<char>(3, 3) << -1, 0, 1,
 		-2, 0, 2,
