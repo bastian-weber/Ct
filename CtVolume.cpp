@@ -3,17 +3,17 @@
 //============================================== PUBLIC ==============================================\\
 
 //constructor
-CtVolume::CtVolume():currentlyDisplayedImage(0){
+CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 	//empty
 }
 
-CtVolume::CtVolume(std::string path):currentlyDisplayedImage(0){
+CtVolume::CtVolume(std::string path) : _currentlyDisplayedImage(0){
 	sinogramFromImages(path);
 }
 
 void CtVolume::sinogramFromImages(std::string path){
 	//delete the contents of the sinogram
-	sinogram.clear();
+	_sinogram.clear();
 	//load the files in a sinogram
 	DIR* dir;
 	struct dirent* file;
@@ -31,14 +31,14 @@ void CtVolume::sinogramFromImages(std::string path){
 		rewinddir(dir);
 
 		//now load the files
-		sinogram.resize(count);
+		_sinogram.resize(count);
 		int cnt = 0;
 		while ((file = readdir(dir)) != NULL){
 			if (std::regex_match(file->d_name, expression)){
-				sinogram[cnt] = cv::imread(path + "/" + file->d_name, CV_LOAD_IMAGE_ANYDEPTH);
+				_sinogram[cnt] = cv::imread(path + "/" + file->d_name, CV_LOAD_IMAGE_ANYDEPTH);
 
 				//create some output
-				if (!sinogram[cnt].data){
+				if (!_sinogram[cnt].data){
 					std::cout << "Error loading the image " << file->d_name << std::endl;
 					return;
 				} else{
@@ -52,21 +52,67 @@ void CtVolume::sinogramFromImages(std::string path){
 		std::cout << "Could not open the specified directory." << std::endl;
 	}
 	//now convert them to 32bit float and apply the filters
-	for (std::vector<cv::Mat>::iterator it = sinogram.begin(); it != sinogram.end(); ++it){
+	for (std::vector<cv::Mat>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
 		convertTo32bit(*it);
-		//applyHighpassFilter(*it);
-		//applyRampFilter(*it);
+		applyHighpassFilter(*it);
+		applyRampFilter(*it);
 	}
 }
 
 void CtVolume::displaySinogram() const{
-	if (sinogram.size() > 0){
-		if (currentlyDisplayedImage < 0)currentlyDisplayedImage = sinogram.size() - 1;
-		if (currentlyDisplayedImage >= sinogram.size())currentlyDisplayedImage = 0;
-		imshow("Image", sinogram[currentlyDisplayedImage]);
+	if (_sinogram.size() > 0){
+		if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
+		if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
+		imshow("Image", _sinogram[_currentlyDisplayedImage]);
 		handleKeystrokes();
 	} else{
 		std::cout << "Could not display sinogram, it is empty." << std::endl;
+	}
+}
+
+void CtVolume::reconstructVolume(){
+	if (_sinogram.size() > 0){
+		//resize the volume to the correct size
+		_volume.clear();
+		int imageWidth = _sinogram[0].cols;
+		int imageHeight = _sinogram[0].rows;
+		_volume = std::vector<std::vector<std::vector<float>>>(imageWidth, std::vector<std::vector<float>>(imageHeight, std::vector<float>(imageWidth)));
+		//fill the volume
+		for (int i = 0; i < _volume.size(); ++i){
+			for (int j = 0; j < _volume[i].size(); ++j){
+				for (int k = 0; k < _volume[i][j].size(); ++k){
+					_volume[i][j][k] = 1;
+				}
+			}
+		}
+		std::cout << "Volume successfully reconstructed" << std::endl;
+	} else{
+		std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
+	}
+
+}
+
+void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
+	if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0){
+		//open a filestream to the specified filename
+		std::ofstream stream(filename, std::ios::out | std::ios::binary);
+		if (!stream.is_open()){
+			std::cout << "Could not open the filestream. Maybe your path does not exist. No files were written." << std::endl;
+		} else{
+			//iterate through the volume
+			for (int i = 0; i < _volume.size(); ++i){
+				for (int j = 0; j < _volume[i].size(); ++j){
+					for (int k = 0; k < _volume[i][j].size(); ++k){
+						//save one float of data
+						stream.write((char*)&_volume[i][j][k], sizeof(float));
+					}
+				}
+			}
+			stream.close();
+			std::cout << "Volume successfully saved" << std::endl;
+		}
+	} else{
+		std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
 	}
 }
 
@@ -75,17 +121,17 @@ void CtVolume::displaySinogram() const{
 void CtVolume::handleKeystrokes() const{
 	int key = cv::waitKey(0);				//wait for a keystroke forever
 	if (key == 2424832){					//left arrow key
-		++currentlyDisplayedImage;	
+		++_currentlyDisplayedImage;
 	} else if (key == 2555904){				//right arrow key
-		--currentlyDisplayedImage;	
+		--_currentlyDisplayedImage;
 	} else if (key == 27){					//escape key
-		return;	
+		return;
 	} else if (key == -1){					//if no key was pressed (meaning the window was closed)
 		return;
 	}
-	if (currentlyDisplayedImage < 0)currentlyDisplayedImage = sinogram.size() - 1;
-	if (currentlyDisplayedImage >= sinogram.size())currentlyDisplayedImage = 0;
-	imshow("Image", sinogram[currentlyDisplayedImage]);
+	if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
+	if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
+	imshow("Image", _sinogram[_currentlyDisplayedImage]);
 	handleKeystrokes();
 }
 
