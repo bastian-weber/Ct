@@ -12,15 +12,46 @@ else("${OpenCV_ROOT_DIR}" STREQUAL "")
 
 	set(OpenCV_MODULE_NAMES opencv_core opencv_highgui opencv_imgproc)
 
+
 	IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		
 		#This is 64bit
-		set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x64/vc11/lib ${OpenCV_ROOT_DIR}/build/x64/vc11/lib)
+		IF(MSVC10)
+
+			#This is Visual Studio 2010
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x64/vc10/lib ${OpenCV_ROOT_DIR}/build/x64/vc10/lib)
+
+		ELSEIF(MSVC11)
+
+			#This is Visual Studio 2012
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x64/vc11/lib ${OpenCV_ROOT_DIR}/build/x64/vc11/lib)
+
+		ELSEIF(MSVC12)
+
+			#This is Visual Studio 2013
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x64/vc12/lib ${OpenCV_ROOT_DIR}/build/x64/vc12/lib)
+
+		ENDIF(MSVC10)
 
 	ELSEIF(CMAKE_SIZEOF_VOID_P EQUAL 4)
 		
 		#This is 32bit
-		set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x86/vc11/lib ${OpenCV_ROOT_DIR}/build/x86/vc11/lib)		
+		IF(MSVC10)		
+		
+			#This is Visual Studio 2010
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x86/vc10/lib ${OpenCV_ROOT_DIR}/build/x86/vc10/lib)		
+
+		ELSEIF(MSVC11)
+
+			#This is Visual Studio 2012
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x86/vc11/lib ${OpenCV_ROOT_DIR}/build/x86/vc11/lib)		
+
+		ELSEIF(MSVC12)
+
+			#This is Visual Studio 2013
+			set(LIBRARY_PATH_HINTS ${OpenCV_ROOT_DIR}/x86/vc12/lib ${OpenCV_ROOT_DIR}/build/x86/vc12/lib)		
+
+		ENDIF(MSVC10)
 
 	ENDIF(CMAKE_SIZEOF_VOID_P EQUAL 8)
 
