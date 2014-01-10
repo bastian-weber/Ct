@@ -48,15 +48,25 @@ void CtVolume::sinogramFromImages(std::string path){
 			}
 		}
 		closedir(dir);
+		//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
+		if (_sinogram.size() > 0){
+			int imageWidth = _sinogram[0].cols;
+			int imageHeight = _sinogram[0].rows;
+			//Axes: width = x, breadth = y, height = z
+			_xSize = imageWidth;
+			_ySize = imageWidth;
+			_zSize = imageHeight;
+			for (std::vector<cv::Mat>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
+				convertTo32bit(*it);
+				applyHighpassFilter(*it);
+				applyRampFilter(*it);
+			}	
+		}
 	} else{
 		std::cout << "Could not open the specified directory." << std::endl;
 	}
 	//now convert them to 32bit float and apply the filters
-	for (std::vector<cv::Mat>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-		convertTo32bit(*it);
-		applyHighpassFilter(*it);
-		applyRampFilter(*it);
-	}
+
 }
 
 void CtVolume::displaySinogram() const{
@@ -74,14 +84,16 @@ void CtVolume::reconstructVolume(){
 	if (_sinogram.size() > 0){
 		//resize the volume to the correct size
 		_volume.clear();
-		int imageWidth = _sinogram[0].cols;
-		int imageHeight = _sinogram[0].rows;
-		_volume = std::vector<std::vector<std::vector<float>>>(imageWidth, std::vector<std::vector<float>>(imageHeight, std::vector<float>(imageWidth)));
-		//fill the volume
-		for (int i = 0; i < _volume.size(); ++i){
-			for (int j = 0; j < _volume[i].size(); ++j){
-				for (int k = 0; k < _volume[i][j].size(); ++k){
-					_volume[i][j][k] = 1;
+		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize)));
+		//fill thy volume
+		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
+			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
+				for (int z = volumeToWorldZ(0); z < volumeToWorldX(_zSize); ++z){
+					if (abs(x) < (_xSize / 2) && abs(y) < (_ySize / 2) && abs(z) < (_zSize / 2)){
+						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 1;
+					} else{
+						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 0;
+					}
 				}
 			}
 		}
@@ -100,11 +112,11 @@ void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
 			std::cout << "Could not open the filestream. Maybe your path does not exist. No files were written." << std::endl;
 		} else{
 			//iterate through the volume
-			for (int i = 0; i < _volume.size(); ++i){
-				for (int j = 0; j < _volume[i].size(); ++j){
-					for (int k = 0; k < _volume[i][j].size(); ++k){
+			for (int x = 0; x < _xSize; ++x){
+				for (int y = 0; y < _ySize; ++y){
+					for (int z = 0; z < _zSize; ++z){
 						//save one float of data
-						stream.write((char*)&_volume[i][j][k], sizeof(float));
+						stream.write((char*)&_volume[x][y][z], sizeof(float));
 					}
 				}
 			}
@@ -179,4 +191,28 @@ void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 		-2, 0, 2,
 		-1, 0, 1);
 	cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
+}
+
+int CtVolume::worldToVolumeX(int xCoord) const{
+	return xCoord + (_xSize / 2);
+}
+
+int CtVolume::worldToVolumeY(int yCoord) const{
+	return yCoord + (_ySize / 2);
+}
+
+int CtVolume::worldToVolumeZ(int zCoord) const{
+	return zCoord + (_zSize / 2);
+}
+
+int CtVolume::volumeToWorldX(int xCoord) const{
+	return xCoord - (_xSize / 2);
+}
+
+int CtVolume::volumeToWorldY(int yCoord) const{
+	return yCoord - (_ySize / 2);
+}
+
+int CtVolume::volumeToWorldZ(int zCoord) const{
+	return zCoord - (_zSize / 2);
 }
