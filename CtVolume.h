@@ -22,10 +22,19 @@ private:
 	//variables		
 	std::vector<cv::Mat> _sinogram;							//here the images are stored
 	std::vector<std::vector<std::vector<float>>> _volume;	//holds the reconstructed volume
-	mutable int _currentlyDisplayedImage = 0;				//holds the index of the image that is currently being displayed
+	mutable int _currentlyDisplayedImage;					//holds the index of the image that is currently being displayed								
+	mutable int _xSize;										//the size of the volume in x, y and z direction, is calculated
+	mutable int _ySize;										//when sinogram is created
+	mutable int _zSize;
 	//functions					
 	void handleKeystrokes() const;							//handles the forward and backward arrow keys when sinogram is displayed
 	void convertTo32bit(cv::Mat& img) const;				//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;				//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;			//applies the highpass filter to an image
+	int worldToVolumeX(int xCoord) const;						//coordinate transformations from the coordinates of the vector to
+	int worldToVolumeY(int yCoord) const;						//the coordinates of the "world" and the other way around
+	int worldToVolumeZ(int zCoord) const;
+	int volumeToWorldX(int xCoord) const;
+	int volumeToWorldY(int yCoord) const;
+	int volumeToWorldZ(int zCoord) const;
 };
