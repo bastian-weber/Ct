@@ -19,8 +19,6 @@ if(DEFINED OpenCV_LIBRARIES_DEBUG)
 
 	foreach(element ${OpenCV_LIBRARIES_DEBUG})
 
-
-
 		target_link_libraries(Cv debug ${element})
 
 	endforeach(element ${OpenCV_LIBRARIES_DEBUG})
