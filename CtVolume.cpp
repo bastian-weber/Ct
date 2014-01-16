@@ -36,7 +36,7 @@ void CtVolume::sinogramFromImages(std::string path){
 		int cnt = 0;
 		while ((file = readdir(dir)) != NULL){
 			if (std::regex_match(file->d_name, expression)){
-				_sinogram[cnt] = cv::imread(path + "/" + file->d_name, CV_LOAD_IMAGE_ANYDEPTH);
+				_sinogram[cnt] = cv::imread(path + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED);
 
 				//create some output
 				if (!_sinogram[cnt].data){
@@ -53,7 +53,7 @@ void CtVolume::sinogramFromImages(std::string path){
 		if (_sinogram.size() > 0){
 			_imageWidth = _sinogram[0].cols;
 			_imageHeight = _sinogram[0].rows;
-			//Axes: width = x, breadth = y, height = z
+			//Axes: breadth = x, width = y, height = z
 			_xSize = _imageWidth;
 			_ySize = _imageWidth;
 			_zSize = _imageHeight;
@@ -90,7 +90,7 @@ void CtVolume::displaySinogram() const{
 //		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
 //			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
 //				for (int z = volumeToWorldZ(0); z < volumeToWorldX(_zSize); ++z){
-//					if (abs(x) < (_xSize / 2) && abs(y) < (_ySize / 2) && abs(z) < (_zSize / 2)){
+//					if (sqrt(pow((double)x, 2) + pow((double)y, 2) + pow((double)z, 2)) <= 50){
 //						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 1;
 //					} else{
 //						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 0;
@@ -128,8 +128,8 @@ void CtVolume::displaySinogram() const{
 //						u = floor(u + 0.5);
 //						v = floor(v + 0.5);
 //						double weight = W(s, D, deltaBeta);
-//						if (imageToMatU(u) < _imageHeight && imageToMatU(u) >= 0 && imageToMatV(v) < _imageWidth && imageToMatV(v) >= 0){
-//							sum += weight*_sinogram[projection].at<float>(imageToMatU(u), imageToMatV(v));
+//						if (imageToMatU(u) < _imageWidth && imageToMatU(u) >= 0 && imageToMatV(v) < _imageHeight && imageToMatV(v) >= 0){
+//							sum += weight*_sinogram[projection].at<float>(imageToMatV(v), imageToMatU(u));
 //						}
 //					}
 //					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
@@ -149,7 +149,7 @@ void CtVolume::reconstructVolume(){
 		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize)));
 		//fill the volume
 		double deltaBeta = 360.0 / (double)_sinogram.size();
-		double D = 1;
+		double D = 1000;
 		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
 			std::cout << x << std::endl;
 			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
@@ -165,11 +165,11 @@ void CtVolume::reconstructVolume(){
 						//rounding
 						u = floor(u + 0.5);
 						v = floor(v + 0.5);
-						double weight = W(D, u, v);
+						//double weight = W(D, u, v);
 						//std::cout << u << "  " << v << std::endl;
 						//system("pause");
-						if (imageToMatU(u) < _imageHeight && imageToMatU(u) >= 0 && imageToMatV(v) < _imageWidth && imageToMatV(v) >= 0){
-							sum += weight*_sinogram[projection].at<float>(imageToMatU(u), imageToMatV(v));
+						if (imageToMatU(u) < _imageWidth && imageToMatU(u) >= 0 && imageToMatV(v) < _imageHeight && imageToMatV(v) >= 0){
+							sum += /* weight* */_sinogram[projection].at<float>(imageToMatV(v), imageToMatU(u));
 						}
 					}
 					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
@@ -310,9 +310,9 @@ int CtVolume::volumeToWorldZ(int zCoord) const{
 }
 
 int CtVolume::imageToMatU(int uCoord)const{
-	return uCoord + (_imageHeight / 2);
+	return uCoord + (_imageWidth / 2);
 }
 
 int CtVolume::imageToMatV(int vCoord)const{
-	return vCoord + (_imageWidth / 2);
+	return vCoord + (_imageHeight / 2);
 }
