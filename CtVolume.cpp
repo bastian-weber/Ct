@@ -91,7 +91,7 @@ void CtVolume::displaySinogram() const{
 //			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
 //				for (int z = volumeToWorldZ(0); z < volumeToWorldX(_zSize); ++z){
 //					if (sqrt(pow((double)x, 2) + pow((double)y, 2) + pow((double)z, 2)) <= 50){
-//						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 1;
+//						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 10000000;
 //					} else{
 //						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 0;
 //					}
