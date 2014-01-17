@@ -34,20 +34,19 @@ private:
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
-
-	//used for algorithm 1
-	//double A(double u, double s, double D) const;				//helper function for the volume reconstruction
-	//double W(double s, double D, double deltaBeta) const;		//helper function for the volume reconstruction
-	
-	//used for algorithm 2
-	double W(double D, double u, double v) const;
-
-	int worldToVolumeX(int xCoord) const;						//coordinate transformations from the coordinates of the vector to
-	int worldToVolumeY(int yCoord) const;						//the coordinates of the "world" and the other way around
-	int worldToVolumeZ(int zCoord) const;
-	int volumeToWorldX(int xCoord) const;
-	int volumeToWorldY(int yCoord) const;
-	int volumeToWorldZ(int zCoord) const;
-	int imageToMatU(int uCoord)const;							//coordinate transformations from the coordinates of the image
-	int imageToMatV(int vCoord)const;							//to the coordinates of the saved matrix (always starting at 0)
+	void reconstructionThread(int x1, int y1, int z1, int x2, 
+							  int y2, int z2, double 
+							  deltaBeta, double D);
+	float bilinearInterpolation(double u, double v,				//interpolates bilinear between those four intensities
+								float u0v0, float u1v0, 
+								float u0v1, float u1v1) const;
+	double W(double D, double u, double v) const;				//weight function for the reconstruction of the volume
+	double worldToVolumeX(double xCoord) const;						//coordinate transformations from the coordinates of the vector to
+	double worldToVolumeY(double yCoord) const;						//the coordinates of the "world" and the other way around
+	double worldToVolumeZ(double zCoord) const;
+	double volumeToWorldX(double xCoord) const;
+	double volumeToWorldY(double yCoord) const;
+	double volumeToWorldZ(double zCoord) const;
+	double imageToMatU(double uCoord)const;							//coordinate transformations from the coordinates of the image
+	double imageToMatV(double vCoord)const;							//to the coordinates of the saved matrix (always starting at 0)
 };
