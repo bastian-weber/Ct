@@ -109,60 +109,91 @@ void CtVolume::reconstructVolume(){
 		//resize the volume to the correct size
 		_volume.clear();
 		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize)));
+		//mesure time
+		clock_t start = clock();
 		//fill the volume
 		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
 		double D = 999;
-		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
-			std::cout << (worldToVolumeX(x) / _xSize)*100 << "%" << std::endl;
-			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
-				if (sqrt(x*x + y*y) <= _xSize / 2){
-					for (int z = volumeToWorldZ(0); z < volumeToWorldX(_zSize); ++z){
-						double sum = 0;
-						for (int projection = 0; projection < _sinogram.size(); ++projection){
-							double beta_rad = deltaBeta*projection;
-							double t = (-1)*x*sin(beta_rad) + y*cos(beta_rad);
-							double s = x*cos(beta_rad) + y*sin(beta_rad);
-							double u = imageToMatU((t*D) / (D - s));
-							double v = imageToMatV(((double)z*D) / (D - s));
-							//rounding
-							//u = floor(u + 0.5);
-							//v = floor(v + 0.5);
-							//double uMat = imageToMatU(u);
-							//double vMat = imageToMatV(v);
-							//double weight = W(D, u, v);
-							//if (uMat < _imageWidth && uMat >= 0 && vMat < _imageHeight && vMat >= 0){
-							//	sum +=  /*weight* */ _sinogram[projection].at<float>(vMat, uMat);
-							//}
+		
+		/*	add comments for single threaded mode
+		auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+		thread1.get();
+		add comment for single threaded mode */
 
-							double u0 = floor(u);
-							double u1 = ceil(u);
-							double v0 = floor(v);
-							double v1 = ceil(v);
-							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
-								float u0v0 = _sinogram[projection].at<float>(v0, u0);
-								float u1v0 = _sinogram[projection].at<float>(v0, u1);
-								float u0v1 = _sinogram[projection].at<float>(v1, u0);
-								float u1v1 = _sinogram[projection].at<float>(v1, u1);
-								sum += bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
-							} else{
-								//std::cout << x << " " << y << " " << z << std::endl;
-								//std::cout << sqrt(x*x + y*y) << std::endl;
-								//system("pause");
-							}
-						}
-						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
-					}
-				}
-			}
-		}
-		std::cout << "Volume successfully reconstructed" << std::endl;
+		// /*	remove comment for single threaded mode
+		auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), deltaBeta, D);
+		auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), deltaBeta, D);
+		auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), deltaBeta, D);
+		auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), deltaBeta, D);
+		auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), deltaBeta, D);
+		auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), deltaBeta, D);
+		auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), deltaBeta, D);
+		auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+		thread1.get();
+		thread2.get();
+		thread3.get();
+		thread4.get();
+		thread5.get();
+		thread6.get();
+		thread7.get();
+		thread8.get();
+		// remove comment for single threaded mode */ 
+
+		//mesure time
+		clock_t end = clock();
+		std::cout << "Volume successfully reconstructed in " << (double)(end - start) / CLOCKS_PER_SEC << "s" << std::endl;
 	} else{
 		std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
 	}
 }
 
-void CtVolume::reconstructionThread(int x1, int y1, int z1, int x2, int y2, int z2, double deltaBeta, double D){
-	
+void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, double deltaBeta, double D){
+	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
+		std::cout << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%" << std::endl;
+		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
+			if (sqrt(x*x + y*y) <= _xSize / 2){
+				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
+					double sum = 0;
+					for (int projection = 0; projection < _sinogram.size(); ++projection){
+						double beta_rad = deltaBeta*projection;
+						double t = (-1)*x*sin(beta_rad) + y*cos(beta_rad);
+						double s = x*cos(beta_rad) + y*sin(beta_rad);
+						double u = imageToMatU((t*D) / (D - s));
+						double v = imageToMatV(((double)z*D) / (D - s));
+						//rounding
+						//u = floor(u + 0.5);
+						//v = floor(v + 0.5);
+						//double uMat = imageToMatU(u);
+						//double vMat = imageToMatV(v);
+						//double weight = W(D, u, v);
+						//if (uMat < _imageWidth && uMat >= 0 && vMat < _imageHeight && vMat >= 0){
+						//	sum +=  /*weight* */ _sinogram[projection].at<float>(vMat, uMat);
+						//}
+
+						double u0 = floor(u);
+						double u1 = ceil(u);
+						double v0 = floor(v);
+						double v1 = ceil(v);
+						if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
+							float u0v0 = _sinogram[projection].at<float>(v0, u0);
+							float u1v0 = _sinogram[projection].at<float>(v0, u1);
+							float u0v1 = _sinogram[projection].at<float>(v1, u0);
+							float u1v1 = _sinogram[projection].at<float>(v1, u1);
+							sum += bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+						} else{
+							//std::cout << x << " " << y << " " << z << std::endl;
+							//std::cout << sqrt(x*x + y*y) << std::endl;
+							//system("pause");
+						}
+					}
+					_volumeMutex.lock();
+					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
+					_volumeMutex.unlock();
+				}
+			}
+		}
+	}
+	std::cout << "Tread finished" << std::endl;
 }
 
 void CtVolume::saveVolumeToBinaryFile(std::string filename) const{

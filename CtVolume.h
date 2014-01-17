@@ -3,12 +3,15 @@
 #include <vector>
 #include <regex>
 #include <fstream>												//used for the output (writing binary file)
+#include <cmath>	
+#include <ctime>
+#include <future>
+#include <mutex>
 
 #include <opencv2/core/core.hpp>								//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>							//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>							//image processing functionality of OpenCV (filter masks etc)
-#include "dirent.h"												//library for accessing the filesystem
-#include <cmath>												
+#include "dirent.h"												//library for accessing the filesystem						
 
 class CtVolume{
 public:
@@ -29,17 +32,22 @@ private:
 	mutable int _zSize;
 	mutable int _imageWidth;									//stores the height and width of the images in the sinogram
 	mutable int _imageHeight;									//assigned when sinogram is created
+	mutable std::mutex _volumeMutex;							//prevents that two threads access the volume simultaneously
 	//functions					
 	void handleKeystrokes() const;								//handles the forward and backward arrow keys when sinogram is displayed
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
-	void reconstructionThread(int x1, int y1, int z1, int x2, 
-							  int y2, int z2, double 
-							  deltaBeta, double D);
-	float bilinearInterpolation(double u, double v,				//interpolates bilinear between those four intensities
-								float u0v0, float u1v0, 
-								float u0v1, float u1v1) const;
+	void reconstructionThread(cv::Point3i lowerBounds, 
+							  cv::Point3i upperBounds, 
+							  double deltaBeta, 
+							  double D);				
+	float bilinearInterpolation(double u,						//interpolates bilinear between those four intensities
+								double v,				
+								float u0v0, 
+								float u1v0, 
+								float u0v1, 
+								float u1v1) const;
 	double W(double D, double u, double v) const;				//weight function for the reconstruction of the volume
 	double worldToVolumeX(double xCoord) const;						//coordinate transformations from the coordinates of the vector to
 	double worldToVolumeY(double yCoord) const;						//the coordinates of the "world" and the other way around
