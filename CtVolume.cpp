@@ -104,7 +104,7 @@ void CtVolume::displaySinogram() const{
 //	}
 //}
 
-void CtVolume::reconstructVolume(){
+void CtVolume::reconstructVolume(ThreadingType threading){
 	if (_sinogram.size() > 0){
 		//resize the volume to the correct size
 		_volume.clear();
@@ -114,30 +114,27 @@ void CtVolume::reconstructVolume(){
 		//fill the volume
 		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
 		double D = 999;
-		
-		/*	add comments for single threaded mode
-		auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
-		thread1.get();
-		add comment for single threaded mode */
 
-		// /*	remove comment for single threaded mode
-		auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), deltaBeta, D);
-		auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), deltaBeta, D);
-		auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), deltaBeta, D);
-		auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), deltaBeta, D);
-		auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), deltaBeta, D);
-		auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), deltaBeta, D);
-		auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), deltaBeta, D);
-		auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
-		thread1.get();
-		thread2.get();
-		thread3.get();
-		thread4.get();
-		thread5.get();
-		thread6.get();
-		thread7.get();
-		thread8.get();
-		// remove comment for single threaded mode */ 
+		if (threading == MULTITHREADED){
+			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), deltaBeta, D);
+			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), deltaBeta, D);
+			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), deltaBeta, D);
+			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), deltaBeta, D);
+			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), deltaBeta, D);
+			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), deltaBeta, D);
+			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), deltaBeta, D);
+			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+			thread1.get();
+			thread2.get();
+			thread3.get();
+			thread4.get();
+			thread5.get();
+			thread6.get();
+			thread7.get();
+			thread8.get();
+		} else{
+			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+		}
 
 		//mesure time
 		clock_t end = clock();

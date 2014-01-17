@@ -18,9 +18,10 @@ public:
 	//functions		
 	CtVolume();													//constructor 1
 	CtVolume(std::string path);									//constructor 2
+	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
 	void sinogramFromImages(std::string path);					//creates a sinogram from the images in the specified path
 	void displaySinogram() const;								//lets the user scroll through the images in the sinogram	
-	void reconstructVolume();									//reconstructs the 3d-volume from the sinogram
+	void reconstructVolume(ThreadingType threading);				//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;	//saves the reconstructed volume to a binary file
 private:
 	//variables		

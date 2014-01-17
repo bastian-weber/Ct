@@ -5,7 +5,7 @@
 int main(){
 	CtVolume myVolume("sourcefiles/data/skullPhantom");
 	myVolume.displaySinogram();	
-	myVolume.reconstructVolume();
+	myVolume.reconstructVolume(CtVolume::MULTITHREADED);
 	myVolume.saveVolumeToBinaryFile("volume.raw");
 	system("pause");
 	return 0;
