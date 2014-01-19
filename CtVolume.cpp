@@ -1,5 +1,12 @@
 #include "CtVolume.h"
 
+//constructor of data type struct "projection"
+
+Projection::Projection(){}
+
+Projection::Projection(cv::Mat image, double angle) :image(image), angle(angle){
+	//empty
+}
 
 //============================================== PUBLIC ==============================================\\
 
@@ -8,73 +15,81 @@ CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 	//empty
 }
 
-CtVolume::CtVolume(std::string path) : _currentlyDisplayedImage(0){
-	sinogramFromImages(path);
+CtVolume::CtVolume(std::string folderPath, std::string csvPath) : _currentlyDisplayedImage(0){
+	sinogramFromImages(folderPath, csvPath);
 }
 
-void CtVolume::sinogramFromImages(std::string path){
+void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 	//delete the contents of the sinogram
 	_sinogram.clear();
-	//load the files in a sinogram
-	DIR* dir;
-	struct dirent* file;
-
-	//only load tif files
-	std::regex expression("^.*\.tif$");
-	if ((dir = opendir(path.c_str())) != NULL){
-		//first count the files (so no reallocation of the vector size is necessary)
-		int count = 0;
-		while ((file = readdir(dir)) != NULL){
-			if (std::regex_match(file->d_name, expression)){
-				++count;
-			}
-		}
-		rewinddir(dir);
-
-		//now load the files
-		_sinogram.resize(count);
-		int cnt = 0;
-		while ((file = readdir(dir)) != NULL){
-			if (std::regex_match(file->d_name, expression)){
-				_sinogram[cnt] = cv::imread(path + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED);
-
-				//create some output
-				if (!_sinogram[cnt].data){
-					std::cout << "Error loading the image " << file->d_name << std::endl;
-					return;
-				} else{
-					std::cout << "Loaded " << file->d_name << std::endl;
+	//read the angles from the csv file
+	std::vector<double> angles;
+	if (readCSV(csvPath, angles)){
+		//load the files in a sinogram
+		DIR* dir;
+		struct dirent* file;
+		//only load tif files
+		std::regex expression("^.*\.tif$");
+		if ((dir = opendir(folderPath.c_str())) != NULL){
+			//first count the files (so no reallocation of the vector size is necessary)
+			int count = 0;
+			while ((file = readdir(dir)) != NULL){
+				if (std::regex_match(file->d_name, expression)){
+					++count;
 				}
-				++cnt;
 			}
-		}
-		closedir(dir);
-		//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
-		if (_sinogram.size() > 0){
-			_imageWidth = _sinogram[0].cols;
-			_imageHeight = _sinogram[0].rows;
-			//Axes: breadth = x, width = y, height = z
-			_xSize = _imageWidth;
-			_ySize = _imageWidth;
-			_zSize = _imageHeight;
-			for (std::vector<cv::Mat>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-				convertTo32bit(*it);
-				applyHighpassFilter(*it);
-				applyRampFilter(*it);
-			}	
-		}
-	} else{
-		std::cout << "Could not open the specified directory." << std::endl;
-	}
-	//now convert them to 32bit float and apply the filters
+			rewinddir(dir);
 
+			//check if amount of provided angle values and amount of files match
+			if (count == angles.size()){
+				//now load the files
+				_sinogram.resize(count);
+				int cnt = 0;
+				while ((file = readdir(dir)) != NULL){
+					if (std::regex_match(file->d_name, expression)){
+						_sinogram[cnt] = Projection(cv::imread(folderPath + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED), angles[cnt]);
+
+						//create some output
+						if (!_sinogram[cnt].image.data){
+							std::cout << "Error loading the image " << file->d_name << std::endl;
+							return;
+						} else{
+							std::cout << "Loaded " << file->d_name << std::endl;
+						}
+						++cnt;
+					}
+				}
+				closedir(dir);
+				//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
+				if (_sinogram.size() > 0){
+					_imageWidth = _sinogram[0].image.cols;
+					_imageHeight = _sinogram[0].image.rows;
+					//Axes: breadth = x, width = y, height = z
+					_xSize = _imageWidth;
+					_ySize = _imageWidth;
+					_zSize = _imageHeight;
+					//now convert them to 32bit float and apply the filters
+					for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
+						convertTo32bit(it->image);
+						//applyHighpassFilter(it->image);
+						applyRampFilter(it->image);
+					}
+				}
+			} else{
+				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder.";
+			}
+		} else{
+			std::cout << "Could not open the specified directory." << std::endl;
+		}
+
+	}
 }
 
 void CtVolume::displaySinogram() const{
 	if (_sinogram.size() > 0){
 		if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 		if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-		imshow("Image", _sinogram[_currentlyDisplayedImage]);
+		imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
 		handleKeystrokes();
 	} else{
 		std::cout << "Could not display sinogram, it is empty." << std::endl;
@@ -116,14 +131,14 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		double D = 999;
 
 		if (threading == MULTITHREADED){
-			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), deltaBeta, D);
-			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), deltaBeta, D);
-			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), deltaBeta, D);
-			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), deltaBeta, D);
-			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), deltaBeta, D);
-			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), deltaBeta, D);
-			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), deltaBeta, D);
-			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), deltaBeta, D, true);
+			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), deltaBeta, D, false);
+			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), deltaBeta, D, false);
+			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), deltaBeta, D, false);
+			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), deltaBeta, D, false);
+			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), deltaBeta, D, false);
+			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), deltaBeta, D, false);
+			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D, false);
 			thread1.get();
 			thread2.get();
 			thread3.get();
@@ -133,7 +148,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 			thread7.get();
 			thread8.get();
 		} else{
-			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D);
+			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), deltaBeta, D, true);
 		}
 
 		//mesure time
@@ -144,17 +159,20 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 	}
 }
 
-void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, double deltaBeta, double D){
+void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, double deltaBeta, double D, bool consoleOutput){
 	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
-		std::cout << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%" << std::endl;
+		if (consoleOutput){
+			std::cout << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%" << std::endl;
+		}
 		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
 			if (sqrt(x*x + y*y) <= _xSize / 2){
 				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
 					double sum = 0;
 					for (int projection = 0; projection < _sinogram.size(); ++projection){
-						double beta_rad = deltaBeta*projection;
-						double t = (-1)*x*sin(beta_rad) + y*cos(beta_rad);
-						double s = x*cos(beta_rad) + y*sin(beta_rad);
+						double beta_rad = (_sinogram[projection].angle/180.0) * M_PI;
+						//double beta_rad = (double)projection*deltaBeta;
+						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
+						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
 						double u = imageToMatU((t*D) / (D - s));
 						double v = imageToMatV(((double)z*D) / (D - s));
 						//rounding
@@ -164,7 +182,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						//double vMat = imageToMatV(v);
 						//double weight = W(D, u, v);
 						//if (uMat < _imageWidth && uMat >= 0 && vMat < _imageHeight && vMat >= 0){
-						//	sum +=  /*weight* */ _sinogram[projection].at<float>(vMat, uMat);
+						//	sum +=  /*weight* */ _sinogram[projection].image.at<float>(vMat, uMat);
 						//}
 
 						double u0 = floor(u);
@@ -172,10 +190,10 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						double v0 = floor(v);
 						double v1 = ceil(v);
 						if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
-							float u0v0 = _sinogram[projection].at<float>(v0, u0);
-							float u1v0 = _sinogram[projection].at<float>(v0, u1);
-							float u0v1 = _sinogram[projection].at<float>(v1, u0);
-							float u1v1 = _sinogram[projection].at<float>(v1, u1);
+							float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
+							float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
+							float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
+							float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
 							sum += bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
 						} else{
 							//std::cout << x << " " << y << " " << z << std::endl;
@@ -190,7 +208,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 			}
 		}
 	}
-	std::cout << "Tread finished" << std::endl;
+	std::cout << "Thread finished" << std::endl;
 }
 
 void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
@@ -219,6 +237,36 @@ void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
 
 //============================================== PRIVATE ==============================================\\
 
+bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
+	result.clear();
+	std::ifstream stream(filename.c_str(), std::ios::in);
+	if (!stream.good()){
+		std::cerr << "Could not open CSV file - terminating" << std::endl;
+		return false;
+	}
+	//count the lines in the file
+	int itemCount = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
+	if (itemCount != 0){
+		result.resize(itemCount);
+		//go back to the beginning
+		stream.seekg(std::ios::beg);
+		//now read file contents
+		std::stringstream strstr;
+		std::string line;
+		int cnt = 0;
+		while (!stream.eof()){
+			std::getline(stream, line);
+			strstr = std::stringstream(line);
+			strstr >> result[cnt];
+			++cnt;
+		}
+		return true;
+	} else{
+		std::cout << "CSV file seems to be empty - terminating" << std::endl;
+		return false;
+	}
+}
+
 void CtVolume::handleKeystrokes() const{
 	int key = cv::waitKey(0);				//wait for a keystroke forever
 	if (key == 2424832){					//left arrow key
@@ -232,7 +280,7 @@ void CtVolume::handleKeystrokes() const{
 	}
 	if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 	if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-	imshow("Image", _sinogram[_currentlyDisplayedImage]);
+	imshow("Image", _sinogram[_currentlyDisplayedImage].image);
 	handleKeystrokes();
 }
 
