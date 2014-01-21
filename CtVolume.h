@@ -51,7 +51,6 @@ private:
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
 	void reconstructionThread(cv::Point3i lowerBounds, 
 							  cv::Point3i upperBounds, 
-							  double deltaBeta, 
 							  double D,
 							  bool consoleOutput);
 	float bilinearInterpolation(double u,						//interpolates bilinear between those four intensities
@@ -69,4 +68,6 @@ private:
 	double volumeToWorldZ(double zCoord) const;
 	double imageToMatU(double uCoord)const;							//coordinate transformations from the coordinates of the image
 	double imageToMatV(double vCoord)const;							//to the coordinates of the saved matrix (always starting at 0)
+	double matToImageU(double uCoord)const;						
+	double matToImageV(double vCoord)const;	
 };
