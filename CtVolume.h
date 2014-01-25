@@ -11,6 +11,7 @@
 #include <opencv2/core/core.hpp>								//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>							//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>							//image processing functionality of OpenCV (filter masks etc)
+#include <fftw3.h>												//FFTW - provides fast fourier transform functionality
 #include "dirent.h"												//library for accessing the filesystem						
 
 struct Projection{
@@ -49,6 +50,7 @@ private:
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
+	void applyFourierHighpassFilter(cv::Mat& image) const;		//applies a highpass filter in the frequency domain
 	void reconstructionThread(cv::Point3i lowerBounds, 
 							  cv::Point3i upperBounds, 
 							  double D,
@@ -60,14 +62,15 @@ private:
 								float u0v1, 
 								float u1v1) const;
 	double W(double D, double u, double v) const;				//weight function for the reconstruction of the volume
-	double worldToVolumeX(double xCoord) const;						//coordinate transformations from the coordinates of the vector to
-	double worldToVolumeY(double yCoord) const;						//the coordinates of the "world" and the other way around
+	double worldToVolumeX(double xCoord) const;					//coordinate transformations from the coordinates of the vector to
+	double worldToVolumeY(double yCoord) const;					//the coordinates of the "world" and the other way around
 	double worldToVolumeZ(double zCoord) const;
 	double volumeToWorldX(double xCoord) const;
 	double volumeToWorldY(double yCoord) const;
 	double volumeToWorldZ(double zCoord) const;
-	double imageToMatU(double uCoord)const;							//coordinate transformations from the coordinates of the image
-	double imageToMatV(double vCoord)const;							//to the coordinates of the saved matrix (always starting at 0)
+	double imageToMatU(double uCoord)const;						//coordinate transformations from the coordinates of the image
+	double imageToMatV(double vCoord)const;						//to the coordinates of the saved matrix (always starting at 0)
 	double matToImageU(double uCoord)const;						
 	double matToImageV(double vCoord)const;	
+	int fftCoordToIndex(int coord, int size) const;				//coordinate transformation for the FFT lowpass filtering
 };
