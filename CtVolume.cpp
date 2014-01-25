@@ -53,7 +53,10 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 						if (!_sinogram[cnt].image.data){
 							std::cout << "Error loading the image " << file->d_name << std::endl;
 							return;
-						} else{
+						} else if (_sinogram[cnt].image.channels() != 1){
+							std::cout << "Error loading the image " << file->d_name << ", it has not exactly 1 channel." << std::endl;
+							return;
+						}else{
 							std::cout << "Loaded " << file->d_name << std::endl;
 						}
 						++cnt;
@@ -71,7 +74,7 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 					//now convert them to 32bit float and apply the filters
 					for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
 						convertTo32bit(it->image);
-						applyHighpassFilter(it->image);
+						applyFourierHighpassFilter(it->image);
 						applyRampFilter(it->image);
 					}
 				}
@@ -288,7 +291,7 @@ void CtVolume::handleKeystrokes() const{
 	}
 	if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 	if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-	imshow("Image", _sinogram[_currentlyDisplayedImage].image);
+	imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
 	handleKeystrokes();
 }
 
@@ -336,6 +339,72 @@ void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 											-2, 0, 2,
 											-1, 0, 1);
 	cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
+}
+
+void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
+	CV_Assert(image.depth() == CV_32F);
+
+	//FFT
+	const int R = image.rows;
+	const int C = image.cols;
+
+	std::vector<std::vector<std::complex<double>>> result(R, std::vector<std::complex<double>>(C));
+	double *in;
+	in = (double*)fftw_malloc(sizeof(double)* R * C);
+	int k = 0;
+	float* ptr;
+	for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		for (int column = 0; column < C; ++column){
+			in[k] = ptr[column];
+			++k;
+		}
+	}
+	fftw_complex *out;
+	int nyquist = (C / 2) + 1;
+	out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)* R * C);
+	fftw_plan p;
+	p = fftw_plan_dft_r2c_2d(R, C, in, out, FFTW_ESTIMATE);
+	fftw_execute(p);
+	fftw_destroy_plan(p);
+
+	k = 0;
+	for (int row = 0; row < R; ++row){
+		for (int column = 0; column < nyquist; ++column){
+			out[k][0] = out[k][0] / (R*C);
+			out[k][1] = out[k][1] / (R*C);
+			++k;
+		}
+	}
+
+	//removing the low frequencies
+
+	double cutoffRatio = 0.05;
+	int uCutoff = (cutoffRatio / 2.0)*C;
+	int vCutoff = (cutoffRatio / 2.0)*R;
+	for (int row = -vCutoff; row <= vCutoff; ++row){
+		for (int column = 0; column <= uCutoff; ++column){
+			out[fftCoordToIndex(row, R)*nyquist + column][0] = 0;
+			out[fftCoordToIndex(row, R)*nyquist + column][1] = 0;
+		}
+	}
+
+	//reverse FFT
+
+	p = fftw_plan_dft_c2r_2d(R, C, out, in, FFTW_ESTIMATE);
+	fftw_execute(p);
+	fftw_destroy_plan(p);
+	k = 0;
+	for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		for (int column = 0; column < C; ++column){
+			ptr[column] = in[k];
+			++k;
+		}
+	}
+
+	fftw_free(out);
+	fftw_free(in);
 }
 
 float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
@@ -390,4 +459,9 @@ double CtVolume::matToImageU(double uCoord)const{
 
 double CtVolume::matToImageV(double vCoord)const{
 	return vCoord - ((double)_imageHeight / 2.0);
+}
+
+int CtVolume::fftCoordToIndex(int coord, int size) const{
+	if (coord < 0)return size + coord;
+	return coord;
 }
