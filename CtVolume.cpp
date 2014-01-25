@@ -74,7 +74,7 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 					//now convert them to 32bit float and apply the filters
 					for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
 						convertTo32bit(it->image);
-						applyFourierHighpassFilter(it->image);
+						applyHighpassFilter(it->image);
 						applyRampFilter(it->image);
 					}
 				}
@@ -98,29 +98,6 @@ void CtVolume::displaySinogram() const{
 		std::cout << "Could not display sinogram, it is empty." << std::endl;
 	}
 }
-
-//void CtVolume::reconstructVolume(){
-//	if (_sinogram.size() > 0){
-//		//resize the volume to the correct size
-//		_volume.clear();
-//		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize)));
-//		//fill thy volume
-//		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
-//			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
-//				for (int z = volumeToWorldZ(0); z < volumeToWorldX(_zSize); ++z){
-//					if (sqrt(pow((double)x, 2) + pow((double)y, 2) + pow((double)z, 2)) <= 50){
-//						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 10000000;
-//					} else{
-//						_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = 0;
-//					}
-//				}
-//			}
-//		}
-//		std::cout << "Volume successfully reconstructed" << std::endl;
-//	} else{
-//		std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
-//	}
-//}
 
 void CtVolume::reconstructVolume(ThreadingType threading){
 	if (_sinogram.size() > 0){
@@ -379,7 +356,7 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 
 	//removing the low frequencies
 
-	double cutoffRatio = 0.05;
+	double cutoffRatio = 0.1;
 	int uCutoff = (cutoffRatio / 2.0)*C;
 	int vCutoff = (cutoffRatio / 2.0)*R;
 	for (int row = -vCutoff; row <= vCutoff; ++row){
@@ -403,8 +380,8 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 		}
 	}
 
-	fftw_free(out);
 	fftw_free(in);
+	fftw_free(out);
 }
 
 float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
