@@ -158,6 +158,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 				////testing
 
 				double sum = 0;
+				int samples = 0;
 				for (int projection = 0; projection < _sinogram.size(); ++projection){
 					double beta_rad = (_sinogram[projection].angle/180.0) * M_PI;
 					double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
@@ -188,9 +189,11 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 							float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
 							float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
 							sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+							++samples;
 						}
 					}
 				}
+				if (samples != 0)sum /= (double)samples;
 				_volumeMutex.lock();
 				_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
 				_volumeMutex.unlock();
