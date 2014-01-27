@@ -6,7 +6,7 @@ endif(NOT DEFINED FFTW_ROOT_DIR)
 
 if("${FFTW_ROOT_DIR}" STREQUAL "")
 
-	message("Please specify the FFTW root directory (FFTW_ROOT_DIR) containing fftw3.h and libfftw3-3.lib for your machine and compiler.")
+	message("Please specify the FFTW root directory (FFTW_ROOT_DIR) containing fftw3.h and libfftw3f-3.lib for your machine and compiler.")
 
 else("${FFTW_ROOT_DIR}" STREQUAL "")
 
@@ -25,7 +25,7 @@ else("${FFTW_ROOT_DIR}" STREQUAL "")
 	endif("${FFTW_INCLUDE_DIR}" STREQUAL "FFTW_INCLUDE_DIR-NOTFOUND")	
 
 	FIND_LIBRARY(FFTW_LIB 
-	NAMES libfftw3-3
+	NAMES libfftw3f-3
 	HINTS ${FFTW_ROOT_DIR})
 
 	if(FFTW_LIB)

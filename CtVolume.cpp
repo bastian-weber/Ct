@@ -74,8 +74,8 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 					//now convert them to 32bit float and apply the filters
 					for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
 						convertTo32bit(it->image);
-						applyHighpassFilter(it->image);
-						applyRampFilter(it->image);
+						applyFourierHighpassFilter1D(it->image);
+						//applyRampFilter(it->image);
 					}
 				}
 			} else{
@@ -177,6 +177,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						//cvWaitKey(0);
 						////testing
 
+						double weight = W(D, u, v);
 						double u0 = floor(u);
 						double u1 = ceil(u);
 						double v0 = floor(v);
@@ -186,7 +187,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 							float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
 							float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
 							float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-							sum += bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+							sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
@@ -318,7 +319,48 @@ void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 	cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
 }
 
-void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
+void CtVolume::applyFourierHighpassFilter1D(cv::Mat& image) const{
+	CV_Assert(image.depth() == CV_32F);
+
+	//FFT
+	const int R = image.rows;
+	const int C = image.cols;
+
+	float* ptr;
+	fftwf_complex *out;
+	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* C);
+	fftwf_plan p;
+
+	for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		p = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
+		fftwf_execute(p);
+		fftwf_destroy_plan(p);
+
+		for (int i = 0; i < C; ++i){
+			out[i][0] = out[i][0]/C;
+			out[i][1] = out[i][1] / C;
+		}
+
+		//removing the low frequencies
+
+		double cutoffRatio = 0.1;
+		int uCutoff = (cutoffRatio / 2.0)*C;
+		for (int column = 0; column <= uCutoff; ++column){
+			out[column][0] = 0;
+			out[column][1] = 0;
+		}
+
+		//inverse
+		p = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
+		fftwf_execute(p);
+		fftwf_destroy_plan(p);
+	}
+
+	fftwf_free(out);
+}
+
+void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 	CV_Assert(image.depth() == CV_32F);
 
 	//FFT
@@ -326,8 +368,8 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 	const int C = image.cols;
 
 	std::vector<std::vector<std::complex<double>>> result(R, std::vector<std::complex<double>>(C));
-	double *in;
-	in = (double*)fftw_malloc(sizeof(double)* R * C);
+	float *in;
+	in = (float*)fftwf_malloc(sizeof(float)* R * C);
 	int k = 0;
 	float* ptr;
 	for (int row = 0; row < R; ++row){
@@ -337,13 +379,13 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 			++k;
 		}
 	}
-	fftw_complex *out;
+	fftwf_complex *out;
 	int nyquist = (C / 2) + 1;
-	out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)* R * C);
-	fftw_plan p;
-	p = fftw_plan_dft_r2c_2d(R, C, in, out, FFTW_ESTIMATE);
-	fftw_execute(p);
-	fftw_destroy_plan(p);
+	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* R * C);
+	fftwf_plan p;
+	p = fftwf_plan_dft_r2c_2d(R, C, in, out, FFTW_ESTIMATE);
+	fftwf_execute(p);
+	fftwf_destroy_plan(p);
 
 	k = 0;
 	for (int row = 0; row < R; ++row){
@@ -368,9 +410,9 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 
 	//reverse FFT
 
-	p = fftw_plan_dft_c2r_2d(R, C, out, in, FFTW_ESTIMATE);
-	fftw_execute(p);
-	fftw_destroy_plan(p);
+	p = fftwf_plan_dft_c2r_2d(R, C, out, in, FFTW_ESTIMATE);
+	fftwf_execute(p);
+	fftwf_destroy_plan(p);
 	k = 0;
 	for (int row = 0; row < R; ++row){
 		ptr = image.ptr<float>(row);
@@ -380,8 +422,8 @@ void CtVolume::applyFourierHighpassFilter(cv::Mat& image) const{
 		}
 	}
 
-	fftw_free(in);
-	fftw_free(out);
+	fftwf_free(in);
+	fftwf_free(out);
 }
 
 float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
@@ -395,8 +437,6 @@ float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0
 double CtVolume::W(double D, double u, double v) const{
 	return D / sqrt(D*D + u*u + v*v);
 }
-
-
 
 double CtVolume::worldToVolumeX(double xCoord) const{
 	return xCoord + ((double)_xSize / 2.0);
