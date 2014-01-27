@@ -50,7 +50,8 @@ private:
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
-	void applyFourierHighpassFilter(cv::Mat& image) const;		//applies a highpass filter in the frequency domain
+	void applyFourierHighpassFilter1D(cv::Mat& image) const;		//applies a highpass filter in the frequency domain (only in u direction)
+	void applyFourierHighpassFilter2D(cv::Mat& image) const;		//applies a highpass filter in the frequency domain (2D)
 	void reconstructionThread(cv::Point3i lowerBounds, 
 							  cv::Point3i upperBounds, 
 							  double D,
