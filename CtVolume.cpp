@@ -48,7 +48,8 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 				while ((file = readdir(dir)) != NULL){
 					if (std::regex_match(file->d_name, expression)){
 						_sinogram[cnt] = Projection(cv::imread(folderPath + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED), angles[cnt]);
-
+						//convert the image to 32 bit float
+						convertTo32bit(_sinogram[cnt].image);
 						//create some output
 						if (!_sinogram[cnt].image.data){
 							std::cout << "Error loading the image " << file->d_name << std::endl;
@@ -71,12 +72,8 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 					_xSize = _imageWidth;
 					_ySize = _imageWidth;
 					_zSize = _imageHeight;
-					//now convert them to 32bit float and apply the filters
-					for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-						convertTo32bit(it->image);
-						applyFourierHighpassFilter1D(it->image);
-						//applyRampFilter(it->image);
-					}
+					//now apply the filters
+					imagePreprocessing();
 				}
 			} else{
 				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder.";
@@ -256,6 +253,13 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 	} else{
 		std::cout << "CSV file seems to be empty - terminating" << std::endl;
 		return false;
+	}
+}
+
+void CtVolume::imagePreprocessing(){
+	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
+		applyFourierHighpassFilter1D(it->image);
+		applyRampFilter(it->image);
 	}
 }
 
