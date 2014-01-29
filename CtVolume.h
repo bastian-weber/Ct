@@ -45,7 +45,8 @@ private:
 	mutable std::mutex _volumeMutex;							//prevents that two threads access the volume simultaneously
 	//functions			
 	bool readCSV(std::string filename,							//reads the additional information from the csv file
-				 std::vector<double>& result) const;				
+				 std::vector<double>& result) const;	
+	void imagePreprocessing();									//applies the necessary filters to the images prior to the reconstruction
 	void handleKeystrokes() const;								//handles the forward and backward arrow keys when sinogram is displayed
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image

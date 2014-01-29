@@ -6,6 +6,5 @@ int main(){
 	myVolume.displaySinogram();	
 	myVolume.reconstructVolume(CtVolume::MULTITHREADED);
 	myVolume.saveVolumeToBinaryFile("G:/Desktop/volume.raw");
-	system("pause");
 	return 0;
 }
