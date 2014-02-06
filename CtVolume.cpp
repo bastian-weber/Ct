@@ -24,7 +24,9 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 	_sinogram.clear();
 	//read the angles from the csv file
 	std::vector<double> angles;
+
 	if (readCSV(csvPath, angles)){
+
 		//load the files in a sinogram
 		DIR* dir;
 		struct dirent* file;
@@ -42,14 +44,15 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 
 			//check if amount of provided angle values and amount of files match
 			if (count == angles.size()){
+
 				//now load the files
 				_sinogram.resize(count);
 				int cnt = 0;
 				while ((file = readdir(dir)) != NULL){
 					if (std::regex_match(file->d_name, expression)){
+
 						_sinogram[cnt] = Projection(cv::imread(folderPath + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED), angles[cnt]);
-						//convert the image to 32 bit float
-						convertTo32bit(_sinogram[cnt].image);
+
 						//create some output
 						if (!_sinogram[cnt].image.data){
 							std::cout << "Error loading the image " << file->d_name << std::endl;
@@ -58,12 +61,19 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 							std::cout << "Error loading the image " << file->d_name << ", it has not exactly 1 channel." << std::endl;
 							return;
 						}else{
+
 							std::cout << "Loaded " << file->d_name << std::endl;
 						}
+
+						//convert the image to 32 bit float
+						convertTo32bit(_sinogram[cnt].image);
 						++cnt;
+
 					}
+
 				}
 				closedir(dir);
+
 				//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
 				if (_sinogram.size() > 0){
 					_imageWidth = _sinogram[0].image.cols;
@@ -75,6 +85,7 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 					//now apply the filters
 					imagePreprocessing();
 				}
+
 			} else{
 				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder.";
 			}
@@ -128,6 +139,30 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), D, true);
 		}
 
+		//now fill the corners around the cylinder with the lowest density value
+		double smallestValue;
+		for (int x = 0; x < _xSize; ++x){
+			for (int y = 0; y < _ySize; ++y){
+				for (int z = 0; z < _zSize; ++z){
+					if (x == 0 && y == 0 && z == 0){
+						smallestValue = _volume[x][y][z];
+					} else if (_volume[x][y][z] < smallestValue){
+						smallestValue = _volume[x][y][z];
+					}
+				}
+			}
+		}
+
+		for (int x = 0; x < _xSize; ++x){
+			for (int y = 0; y < _ySize; ++y){
+				if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) > (double)_xSize / 2){
+					for (int z = 0; z < _zSize; ++z){
+						_volume[x][y][z] = smallestValue;
+					}
+				}
+			}
+		}
+
 		//mesure time
 		clock_t end = clock();
 		std::cout << "Volume successfully reconstructed in " << (double)(end - start) / CLOCKS_PER_SEC << "s" << std::endl;
@@ -146,54 +181,41 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 			std::cout << "\r" << "Progress: " << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
 		}
 		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
-			for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
+			if (sqrt((double)x*(double)x + (double)y*(double)y) <= (double)_xSize/2){
+				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
 
-				////testing
-				//x = 50;
-				//y = 40;
-				//z = 10;
-				////testing
-
-				double sum = 0;
-				int samples = 0;
-				for (int projection = 0; projection < _sinogram.size(); ++projection){
-					double beta_rad = (_sinogram[projection].angle/180.0) * M_PI;
-					double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
-					double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
-					double u = (t*D) / (D - s);
-					double v = ((double)z*D) / (D - s);
+					double sum = 0;
+					for (int projection = 0; projection < _sinogram.size(); ++projection){
+						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
+						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
+						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
+						double u = (t*D) / (D - s);
+						double v = ((double)z*D) / (D - s);
 
 
-					if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
+						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
-						u = imageToMatU(u);
-						v = imageToMatV(v);
+							u = imageToMatU(u);
+							v = imageToMatV(v);
 
-						////testing
-						//_sinogram[projection].image.at<float>(v, u) = 1;
-						//imshow("Projections", _sinogram[projection].image);
-						//cvWaitKey(0);
-						////testing
-
-						double weight = W(D, u, v);
-						double u0 = floor(u);
-						double u1 = ceil(u);
-						double v0 = floor(v);
-						double v1 = ceil(v);
-						if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
-							float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
-							float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
-							float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
-							float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-							sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
-							++samples;
+							double weight = W(D, u, v);
+							double u0 = floor(u);
+							double u1 = ceil(u);
+							double v0 = floor(v);
+							double v1 = ceil(v);
+							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
+								float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
+								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
+								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
+								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
+								sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+							}
 						}
 					}
+					_volumeMutex.lock();
+					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
+					_volumeMutex.unlock();
 				}
-				if (samples != 0)sum /= (double)samples;
-				_volumeMutex.lock();
-				_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
-				_volumeMutex.unlock();
 			}
 		}
 	}
@@ -258,7 +280,7 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 
 void CtVolume::imagePreprocessing(){
 	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-		applyFourierHighpassFilter1D(it->image);
+		applyFourierFilter(it->image, RAMLAK);
 		applyRampFilter(it->image);
 	}
 }
@@ -297,7 +319,7 @@ void CtVolume::applyRampFilter(cv::Mat& img) const{
 	CV_Assert(img.depth() == CV_32F);
 
 	const double minAttenuation = 1;	//the values for the highest and lowest weight
-	const double maxAttenuation = 0;
+	const double maxAttenuation = 0.5;
 
 	int r = img.rows;
 	int c = img.cols;
@@ -320,9 +342,12 @@ void CtVolume::applyRampFilter(cv::Mat& img) const{
 //Mind that the values after applying the filter may be greater than 1 and negative
 void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 	CV_Assert(img.depth() == CV_32F);
-	cv::Mat mask = (cv::Mat_<char>(3, 3) << -1, 0, 1,
+	/*cv::Mat mask = (cv::Mat_<char>(3, 3) << -1, 0, 1,
 											-2, 0, 2,
-											-1, 0, 1);
+											-1, 0, 1);*/
+	cv::Mat mask = (cv::Mat_<char>(3, 3) <<  1,  1, 1,
+											 1, -8, 1,
+											 1,  1, 1);
 	cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
 }
 
@@ -333,9 +358,11 @@ void CtVolume::applyFourierHighpassFilter1D(cv::Mat& image) const{
 	const int R = image.rows;
 	const int C = image.cols;
 
+	const int nyquist = (C / 2) + 1;
+
 	float* ptr;
 	fftwf_complex *out;
-	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* C);
+	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
 	fftwf_plan p;
 
 	for (int row = 0; row < R; ++row){
@@ -344,15 +371,15 @@ void CtVolume::applyFourierHighpassFilter1D(cv::Mat& image) const{
 		fftwf_execute(p);
 		fftwf_destroy_plan(p);
 
-		for (int i = 0; i < C; ++i){
-			out[i][0] = out[i][0]/C;
+		for (int i = 0; i < nyquist; ++i){
+			out[i][0] = out[i][0] / C;
 			out[i][1] = out[i][1] / C;
 		}
 
 		//removing the low frequencies
 
-		double cutoffRatio = 0.1;
-		int uCutoff = (cutoffRatio / 2.0)*C;
+		double cutoffRatio = 0.09;
+		int uCutoff = (cutoffRatio)*nyquist;
 		for (int column = 0; column <= uCutoff; ++column){
 			out[column][0] = 0;
 			out[column][1] = 0;
@@ -365,6 +392,63 @@ void CtVolume::applyFourierHighpassFilter1D(cv::Mat& image) const{
 	}
 
 	fftwf_free(out);
+}
+
+void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const{
+	CV_Assert(image.depth() == CV_32F);
+
+	//FFT
+	const int R = image.rows;
+	const int C = image.cols;
+
+	const int nyquist = (C / 2) + 1;
+
+	float* ptr;
+	fftwf_complex *out;
+	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
+	fftwf_plan p;
+
+	for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		p = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
+		fftwf_execute(p);
+		fftwf_destroy_plan(p);
+
+		for (int i = 0; i < nyquist; ++i){
+			out[i][0] = out[i][0] / C;
+			out[i][1] = out[i][1] / C;
+		}
+
+		//removing the low frequencies
+		double factor;
+		for (int column = 0; column <= nyquist; ++column){
+			switch (type){
+			case RAMLAK:
+				factor = ramLakWindowFilter(column, nyquist);
+				break;
+			case HANN:
+				factor = hannWindowFilter(column, nyquist);
+				break;
+			}
+			out[column][0] *= factor;
+			out[column][1] *= factor;
+		}
+
+		//inverse
+		p = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
+		fftwf_execute(p);
+		fftwf_destroy_plan(p);
+	}
+
+	fftwf_free(out);
+}
+
+double CtVolume::ramLakWindowFilter(double n, double N) const{
+	return (double)n / (double)N;
+}
+
+double CtVolume::hannWindowFilter(double n, double N) const{
+	return ramLakWindowFilter(n, N)*0.5*(1 + cos((2 * M_PI * (double)n) / ((double)N * 2)));
 }
 
 void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
