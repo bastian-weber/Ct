@@ -27,6 +27,7 @@ public:
 	CtVolume();													//constructor 1
 	CtVolume(std::string folderPath, std::string csvPath);		//constructor 2
 	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
+	enum FilterType{RAMLAK, HANN};
 	void sinogramFromImages(std::string folderPath,				//creates a sinogram from the images in the specified path
 							std::string csvPath);					
 	void displaySinogram() const;								//lets the user scroll through the images in the sinogram	
@@ -51,8 +52,11 @@ private:
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
 	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
-	void applyFourierHighpassFilter1D(cv::Mat& image) const;		//applies a highpass filter in the frequency domain (only in u direction)
-	void applyFourierHighpassFilter2D(cv::Mat& image) const;		//applies a highpass filter in the frequency domain (2D)
+	void applyFourierHighpassFilter1D(cv::Mat& image) const;	//applies a highpass filter in the frequency domain (only in u direction)
+	void applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const;		//applies a filter in the frequency domain (only in u direction)
+	double ramLakWindowFilter(double n, double N) const;
+	double hannWindowFilter(double n, double N) const;
+	void applyFourierHighpassFilter2D(cv::Mat& image) const;	//applies a highpass filter in the frequency domain (2D)
 	void reconstructionThread(cv::Point3i lowerBounds, 
 							  cv::Point3i upperBounds, 
 							  double D,
@@ -64,6 +68,7 @@ private:
 								float u0v1, 
 								float u1v1) const;
 	double W(double D, double u, double v) const;				//weight function for the reconstruction of the volume
+	//coordinate transformation functions
 	double worldToVolumeX(double xCoord) const;					//coordinate transformations from the coordinates of the vector to
 	double worldToVolumeY(double yCoord) const;					//the coordinates of the "world" and the other way around
 	double worldToVolumeZ(double zCoord) const;
