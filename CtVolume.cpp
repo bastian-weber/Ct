@@ -116,7 +116,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		clock_t start = clock();
 		//fill the volume
 		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
-		double D = 999;
+		double D = 1000;
 
 		if (threading == MULTITHREADED){
 			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), D, true);
@@ -155,7 +155,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 
 		for (int x = 0; x < _xSize; ++x){
 			for (int y = 0; y < _ySize; ++y){
-				if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) > (double)_xSize / 2){
+				if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3){
 					for (int z = 0; z < _zSize; ++z){
 						_volume[x][y][z] = smallestValue;
 					}
@@ -177,13 +177,16 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 	double imageLowerBoundV = matToImageV(0);
 	double imageUpperBoundV = matToImageV(_imageHeight);
 	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
+		//output percentage
 		if (consoleOutput){
 			std::cout << "\r" << "Progress: " << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
 		}
 		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
-			if (sqrt((double)x*(double)x + (double)y*(double)y) <= (double)_xSize/2){
+			//if the voxel is inside the reconstructable cylinder
+			if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize/2) - 3){
 				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
 
+					//accumulate the densities from all projections
 					double sum = 0;
 					for (int projection = 0; projection < _sinogram.size(); ++projection){
 						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
@@ -192,23 +195,26 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						double u = (t*D) / (D - s);
 						double v = ((double)z*D) / (D - s);
 
-
+						//check if it's inside the image (before the coordinate transformation)
 						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
 							u = imageToMatU(u);
 							v = imageToMatV(v);
 
 							double weight = W(D, u, v);
+
+							//get the 4 surrounding pixels for the bilinear interpolation
 							double u0 = floor(u);
 							double u1 = ceil(u);
 							double v0 = floor(v);
 							double v1 = ceil(v);
+							//check if all the pixels are inside the image (after the coordinate transformation)
 							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
 								float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
 								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
 								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
 								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-								sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+								sum += weight *  bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
@@ -219,7 +225,9 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 			}
 		}
 	}
-	std::cout << "Thread finished" << std::endl;
+	if (consoleOutput){
+		std::cout << std::endl << "Waiting for all threads to finish" << std::endl;
+	}
 }
 
 void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
@@ -281,7 +289,7 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 void CtVolume::imagePreprocessing(){
 	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
 		applyFourierFilter(it->image, RAMLAK);
-		applyRampFilter(it->image);
+		//applyWeightingFilter(it->image);
 	}
 }
 
@@ -314,12 +322,12 @@ void CtVolume::convertTo32bit(cv::Mat& img) const{
 }
 
 //Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
-void CtVolume::applyRampFilter(cv::Mat& img) const{
+void CtVolume::applyWeightingFilter(cv::Mat& img) const{
 	CV_Assert(img.channels() == 1);
 	CV_Assert(img.depth() == CV_32F);
 
 	const double minAttenuation = 1;	//the values for the highest and lowest weight
-	const double maxAttenuation = 0.5;
+	const double maxAttenuation = 0;
 
 	int r = img.rows;
 	int c = img.cols;

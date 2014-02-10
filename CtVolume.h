@@ -50,10 +50,11 @@ private:
 	void imagePreprocessing();									//applies the necessary filters to the images prior to the reconstruction
 	void handleKeystrokes() const;								//handles the forward and backward arrow keys when sinogram is displayed
 	void convertTo32bit(cv::Mat& img) const;					//converts an image to 32bit float
-	void applyRampFilter(cv::Mat& img) const;					//applies the ramp filter to an image
+	void applyWeightingFilter(cv::Mat& img) const;					//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;				//applies the highpass filter to an image
 	void applyFourierHighpassFilter1D(cv::Mat& image) const;	//applies a highpass filter in the frequency domain (only in u direction)
 	void applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const;		//applies a filter in the frequency domain (only in u direction)
+	void fourierFilterThread(cv::Mat& image, CtVolume::FilterType type, int startIndex, int endIndex) const;
 	double ramLakWindowFilter(double n, double N) const;
 	double hannWindowFilter(double n, double N) const;
 	void applyFourierHighpassFilter2D(cv::Mat& image) const;	//applies a highpass filter in the frequency domain (2D)
