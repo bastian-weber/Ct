@@ -15,11 +15,11 @@ CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 	//empty
 }
 
-CtVolume::CtVolume(std::string folderPath, std::string csvPath) : _currentlyDisplayedImage(0){
-	sinogramFromImages(folderPath, csvPath);
+CtVolume::CtVolume(std::string folderPath, std::string csvPath, CtVolume::FileType filetype) : _currentlyDisplayedImage(0){
+	sinogramFromImages(folderPath, csvPath, filetype);
 }
 
-void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
+void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, CtVolume::FileType filetype){
 	//delete the contents of the sinogram
 	_sinogram.clear();
 	//read the angles from the csv file
@@ -31,7 +31,24 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 		DIR* dir;
 		struct dirent* file;
 		//only load tif files
-		std::regex expression("^.*\.tif$");
+		std::regex expression;
+		switch (filetype){
+		case BMP:
+			expression = std::regex("^.*\.bmp$", std::regex::icase);
+			break;
+		case JPG:
+			expression = std::regex("^.*\.jpg$", std::regex::icase);
+			break;
+		case JPEG2000:
+			expression = std::regex("^.*\.jp2$", std::regex::icase);
+			break;
+		case PNG:
+			expression = std::regex("^.*\.png$", std::regex::icase);
+			break;
+		case TIF:
+			expression = std::regex("^.*\.(tif|tiff)$", std::regex::icase);
+			break;
+		}
 		if ((dir = opendir(folderPath.c_str())) != NULL){
 			//first count the files (so no reallocation of the vector size is necessary)
 			int count = 0;
@@ -41,6 +58,12 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 				}
 			}
 			rewinddir(dir);
+
+			if (count != 0){
+				std::cout << count << " files discovered." << std::endl;
+			} else{
+				std::cout << "No files of the specified image type could be found." << std::endl;
+			}
 
 			//check if amount of provided angle values and amount of files match
 			if (count == angles.size()){
@@ -70,7 +93,6 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 						++cnt;
 
 					}
-
 				}
 				closedir(dir);
 
@@ -87,7 +109,7 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath){
 				}
 
 			} else{
-				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder.";
+				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder." << std::endl;
 			}
 		} else{
 			std::cout << "Could not open the specified directory." << std::endl;

@@ -23,13 +23,17 @@ struct Projection{
 
 class CtVolume{
 public:
-	//functions		
-	CtVolume();													//constructor 1
-	CtVolume(std::string folderPath, std::string csvPath);		//constructor 2
 	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
 	enum FilterType{RAMLAK, HANN};
+	enum FileType{BMP, JPG, JPEG2000, PNG, TIF};
+	//functions		
+	CtVolume();													//constructor 1
+	CtVolume(std::string folderPath,							//constructor 2
+			 std::string csvPath, 
+			 CtVolume::FileType filetype);		
 	void sinogramFromImages(std::string folderPath,				//creates a sinogram from the images in the specified path
-							std::string csvPath);					
+							std::string csvPath,
+							CtVolume::FileType filetype);					
 	void displaySinogram() const;								//lets the user scroll through the images in the sinogram	
 	void reconstructVolume(ThreadingType threading);				//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;	//saves the reconstructed volume to a binary file
