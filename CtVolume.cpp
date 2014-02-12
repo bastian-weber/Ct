@@ -15,11 +15,11 @@ CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 	//empty
 }
 
-CtVolume::CtVolume(std::string folderPath, std::string csvPath, CtVolume::FileType filetype) : _currentlyDisplayedImage(0){
-	sinogramFromImages(folderPath, csvPath, filetype);
+CtVolume::CtVolume(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0){
+	sinogramFromImages(folderPath, csvPath, fileType);
 }
 
-void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, CtVolume::FileType filetype){
+void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType){
 	//delete the contents of the sinogram
 	_sinogram.clear();
 	//read the angles from the csv file
@@ -32,12 +32,12 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 		struct dirent* file;
 		//only load tif files
 		std::regex expression;
-		switch (filetype){
+		switch (fileType){
 		case BMP:
 			expression = std::regex("^.*\.bmp$", std::regex::icase);
 			break;
 		case JPG:
-			expression = std::regex("^.*\.jpg$", std::regex::icase);
+			expression = std::regex("^.*\.(jpg|jpeg|jpe)$", std::regex::icase);
 			break;
 		case JPEG2000:
 			expression = std::regex("^.*\.jp2$", std::regex::icase);
@@ -308,9 +308,9 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 	}
 }
 
-void CtVolume::imagePreprocessing(){
+void CtVolume::imagePreprocessing(CtVolume::FilterType filterType){
 	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-		applyFourierFilter(it->image, RAMLAK);
+		applyFourierFilter(it->image, filterType);
 		//applyWeightingFilter(it->image);
 	}
 }
