@@ -2,7 +2,7 @@
 #include "CtVolume.h"
 
 int main(){
-	CtVolume myVolume("sourcefiles/data/skullPhantom", "sourcefiles/data/skullPhantom/angles.csv", CtVolume::TIF, CtVolume::HANN);
+	CtVolume myVolume("sourcefiles/data/skullPhantom", "sourcefiles/data/skullPhantom/angles.csv", CtVolume::TIF, CtVolume::RAMLAK);
 	myVolume.displaySinogram();	
 	myVolume.reconstructVolume(CtVolume::MULTITHREADED);
 	myVolume.saveVolumeToBinaryFile("G:/Desktop/volume.raw");
