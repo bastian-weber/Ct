@@ -16,7 +16,7 @@ CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 }
 
 CtVolume::CtVolume(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0){
-	sinogramFromImages(folderPath, csvPath, fileType);
+	sinogramFromImages(folderPath, csvPath, fileType, filterType);
 }
 
 void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType){
@@ -105,7 +105,7 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 					_ySize = _imageWidth;
 					_zSize = _imageHeight;
 					//now apply the filters
-					imagePreprocessing();
+					imagePreprocessing(filterType);
 				}
 
 			} else{
@@ -381,49 +381,6 @@ void CtVolume::applyHighpassFilter(cv::Mat& img) const{
 	cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
 }
 
-void CtVolume::applyFourierHighpassFilter1D(cv::Mat& image) const{
-	CV_Assert(image.depth() == CV_32F);
-
-	//FFT
-	const int R = image.rows;
-	const int C = image.cols;
-
-	const int nyquist = (C / 2) + 1;
-
-	float* ptr;
-	fftwf_complex *out;
-	out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
-	fftwf_plan p;
-
-	for (int row = 0; row < R; ++row){
-		ptr = image.ptr<float>(row);
-		p = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
-		fftwf_execute(p);
-		fftwf_destroy_plan(p);
-
-		for (int i = 0; i < nyquist; ++i){
-			out[i][0] = out[i][0] / C;
-			out[i][1] = out[i][1] / C;
-		}
-
-		//removing the low frequencies
-
-		double cutoffRatio = 0.09;
-		int uCutoff = (cutoffRatio)*nyquist;
-		for (int column = 0; column <= uCutoff; ++column){
-			out[column][0] = 0;
-			out[column][1] = 0;
-		}
-
-		//inverse
-		p = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
-		fftwf_execute(p);
-		fftwf_destroy_plan(p);
-	}
-
-	fftwf_free(out);
-}
-
 void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const{
 	CV_Assert(image.depth() == CV_32F);
 
@@ -459,6 +416,9 @@ void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) con
 			case HANN:
 				factor = hannWindowFilter(column, nyquist);
 				break;
+			case RECTANGLE:
+				factor = rectangleWindowFilter(column, nyquist);
+				break;
 			}
 			out[column][0] *= factor;
 			out[column][1] *= factor;
@@ -479,6 +439,14 @@ double CtVolume::ramLakWindowFilter(double n, double N) const{
 
 double CtVolume::hannWindowFilter(double n, double N) const{
 	return ramLakWindowFilter(n, N)*0.5*(1 + cos((2 * M_PI * (double)n) / ((double)N * 2)));
+}
+
+double CtVolume::rectangleWindowFilter(double n, double N) const{
+	double cutoffRatio = 0.09;		//defining the width of the filter rectangle, should be in interval [0,1]
+	if (n <= cutoffRatio*N){
+		return 0;
+	}
+	return 1;
 }
 
 void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
