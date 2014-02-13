@@ -408,7 +408,7 @@ void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) con
 
 		//removing the low frequencies
 		double factor;
-		for (int column = 0; column <= nyquist; ++column){
+		for (int column = 0; column < nyquist; ++column){
 			switch (type){
 			case RAMLAK:
 				factor = ramLakWindowFilter(column, nyquist);
@@ -438,7 +438,7 @@ double CtVolume::ramLakWindowFilter(double n, double N) const{
 }
 
 double CtVolume::hannWindowFilter(double n, double N) const{
-	return ramLakWindowFilter(n, N)*0.5*(1 + cos((2 * M_PI * (double)n) / ((double)N * 2)));
+	return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * (double)n) / ((double)N * 2)));
 }
 
 double CtVolume::rectangleWindowFilter(double n, double N) const{
