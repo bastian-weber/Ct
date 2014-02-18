@@ -118,12 +118,18 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 	}
 }
 
-void CtVolume::displaySinogram() const{
+void CtVolume::displaySinogram(bool normalize) const{
 	if (_sinogram.size() > 0){
 		if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 		if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-		imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
-		handleKeystrokes();
+		if (normalize){
+			_minMaxValues = getSinogramMinMaxIntensity();
+			cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
+			imshow("Projections", normalizedImage);
+		} else{
+			imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
+		}
+		handleKeystrokes(normalize);
 	} else{
 		std::cout << "Could not display sinogram, it is empty." << std::endl;
 	}
@@ -308,14 +314,45 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 	}
 }
 
-void CtVolume::imagePreprocessing(CtVolume::FilterType filterType){
-	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-		applyFourierFilter(it->image, filterType);
-		//applyWeightingFilter(it->image);
+std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const{
+	int R = _sinogram[0].image.rows;
+	int C = _sinogram[0].image.cols;
+	const float* ptr;
+	float min = _sinogram[0].image.at<float>(0,0);
+	float max = min;
+	float tmp;
+
+	for (int i = 0; i < _sinogram.size(); ++i){
+		for (int row = 0; row < R; ++row){
+			ptr = _sinogram[i].image.ptr<float>(row);
+			tmp = *std::min_element(ptr, ptr + C);
+			if (tmp < min)min = tmp;
+			tmp = *std::max_element(ptr, ptr + C);
+			if (tmp > max)max = tmp;
+		}
 	}
+	return std::make_pair(min, max);
 }
 
-void CtVolume::handleKeystrokes() const{
+cv::Mat CtVolume::normalizeImage(cv::Mat const& image, float minValue, float maxValue) const{
+	int R = image.rows;
+	int C = image.cols;
+	cv::Mat normalizedImage(image.rows, image.cols, CV_32F);
+
+	const float* ptr;
+	float* targPtr;
+	for (int i = 0; i < R; ++i){
+		ptr = image.ptr<float>(i);
+		targPtr = normalizedImage.ptr<float>(i);
+		for (int j = 0; j < C; ++j){
+			targPtr[j] = (ptr[j] - minValue) / (maxValue - minValue);
+		}
+	}
+
+	return normalizedImage;
+}
+
+void CtVolume::handleKeystrokes(bool normalize) const{
 	int key = cv::waitKey(0);				//wait for a keystroke forever
 	if (key == 2424832){					//left arrow key
 		++_currentlyDisplayedImage;
@@ -328,8 +365,20 @@ void CtVolume::handleKeystrokes() const{
 	}
 	if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 	if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-	imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
-	handleKeystrokes();
+	if (normalize){
+		cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
+		imshow("Projections", normalizedImage);
+	} else{
+		imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
+	}
+	handleKeystrokes(normalize);
+}
+
+void CtVolume::imagePreprocessing(CtVolume::FilterType filterType){
+	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
+		applyFourierFilter(it->image, filterType);
+		//applyWeightingFilter(it->image);
+	}
 }
 
 //converts an image to 32 bit float
