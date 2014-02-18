@@ -36,7 +36,7 @@ public:
 							std::string csvPath,
 							CtVolume::FileType fileType = CtVolume::TIF,
 							CtVolume::FilterType filterType = CtVolume::RAMLAK);					
-	void displaySinogram() const;											//lets the user scroll through the images in the sinogram	
+	void displaySinogram(bool normalize = false) const;											//lets the user scroll through the images in the sinogram	
 	void reconstructVolume(ThreadingType threading);						//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 private:			
@@ -49,12 +49,17 @@ private:
 	mutable int _zSize;			
 	mutable int _imageWidth;												//stores the height and width of the images in the sinogram
 	mutable int _imageHeight;												//assigned when sinogram is created
+	mutable std::pair<float, float> _minMaxValues;
 	mutable std::mutex _volumeMutex;										//prevents that two threads access the volume simultaneously
 	//functions						
 	bool readCSV(std::string filename,										//reads the additional information from the csv file
 				 std::vector<double>& result) const;	
+	std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
+	cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
+						   float minValue, 
+						   float maxValue) const;
+	void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
 	void imagePreprocessing(CtVolume::FilterType filterType);				//applies the necessary filters to the images prior to the reconstruction
-	void handleKeystrokes() const;											//handles the forward and backward arrow keys when sinogram is displayed
 	void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
 	void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 	void applyHighpassFilter(cv::Mat& img) const;							//applies the highpass filter to an image
