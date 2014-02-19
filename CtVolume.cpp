@@ -71,6 +71,8 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 				//now load the files
 				_sinogram.resize(count);
 				int cnt = 0;
+				int rows;
+				int cols;
 				while ((file = readdir(dir)) != NULL){
 					if (std::regex_match(file->d_name, expression)){
 
@@ -80,11 +82,21 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 						if (!_sinogram[cnt].image.data){
 							std::cout << "Error loading the image " << file->d_name << std::endl;
 							return;
-						} else if (_sinogram[cnt].image.channels() != 1){
+						} else if (_sinogram[cnt].image.channels() != 1){				//make sure it's a one-channel image
 							std::cout << "Error loading the image " << file->d_name << ", it has not exactly 1 channel." << std::endl;
 							return;
 						}else{
-
+							//make sure that all images have the same size
+							if (cnt == 0){
+								rows = _sinogram[cnt].image.rows;
+								cols = _sinogram[cnt].image.cols;
+							} else{
+								if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols){
+									_sinogram.clear();
+									std::cout << "Error loading the image " << file->d_name << ", its dimensions differ from the images before." << std::endl;
+									return;
+								}
+							}
 							std::cout << "Loaded " << file->d_name << std::endl;
 						}
 
