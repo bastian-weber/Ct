@@ -80,9 +80,11 @@ void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, C
 
 						//create some output
 						if (!_sinogram[cnt].image.data){
+							_sinogram.clear();
 							std::cout << "Error loading the image " << file->d_name << std::endl;
 							return;
 						} else if (_sinogram[cnt].image.channels() != 1){				//make sure it's a one-channel image
+							_sinogram.clear();
 							std::cout << "Error loading the image " << file->d_name << ", it has not exactly 1 channel." << std::endl;
 							return;
 						}else{
@@ -219,7 +221,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
 		//output percentage
 		if (consoleOutput){
-			std::cout << "\r" << "Progress: " << ceil((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
+			std::cout << "\r" << "Progress: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
 		}
 		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
 			//if the voxel is inside the reconstructable cylinder
@@ -238,10 +240,10 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						//check if it's inside the image (before the coordinate transformation)
 						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
-							u = imageToMatU(u);
-							v = imageToMatV(v);
-
 							double weight = W(D, u, v);
+
+								u = imageToMatU(u);
+								v = imageToMatV(v);
 
 							//get the 4 surrounding pixels for the bilinear interpolation
 							double u0 = floor(u);
@@ -327,21 +329,15 @@ bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
 }
 
 std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const{
-	int R = _sinogram[0].image.rows;
-	int C = _sinogram[0].image.cols;
-	const float* ptr;
-	float min = _sinogram[0].image.at<float>(0,0);
-	float max = min;
+	float min = *std::min_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
+	float max = *std::max_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
 	float tmp;
 
-	for (int i = 0; i < _sinogram.size(); ++i){
-		for (int row = 0; row < R; ++row){
-			ptr = _sinogram[i].image.ptr<float>(row);
-			tmp = *std::min_element(ptr, ptr + C);
-			if (tmp < min)min = tmp;
-			tmp = *std::max_element(ptr, ptr + C);
-			if (tmp > max)max = tmp;
-		}
+	for (int i = 1; i < _sinogram.size(); ++i){
+		tmp = *std::min_element(_sinogram[i].image.begin<float>(), _sinogram[i].image.end<float>());
+		if (tmp < min)min = tmp;
+		tmp = *std::max_element(_sinogram[i].image.begin<float>(), _sinogram[i].image.end<float>());
+		if (tmp > max)max = tmp;
 	}
 	return std::make_pair(min, max);
 }
