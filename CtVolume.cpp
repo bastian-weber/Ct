@@ -207,7 +207,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 
 		//mesure time
 		clock_t end = clock();
-		std::cout << "Volume successfully reconstructed in " << (double)(end - start) / CLOCKS_PER_SEC << "s" << std::endl;
+		std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
 	} else{
 		std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
 	}
@@ -221,7 +221,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
 		//output percentage
 		if (consoleOutput){
-			std::cout << "\r" << "Progress: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
+			std::cout << "\r" << "Backprojecting: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
 		}
 		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
 			//if the voxel is inside the reconstructable cylinder
@@ -383,10 +383,15 @@ void CtVolume::handleKeystrokes(bool normalize) const{
 }
 
 void CtVolume::imagePreprocessing(CtVolume::FilterType filterType){
-	for (std::vector<Projection>::iterator it = _sinogram.begin(); it != _sinogram.end(); ++it){
-		applyFourierFilter(it->image, filterType);
-		//applyWeightingFilter(it->image);
+	clock_t start = clock();
+	for (int i = 0; i < _sinogram.size(); ++i){
+		if (i % 20 == 0)std::cout << "\r" << "Preprocessing: " << floor((double)i / (double)_sinogram.size() * 100 + 0.5) << "%";
+		applyFourierFilter(_sinogram[i].image, filterType);
+		//applyWeightingFilter(_sinogram[i].image);
 	}
+	std::cout << std::endl;
+	clock_t end = clock();
+	std::cout << "Preprocessing sucessfully finished (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
 }
 
 //converts an image to 32 bit float
