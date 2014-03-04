@@ -386,6 +386,7 @@ void CtVolume::imagePreprocessing(CtVolume::FilterType filterType){
 	clock_t start = clock();
 	for (int i = 0; i < _sinogram.size(); ++i){
 		if (i % 20 == 0)std::cout << "\r" << "Preprocessing: " << floor((double)i / (double)_sinogram.size() * 100 + 0.5) << "%";
+		applyLogScaling(_sinogram[i].image);
 		applyFourierFilter(_sinogram[i].image, filterType);
 		//applyWeightingFilter(_sinogram[i].image);
 	}
@@ -575,6 +576,24 @@ void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 
 	fftwf_free(in);
 	fftwf_free(out);
+}
+
+void CtVolume::applyLogScaling(cv::Mat& image) const{
+	const int R = image.rows;
+	int C = image.cols;
+	const double normalizationConstant = logFunction(1);
+	float* ptr;
+		for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		for (int cols = 0; cols < C; ++cols){
+			ptr[cols] = 1 - logFunction(ptr[cols]) / normalizationConstant;
+		}
+	}
+}
+
+double CtVolume::logFunction(double x) const{
+	const double compressionFactor = 0.1; //must be greater than 0; the closer to 0, the stronger the compression
+	return std::log(x + compressionFactor) - std::log(compressionFactor);
 }
 
 float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{

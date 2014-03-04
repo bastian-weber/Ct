@@ -36,7 +36,7 @@ public:
 							std::string csvPath,
 							CtVolume::FileType fileType = CtVolume::TIF,
 							CtVolume::FilterType filterType = CtVolume::RAMLAK);					
-	void displaySinogram(bool normalize = false) const;											//lets the user scroll through the images in the sinogram	
+	void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram	
 	void reconstructVolume(ThreadingType threading);						//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 private:			
@@ -69,6 +69,8 @@ private:
 							 CtVolume::FilterType type, 
 							 int startIndex, 
 							 int endIndex) const;
+	void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
+	double logFunction(double x) const;										//the actual log function used by applyLogScaling
 	double ramLakWindowFilter(double n, double N) const;
 	double hannWindowFilter(double n, double N) const;
 	double rectangleWindowFilter(double n, double N) const;
