@@ -592,7 +592,7 @@ void CtVolume::applyLogScaling(cv::Mat& image) const{
 }
 
 double CtVolume::logFunction(double x) const{
-	const double compressionFactor = 0.1; //must be greater than 0; the closer to 0, the stronger the compression
+	const double compressionFactor = 0.005; //must be greater than 0; the closer to 0, the stronger the compression
 	return std::log(x + compressionFactor) - std::log(compressionFactor);
 }
 
