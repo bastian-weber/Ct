@@ -158,8 +158,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		clock_t start = clock();
 		//fill the volume
 		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
-		double D = 1000;
-
+		double D = 905.39234449760765550239234449761;
 		if (threading == MULTITHREADED){
 			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), D, true);
 			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), D, false);
@@ -214,6 +213,12 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 }
 
 void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, double D, bool consoleOutput){
+	//temporary
+	double pixelWidth = 0.627;					//width of pixel in mm
+	double uOffset = -0.83;						//offset of the axis in u direction in mm
+	double uPixelOffset = uOffset / pixelWidth;	//offset in px
+	//temporary
+
 	double imageLowerBoundU = matToImageU(0);
 	double imageUpperBoundU = matToImageU(_imageWidth);
 	double imageLowerBoundV = matToImageV(0);
@@ -228,6 +233,16 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 			if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize/2) - 3){
 				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
 
+
+					//testing
+					bool testing = false;
+					if (testing){
+						x = 45;
+						y = -20;
+						z = 45;
+					}
+					//testing
+
 					//accumulate the densities from all projections
 					double sum = 0;
 					for (int projection = 0; projection < _sinogram.size(); ++projection){
@@ -236,14 +251,24 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
 						double u = (t*D) / (D - s);
 						double v = ((double)z*D) / (D - s);
+						u = u + uPixelOffset;	//add the offset of the rotation axis
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
 							double weight = W(D, u, v);
 
-								u = imageToMatU(u);
-								v = imageToMatV(v);
+							u = imageToMatU(u);
+							v = imageToMatV(v);
+
+							//testing
+							if (testing){
+								cv::Mat normalizedImage = normalizeImage(_sinogram[projection].image, _minMaxValues.first, _minMaxValues.second);
+								normalizedImage.at<float>(v, u) = 1;
+								imshow("Projections", normalizedImage);
+								cvWaitKey(0);
+							}
+							//testing
 
 							//get the 4 surrounding pixels for the bilinear interpolation
 							double u0 = floor(u);
