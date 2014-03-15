@@ -143,7 +143,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 			_ySize = _imageWidth;
 			_zSize = _imageHeight;
 			//save the distance
-			_SO = SO/pixelSize;
+			_SD = SD/pixelSize;
 			//save the uOffset
 			_uOffset = uOffset/pixelSize;
 			//now apply the filters
@@ -266,13 +266,13 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 						double t = (-1)*(double)x*sin(beta_rad) + correctedY*cos(beta_rad);
 						double s = (double)x*cos(beta_rad) + correctedY*sin(beta_rad);
-						double u = (t*_SO) / (_SO - s);
-						double v = (((double)z - _sinogram[projection].heightOffset)*_SO) / (_SO - s);
+						double u = (t*_SD) / (_SD - s);
+						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SD - s);
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
-							double weight = W(_SO, u, v);
+							double weight = W(_SD, u, v);
 
 							u = imageToMatU(u);
 							v = imageToMatV(v);
