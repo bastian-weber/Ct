@@ -4,7 +4,7 @@
 
 Projection::Projection(){}
 
-Projection::Projection(cv::Mat image, double angle) :image(image), angle(angle){
+Projection::Projection(cv::Mat image, double angle, double heightOffset) :image(image), angle(angle), heightOffset(heightOffset){
 	//empty
 }
 
@@ -15,120 +15,143 @@ CtVolume::CtVolume() :_currentlyDisplayedImage(0){
 	//empty
 }
 
-CtVolume::CtVolume(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0){
-	sinogramFromImages(folderPath, csvPath, fileType, filterType);
+CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0){
+	sinogramFromImages(csvFile, filterType);
 }
 
-void CtVolume::sinogramFromImages(std::string folderPath, std::string csvPath, CtVolume::FileType fileType, CtVolume::FilterType filterType){
+void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filterType){
 	//delete the contents of the sinogram
 	_sinogram.clear();
-	//read the angles from the csv file
-	std::vector<double> angles;
+	//open the csv file
+	std::ifstream stream(csvFile.c_str(), std::ios::in);
+	if (!stream.good()){
+		std::cerr << "Could not open CSV file - terminating" << std::endl;
+		return;
+	}
+	//count the lines in the file
+	int lineCnt = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
+	int imgCnt = lineCnt - 8;
 
-	if (readCSV(csvPath, angles)){
+	if (lineCnt > 0){
+		_sinogram.resize(imgCnt);
+		//go back to the beginning
+		stream.seekg(std::ios::beg);
+		//now read file contents
+		std::stringstream strstr;
+		std::string line;
+		std::string path;
+		std::string rotationDirection;
+		double pixelSize;
+		double uOffset;
+		double vOffset;
+		double SO;
+		double SD;
+		std::string file;
+		double angle;
+		double heightOffset;
 
-		//load the files in a sinogram
-		DIR* dir;
-		struct dirent* file;
-		//only load tif files
-		std::regex expression;
-		switch (fileType){
-		case BMP:
-			expression = std::regex("^.*\.bmp$", std::regex::icase);
-			break;
-		case JPG:
-			expression = std::regex("^.*\.(jpg|jpeg|jpe)$", std::regex::icase);
-			break;
-		case JPEG2000:
-			expression = std::regex("^.*\.jp2$", std::regex::icase);
-			break;
-		case PNG:
-			expression = std::regex("^.*\.png$", std::regex::icase);
-			break;
-		case TIF:
-			expression = std::regex("^.*\.(tif|tiff)$", std::regex::icase);
-			break;
-		}
-		if ((dir = opendir(folderPath.c_str())) != NULL){
-			//first count the files (so no reallocation of the vector size is necessary)
-			int count = 0;
-			while ((file = readdir(dir)) != NULL){
-				if (std::regex_match(file->d_name, expression)){
-					++count;
-				}
-			}
-			rewinddir(dir);
+		//manual reading of the parameters
+		std::getline(stream, path, '\t');
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		std::getline(stream, line);
+		strstr = std::stringstream(line);
+		strstr >> pixelSize;
+		std::getline(stream, rotationDirection, '\t');
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		std::getline(stream, line);
+		strstr = std::stringstream(line);
+		strstr >> uOffset;
+		std::getline(stream, line);
+		strstr = std::stringstream(line);
+		strstr >> vOffset;
+		std::getline(stream, line);
+		strstr = std::stringstream(line);
+		strstr >> SO;
+		std::getline(stream, line);
+		strstr = std::stringstream(line);
+		strstr >> SD;
+		//leave out one line
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-			if (count != 0){
-				std::cout << count << " files discovered." << std::endl;
+		int cnt = 0;
+		int rows;
+		int cols;
+		while (!stream.eof()){
+			std::getline(stream, file, '\t');
+			std::getline(stream, line, '\t');
+			strstr = std::stringstream(line);
+			strstr >> angle;
+			std::getline(stream, line);
+			strstr = std::stringstream(line);
+			strstr >> heightOffset;
+			_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
+
+			//check if everything is ok
+			if (!_sinogram[cnt].image.data){
+				_sinogram.clear();
+				std::cout << "Error loading the image " << path + std::string("/") + file << ". Maybe it does not exist or permissions are missing." << std::endl;
+				return;
+			} else if (_sinogram[cnt].image.channels() != 1){
+				_sinogram.clear();
+				std::cout << "Error loading the image " << path + std::string("/") + file << ", it has not exactly 1 channel." << std::endl;
+				return;
 			} else{
-				std::cout << "No files of the specified image type could be found." << std::endl;
-			}
-
-			//check if amount of provided angle values and amount of files match
-			if (count == angles.size()){
-
-				//now load the files
-				_sinogram.resize(count);
-				int cnt = 0;
-				int rows;
-				int cols;
-				while ((file = readdir(dir)) != NULL){
-					if (std::regex_match(file->d_name, expression)){
-
-						_sinogram[cnt] = Projection(cv::imread(folderPath + "/" + file->d_name, CV_LOAD_IMAGE_UNCHANGED), angles[cnt]);
-
-						//create some output
-						if (!_sinogram[cnt].image.data){
-							_sinogram.clear();
-							std::cout << "Error loading the image " << file->d_name << std::endl;
-							return;
-						} else if (_sinogram[cnt].image.channels() != 1){				//make sure it's a one-channel image
-							_sinogram.clear();
-							std::cout << "Error loading the image " << file->d_name << ", it has not exactly 1 channel." << std::endl;
-							return;
-						}else{
-							//make sure that all images have the same size
-							if (cnt == 0){
-								rows = _sinogram[cnt].image.rows;
-								cols = _sinogram[cnt].image.cols;
-							} else{
-								if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols){
-									_sinogram.clear();
-									std::cout << "Error loading the image " << file->d_name << ", its dimensions differ from the images before." << std::endl;
-									return;
-								}
-							}
-							std::cout << "Loaded " << file->d_name << std::endl;
-						}
-
-						//convert the image to 32 bit float
-						convertTo32bit(_sinogram[cnt].image);
-						++cnt;
-
+				//make sure that all images have the same size
+				if (cnt == 0){
+					rows = _sinogram[cnt].image.rows;
+					cols = _sinogram[cnt].image.cols;
+				} else{
+					if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols){
+						_sinogram.clear();
+						std::cout << "Error loading the image " << path + std::string("/") + file << ", its dimensions differ from the images before." << std::endl;
+						return;
 					}
 				}
-				closedir(dir);
-
-				//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
-				if (_sinogram.size() > 0){
-					_imageWidth = _sinogram[0].image.cols;
-					_imageHeight = _sinogram[0].image.rows;
-					//Axes: breadth = x, width = y, height = z
-					_xSize = _imageWidth;
-					_ySize = _imageWidth;
-					_zSize = _imageHeight;
-					//now apply the filters
-					imagePreprocessing(filterType);
-				}
-
-			} else{
-				std::cout << "The amount of angles provided in the CSV file does not match the amount of images in the folder." << std::endl;
+				std::cout << "Loaded " << file << std::endl;
 			}
-		} else{
-			std::cout << "Could not open the specified directory." << std::endl;
+			//convert the image to 32 bit float
+			convertTo32bit(_sinogram[cnt].image);
+			++cnt;
 		}
 
+		if (_sinogram.size() > 0){
+			//convert the heightOffset to a realtive value
+			double sum = 0;
+			for (int i = 0; i < _sinogram.size(); ++i){
+				sum += _sinogram[i].heightOffset;
+			}
+			sum /= (double)_sinogram.size();
+			for (int i = 0; i < _sinogram.size(); ++i){
+				_sinogram[i].heightOffset -= sum;			//substract average
+				_sinogram[i].heightOffset /= pixelSize;		//convert to pixels
+			}
+			//make sure the direction of the rotation is correct
+			if (_sinogram.size() > 1){	//only possible if there are at least 2 images
+				double diff = _sinogram[1].angle - _sinogram[0].angle;
+				//clockwise rotation requires rotation in positive direction and ccw rotation requires negative direction
+				if ((rotationDirection == "cw" && diff < 0) || (rotationDirection == "ccw" && diff > 0)){
+					for (int i = 0; i < _sinogram.size(); ++i){
+						_sinogram[i].angle *= -1;
+					}					
+				}
+			}
+			//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
+			_imageWidth = _sinogram[0].image.cols;
+			_imageHeight = _sinogram[0].image.rows;
+			//Axes: breadth = x, width = y, height = z
+			_xSize = _imageWidth;
+			_ySize = _imageWidth;
+			_zSize = _imageHeight;
+			//save the distance
+			_SO = SO/pixelSize;
+			//save the uOffset
+			_uOffset = uOffset/pixelSize;
+			//now apply the filters
+			imagePreprocessing(filterType);
+		}
+	} else{
+		std::cout << "CSV file does not contain any images." << std::endl;
+		return;
 	}
 }
 
@@ -158,16 +181,15 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		clock_t start = clock();
 		//fill the volume
 		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
-		double D = 905.39234449760765550239234449761;
 		if (threading == MULTITHREADED){
-			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), D, true);
-			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), D, false);
-			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), D, false);
-			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), D, false);
-			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), D, false);
-			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), D, false);
-			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), D, false);
-			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), D, false);
+			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), true);
+			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), false);
+			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), false);
+			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), false);
+			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), false);
+			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), false);
+			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), false);
+			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), false);
 			thread1.get();
 			thread2.get();
 			thread3.get();
@@ -177,7 +199,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 			thread7.get();
 			thread8.get();
 		} else{
-			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), D, true);
+			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), true);
 		}
 
 		//now fill the corners around the cylinder with the lowest density value
@@ -212,13 +234,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 	}
 }
 
-void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, double D, bool consoleOutput){
-	//temporary
-	double pixelWidth = 0.627;					//width of pixel in mm
-	double uOffset = -0.83;						//offset of the axis in u direction in mm
-	double uPixelOffset = uOffset / pixelWidth;	//offset in px
-	//temporary
-
+void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, bool consoleOutput){
 	double imageLowerBoundU = matToImageU(0);
 	double imageUpperBoundU = matToImageU(_imageWidth);
 	double imageLowerBoundV = matToImageV(0);
@@ -244,19 +260,19 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 					//testing
 
 					//accumulate the densities from all projections
+					double correctedY = (double)y + _uOffset;		//correct the u-Offset
 					double sum = 0;
 					for (int projection = 0; projection < _sinogram.size(); ++projection){
 						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
-						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
-						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
-						double u = (t*D) / (D - s);
-						double v = ((double)z*D) / (D - s);
-						u = u + uPixelOffset;	//add the offset of the rotation axis
+						double t = (-1)*(double)x*sin(beta_rad) + correctedY*cos(beta_rad);
+						double s = (double)x*cos(beta_rad) + correctedY*sin(beta_rad);
+						double u = (t*_SO) / (_SO - s);
+						double v = (((double)z - _sinogram[projection].heightOffset)*_SO) / (_SO - s);
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
 
-							double weight = W(D, u, v);
+							double weight = W(_SO, u, v);
 
 							u = imageToMatU(u);
 							v = imageToMatV(v);
@@ -264,7 +280,7 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 							//testing
 							if (testing){
 								cv::Mat normalizedImage = normalizeImage(_sinogram[projection].image, _minMaxValues.first, _minMaxValues.second);
-								normalizedImage.at<float>(v, u) = 1;
+								normalizedImage.at<float>(floor(v+0.5), floor(u+0.5)) = 1;
 								imshow("Projections", normalizedImage);
 								cvWaitKey(0);
 							}
@@ -323,36 +339,6 @@ void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
 
 //============================================== PRIVATE ==============================================\\
 
-bool CtVolume::readCSV(std::string filename, std::vector<double>& result) const{
-	result.clear();
-	std::ifstream stream(filename.c_str(), std::ios::in);
-	if (!stream.good()){
-		std::cerr << "Could not open CSV file - terminating" << std::endl;
-		return false;
-	}
-	//count the lines in the file
-	int itemCount = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
-	if (itemCount != 0){
-		result.resize(itemCount);
-		//go back to the beginning
-		stream.seekg(std::ios::beg);
-		//now read file contents
-		std::stringstream strstr;
-		std::string line;
-		int cnt = 0;
-		while (!stream.eof()){
-			std::getline(stream, line);
-			strstr = std::stringstream(line);
-			strstr >> result[cnt];
-			++cnt;
-		}
-		return true;
-	} else{
-		std::cout << "CSV file seems to be empty - terminating" << std::endl;
-		return false;
-	}
-}
-
 std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const{
 	float min = *std::min_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
 	float max = *std::max_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
@@ -388,9 +374,9 @@ cv::Mat CtVolume::normalizeImage(cv::Mat const& image, float minValue, float max
 void CtVolume::handleKeystrokes(bool normalize) const{
 	int key = cv::waitKey(0);				//wait for a keystroke forever
 	if (key == 2424832){					//left arrow key
-		++_currentlyDisplayedImage;
-	} else if (key == 2555904){				//right arrow key
 		--_currentlyDisplayedImage;
+	} else if (key == 2555904){				//right arrow key
+		++_currentlyDisplayedImage;
 	} else if (key == 27){					//escape key
 		return;
 	} else if (key == -1){					//if no key was pressed (meaning the window was closed)

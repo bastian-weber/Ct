@@ -11,31 +11,28 @@
 #include <opencv2/core/core.hpp>											//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>										//image processing functionality of OpenCV (filter masks etc)
-#include <fftw3.h>															//FFTW - provides fast fourier transform functionality
-#include "dirent.h"															//library for accessing the filesystem						
+#include <fftw3.h>															//FFTW - provides fast fourier transform functionality				
+//for std::numeric_limits<std::streamsize>::max()
+#undef max
 			
 struct Projection{			
 	Projection();			
-	Projection(cv::Mat image, double angle);								//Constructor
+	Projection(cv::Mat image, double angle, double heightOffset);			//Constructor
 	cv::Mat image;												
 	double angle;
+	double heightOffset;													//for random trajectory
 };
 
 class CtVolume{
 public:
 	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
 	enum FilterType{RAMLAK, HANN, RECTANGLE};
-	enum FileType{BMP, JPG, JPEG2000, PNG, TIF};
 	//functions		
 	CtVolume();																//constructor 1
-	CtVolume(std::string folderPath,										//constructor 2
-			 std::string csvPath, 
-			 CtVolume::FileType filetype = CtVolume::TIF,
+	CtVolume(std::string csvFile,										
 			 CtVolume::FilterType filterType = CtVolume::RAMLAK);
-	void sinogramFromImages(std::string folderPath,							//creates a sinogram from the images in the specified path
-							std::string csvPath,
-							CtVolume::FileType fileType = CtVolume::TIF,
-							CtVolume::FilterType filterType = CtVolume::RAMLAK);					
+	void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile
+							CtVolume::FilterType filterType = CtVolume::RAMLAK);
 	void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram	
 	void reconstructVolume(ThreadingType threading);						//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
@@ -49,11 +46,11 @@ private:
 	mutable int _zSize;			
 	mutable int _imageWidth;												//stores the height and width of the images in the sinogram
 	mutable int _imageHeight;												//assigned when sinogram is created
-	mutable std::pair<float, float> _minMaxValues;
+	mutable std::pair<float, float> _minMaxValues;						
+	double _SO;																//the distance of the source to the detector in pixel
+	double _uOffset;														//the offset of the rotation axis in u direction
 	mutable std::mutex _volumeMutex;										//prevents that two threads access the volume simultaneously
 	//functions						
-	bool readCSV(std::string filename,										//reads the additional information from the csv file
-				 std::vector<double>& result) const;	
 	std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 	cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 						   float minValue, 
@@ -76,8 +73,7 @@ private:
 	double rectangleWindowFilter(double n, double N) const;
 	void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D)
 	void reconstructionThread(cv::Point3i lowerBounds,			
-							  cv::Point3i upperBounds,			
-							  double D,			
+							  cv::Point3i upperBounds,					
 							  bool consoleOutput);			
 	float bilinearInterpolation(double u,									//interpolates bilinear between those four intensities
 								double v,							
