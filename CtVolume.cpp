@@ -143,7 +143,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 			_ySize = _imageWidth;
 			_zSize = _imageHeight;
 			//save the distance
-			_SD = SO/pixelSize;
+			_SD = SD/pixelSize;
 			//save the uOffset
 			_uOffset = uOffset/pixelSize;
 			//now apply the filters
