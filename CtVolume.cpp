@@ -73,6 +73,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 		//leave out one line
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
+		std::cout << "Loading image files" << std::endl;
 		int cnt = 0;
 		int rows;
 		int cols;
@@ -107,7 +108,6 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 						return;
 					}
 				}
-				std::cout << "Loaded " << file << std::endl;
 			}
 			//convert the image to 32 bit float
 			convertTo32bit(_sinogram[cnt].image);
