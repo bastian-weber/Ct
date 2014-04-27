@@ -1,5 +1,4 @@
 #include <iostream>
-#include <Windows.h>
 #include "CtVolume.h"
 
 int main(int argc, char* argv[]){
