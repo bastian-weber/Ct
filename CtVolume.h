@@ -48,6 +48,7 @@ private:
 	mutable int _imageHeight;												//assigned when sinogram is created
 	mutable std::pair<float, float> _minMaxValues;						
 	double _SD;																//the distance of the source to the detector in pixel
+	double _SO;																//the distance of the source to the object
 	double _uOffset;														//the offset of the rotation axis in u direction
 	mutable std::mutex _volumeMutex;										//prevents that two threads access the volume simultaneously
 	//functions						
