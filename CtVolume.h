@@ -15,6 +15,7 @@
 //for std::numeric_limits<std::streamsize>::max()
 #undef max
 			
+//struct for storing one projection
 struct Projection{			
 	Projection();			
 	Projection(cv::Mat image, double angle, double heightOffset);			//Constructor
@@ -23,6 +24,7 @@ struct Projection{
 	double heightOffset;													//for random trajectory
 };
 
+//The actual reconstruction class
 class CtVolume{
 public:
 	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
@@ -31,9 +33,9 @@ public:
 	CtVolume();																//constructor 1
 	CtVolume(std::string csvFile,										
 			 CtVolume::FilterType filterType = CtVolume::RAMLAK);
-	void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile
+	void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
 							CtVolume::FilterType filterType = CtVolume::RAMLAK);
-	void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram	
+	void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 	void reconstructVolume(ThreadingType threading);						//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 private:			
@@ -48,7 +50,7 @@ private:
 	mutable int _imageHeight;												//assigned when sinogram is created
 	mutable std::pair<float, float> _minMaxValues;						
 	double _SD;																//the distance of the source to the detector in pixel
-	double _SO;																//the distance of the source to the object
+	double _SO;																//the distance of the source to the object in pixel
 	double _uOffset;														//the offset of the rotation axis in u direction
 	mutable std::mutex _volumeMutex;										//prevents that two threads access the volume simultaneously
 	//functions						
@@ -63,18 +65,14 @@ private:
 	void applyHighpassFilter(cv::Mat& img) const;							//applies the highpass filter to an image
 	void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
 							CtVolume::FilterType type) const;
-	void fourierFilterThread(cv::Mat& image, 
-							 CtVolume::FilterType type, 
-							 int startIndex, 
-							 int endIndex) const;
 	void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 	double logFunction(double x) const;										//the actual log function used by applyLogScaling
-	double ramLakWindowFilter(double n, double N) const;
-	double hannWindowFilter(double n, double N) const;
+	double ramLakWindowFilter(double n, double N) const;					//Those functions return the scaling coefficients for the
+	double hannWindowFilter(double n, double N) const;						//fourier filters for each n out of N
 	double rectangleWindowFilter(double n, double N) const;
-	void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D)
-	void reconstructionThread(cv::Point3i lowerBounds,			
-							  cv::Point3i upperBounds,					
+	void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
+	void reconstructionThread(cv::Point3i lowerBounds,						//does the actual reconstruction for a part of the volume
+							  cv::Point3i upperBounds,						//is called by reconstructVolume
 							  bool consoleOutput);			
 	float bilinearInterpolation(double u,									//interpolates bilinear between those four intensities
 								double v,							
@@ -95,4 +93,5 @@ private:
 	double matToImageU(double uCoord)const;									
 	double matToImageV(double vCoord)const;				
 	int fftCoordToIndex(int coord, int size) const;							//coordinate transformation for the FFT lowpass filtering
+																			//only used for the 2D highpass filtering, which is currently not used
 };

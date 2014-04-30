@@ -33,10 +33,11 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 	int imgCnt = lineCnt - 8;
 
 	if (lineCnt > 0){
+		//resize the sinogram to the correct size
 		_sinogram.resize(imgCnt);
-		//go back to the beginning
+		//go back to the beginning of the file
 		stream.seekg(std::ios::beg);
-		//now read file contents
+		//variables for the values that shall be read
 		std::stringstream strstr;
 		std::string line;
 		std::string path;
@@ -50,7 +51,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 		double angle;
 		double heightOffset;
 
-		//manual reading of the parameters
+		//manual reading of all the parameters
 		std::getline(stream, path, '\t');
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		std::getline(stream, line);
@@ -73,6 +74,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 		//leave out one line
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
+		//now load the actual image files and their parameters
 		std::cout << "Loading image files" << std::endl;
 		int cnt = 0;
 		int rows;
@@ -85,14 +87,17 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 			std::getline(stream, line);
 			strstr = std::stringstream(line);
 			strstr >> heightOffset;
+			//load the image
 			_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
 
 			//check if everything is ok
 			if (!_sinogram[cnt].image.data){
+				//if there is no image data
 				_sinogram.clear();
 				std::cout << "Error loading the image " << path + std::string("/") + file << ". Maybe it does not exist or permissions are missing." << std::endl;
 				return;
 			} else if (_sinogram[cnt].image.channels() != 1){
+				//if it has more than 1 channel
 				_sinogram.clear();
 				std::cout << "Error loading the image " << path + std::string("/") + file << ", it has not exactly 1 channel." << std::endl;
 				return;
@@ -103,6 +108,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 					cols = _sinogram[cnt].image.cols;
 				} else{
 					if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols){
+						//if the image has a different size than the images before stop and reverse
 						_sinogram.clear();
 						std::cout << "Error loading the image " << path + std::string("/") + file << ", its dimensions differ from the images before." << std::endl;
 						return;
@@ -151,6 +157,7 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 			imagePreprocessing(filterType);
 		}
 	} else{
+
 		std::cout << "CSV file does not contain any images." << std::endl;
 		return;
 	}
@@ -181,8 +188,8 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		//mesure time
 		clock_t start = clock();
 		//fill the volume
-		double deltaBeta = (2*M_PI)/(double)_sinogram.size();
 		if (threading == MULTITHREADED){
+			//launch 8 threads
 			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), true);
 			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), false);
 			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), false);
@@ -191,6 +198,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), false);
 			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), false);
 			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), false);
+			//now wait for the threads to finish
 			thread1.get();
 			thread2.get();
 			thread3.get();
@@ -200,6 +208,7 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 			thread7.get();
 			thread8.get();
 		} else{
+			//just launch one instance
 			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), true);
 		}
 
@@ -232,86 +241,6 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 		std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
 	} else{
 		std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
-	}
-}
-
-void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, bool consoleOutput){
-	double imageLowerBoundU = matToImageU(0);
-	double imageUpperBoundU = matToImageU(_imageWidth);
-	double imageLowerBoundV = matToImageV(0);
-	double imageUpperBoundV = matToImageV(_imageHeight);
-	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
-		//output percentage
-		if (consoleOutput){
-			std::cout << "\r" << "Backprojecting: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
-		}
-		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
-			//if the voxel is inside the reconstructable cylinder
-			if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize/2) - 3){
-				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
-
-
-					//testing
-					bool testing = false;
-					if (testing){
-						x = 45;
-						y = -20;
-						z = 45;
-					}
-					//testing
-
-					//accumulate the densities from all projections
-					double sum = 0;
-					for (int projection = 0; projection < _sinogram.size(); ++projection){
-						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
-						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
-						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
-						double u = (t*_SD) / (_SO - s);
-						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SO - s);
-						//correct the u-offset
-						u += _uOffset;	
-						
-						//check if it's inside the image (before the coordinate transformation)
-						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
-
-							double weight = W(_SD, u, v);
-
-							u = imageToMatU(u);
-							v = imageToMatV(v);
-
-							//testing
-							if (testing){
-								cv::Mat normalizedImage = normalizeImage(_sinogram[projection].image, _minMaxValues.first, _minMaxValues.second);
-								normalizedImage.at<float>(floor(v+0.5), floor(u+0.5)) = 1;
-								imshow("Projections", normalizedImage);
-								cvWaitKey(0);
-							}
-							//testing
-
-							//get the 4 surrounding pixels for the bilinear interpolation
-							double u0 = floor(u);
-							double u1 = ceil(u);
-							double v0 = floor(v);
-							double v1 = ceil(v);
-							//check if all the pixels are inside the image (after the coordinate transformation)
-							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
-								float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
-								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
-								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
-								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-								sum += weight *  bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
-							}
-						}
-					}
-					_volumeMutex.lock();
-					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
-					_volumeMutex.unlock();
-				}
-			}
-		}
-	}
-	if (consoleOutput){
-		std::cout << std::endl << "Waiting for all threads to finish" << std::endl;
 	}
 }
 
@@ -509,6 +438,24 @@ void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) con
 	fftwf_free(out);
 }
 
+void CtVolume::applyLogScaling(cv::Mat& image) const{
+	const int R = image.rows;
+	int C = image.cols;
+	const double normalizationConstant = logFunction(1);
+	float* ptr;
+	for (int row = 0; row < R; ++row){
+		ptr = image.ptr<float>(row);
+		for (int cols = 0; cols < C; ++cols){
+			ptr[cols] = 1 - logFunction(ptr[cols]) / normalizationConstant;
+		}
+	}
+}
+
+double CtVolume::logFunction(double x) const{
+	const double compressionFactor = 0.005; //must be greater than 0; the closer to 0, the stronger the compression
+	return std::log(x + compressionFactor) - std::log(compressionFactor);
+}
+
 double CtVolume::ramLakWindowFilter(double n, double N) const{
 	return (double)n / (double)N;
 }
@@ -591,22 +538,66 @@ void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 	fftwf_free(out);
 }
 
-void CtVolume::applyLogScaling(cv::Mat& image) const{
-	const int R = image.rows;
-	int C = image.cols;
-	const double normalizationConstant = logFunction(1);
-	float* ptr;
-		for (int row = 0; row < R; ++row){
-		ptr = image.ptr<float>(row);
-		for (int cols = 0; cols < C; ++cols){
-			ptr[cols] = 1 - logFunction(ptr[cols]) / normalizationConstant;
+void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, bool consoleOutput){
+	double imageLowerBoundU = matToImageU(0);
+	double imageUpperBoundU = matToImageU(_imageWidth);
+	double imageLowerBoundV = matToImageV(0);
+	double imageUpperBoundV = matToImageV(_imageHeight);
+	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
+		//output percentage
+		if (consoleOutput){
+			std::cout << "\r" << "Backprojecting: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
+		}
+		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
+			if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2) - 3){
+				//if the voxel is inside the reconstructable cylinder
+				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
+
+					//accumulate the densities from all projections
+					double sum = 0;
+					for (int projection = 0; projection < _sinogram.size(); ++projection){
+						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
+						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
+						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
+						double u = (t*_SD) / (_SO - s);
+						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SO - s);
+						//correct the u-offset
+						u += _uOffset;
+
+						//check if it's inside the image (before the coordinate transformation)
+						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
+
+							double weight = W(_SD, u, v);
+
+							u = imageToMatU(u);
+							v = imageToMatV(v);
+
+							//get the 4 surrounding pixels for the bilinear interpolation
+							double u0 = floor(u);
+							double u1 = ceil(u);
+							double v0 = floor(v);
+							double v1 = ceil(v);
+							//check if all the pixels are inside the image (after the coordinate transformation)
+							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
+								float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
+								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
+								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
+								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
+								sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+							}
+						}
+					}
+					//now write the value into the voxel
+					_volumeMutex.lock();
+					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
+					_volumeMutex.unlock();
+				}
+			}
 		}
 	}
-}
-
-double CtVolume::logFunction(double x) const{
-	const double compressionFactor = 0.005; //must be greater than 0; the closer to 0, the stronger the compression
-	return std::log(x + compressionFactor) - std::log(compressionFactor);
+	if (consoleOutput){
+		std::cout << std::endl << "Waiting for all threads to finish" << std::endl;
+	}
 }
 
 float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
