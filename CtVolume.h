@@ -6,7 +6,7 @@
 #include <cmath>				
 #include <ctime>			
 #include <future>			
-#include <mutex>			
+#include <omp.h>
 			
 #include <opencv2/core/core.hpp>											//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
@@ -52,7 +52,6 @@ private:
 	double _SD;																//the distance of the source to the detector in pixel
 	double _SO;																//the distance of the source to the object in pixel
 	double _uOffset;														//the offset of the rotation axis in u direction
-	mutable std::mutex _volumeMutex;										//prevents that two threads access the volume simultaneously
 	//functions						
 	std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 	cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
@@ -71,9 +70,7 @@ private:
 	double hannWindowFilter(double n, double N) const;						//fourier filters for each n out of N
 	double rectangleWindowFilter(double n, double N) const;
 	void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
-	void reconstructionThread(cv::Point3i lowerBounds,						//does the actual reconstruction for a part of the volume
-							  cv::Point3i upperBounds,						//is called by reconstructVolume
-							  bool consoleOutput);			
+	void CtVolume::reconstructionCore();									//does the actual reconstruction
 	float bilinearInterpolation(double u,									//interpolates bilinear between those four intensities
 								double v,							
 								float u0v0,				

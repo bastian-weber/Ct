@@ -167,6 +167,7 @@ void CtVolume::displaySinogram(bool normalize) const{
 	if (_sinogram.size() > 0){
 		if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
 		if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
+		//normalizes all the images to the same values
 		if (normalize){
 			_minMaxValues = getSinogramMinMaxIntensity();
 			cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
@@ -184,33 +185,11 @@ void CtVolume::reconstructVolume(ThreadingType threading){
 	if (_sinogram.size() > 0){
 		//resize the volume to the correct size
 		_volume.clear();
-		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize)));
+		_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize, 0)));
 		//mesure time
 		clock_t start = clock();
 		//fill the volume
-		if (threading == MULTITHREADED){
-			//launch 8 threads
-			auto thread1 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, 0), cv::Point3i(_xSize/2, _ySize/2, _zSize/2), true);
-			auto thread2 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, 0), cv::Point3i(_xSize, _ySize / 2, _zSize / 2), false);
-			auto thread3 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, 0), cv::Point3i(_xSize / 2, _ySize, _zSize / 2), false);
-			auto thread4 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, 0), cv::Point3i(_xSize, _ySize, _zSize / 2), false);
-			auto thread5 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, 0, _zSize / 2), cv::Point3i(_xSize / 2, _ySize / 2, _zSize), false);
-			auto thread6 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, 0, _zSize / 2), cv::Point3i(_xSize, _ySize / 2, _zSize), false);
-			auto thread7 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(0, _ySize / 2, _zSize / 2), cv::Point3i(_xSize / 2, _ySize, _zSize), false);
-			auto thread8 = std::async(std::launch::async, &CtVolume::reconstructionThread, this, cv::Point3i(_xSize / 2, _ySize / 2, _zSize / 2), cv::Point3i(_xSize, _ySize, _zSize), false);
-			//now wait for the threads to finish
-			thread1.get();
-			thread2.get();
-			thread3.get();
-			thread4.get();
-			thread5.get();
-			thread6.get();
-			thread7.get();
-			thread8.get();
-		} else{
-			//just launch one instance
-			reconstructionThread(cv::Point3i(0, 0, 0), cv::Point3i(_xSize, _ySize, _zSize), true);
-		}
+		reconstructionCore();
 
 		//now fill the corners around the cylinder with the lowest density value
 		double smallestValue;
@@ -538,29 +517,31 @@ void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 	fftwf_free(out);
 }
 
-void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBounds, bool consoleOutput){
+void CtVolume::reconstructionCore(){
 	double imageLowerBoundU = matToImageU(0);
 	double imageUpperBoundU = matToImageU(_imageWidth);
 	double imageLowerBoundV = matToImageV(0);
 	double imageUpperBoundV = matToImageV(_imageHeight);
-	for (int x = volumeToWorldX(lowerBounds.x); x < volumeToWorldX(upperBounds.x); ++x){
-		//output percentage
-		if (consoleOutput){
-			std::cout << "\r" << "Backprojecting: " << floor((worldToVolumeX(x) - lowerBounds.x) / (upperBounds.x - lowerBounds.x) * 100 + 0.5) << "%";
-		}
-		for (int y = volumeToWorldY(lowerBounds.y); y < volumeToWorldY(upperBounds.y); ++y){
-			if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2) - 3){
-				//if the voxel is inside the reconstructable cylinder
-				for (int z = volumeToWorldZ(lowerBounds.z); z < volumeToWorldZ(upperBounds.z); ++z){
 
-					//accumulate the densities from all projections
-					double sum = 0;
-					for (int projection = 0; projection < _sinogram.size(); ++projection){
-						double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
-						double t = (-1)*(double)x*sin(beta_rad) + (double)y*cos(beta_rad);
-						double s = (double)x*cos(beta_rad) + (double)y*sin(beta_rad);
-						double u = (t*_SD) / (_SO - s);
-						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SO - s);
+	#pragma omp parallel for schedule(dynamic)
+	for (int projection = 0; projection < _sinogram.size(); ++projection){
+		//output percentage
+		if (omp_get_thread_num() == 0){
+			std::cout << "\r" << "Backprojecting: " << floor((double)projection/(double)_sinogram.size() * 100 + 0.5) << "%";
+		}
+		double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
+		double sine = sin(beta_rad);
+		double cosine = cos(beta_rad);
+		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
+			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
+				if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2) - 3){
+					//if the voxel is inside the reconstructable cylinder
+					for (int z = volumeToWorldZ(0); z < volumeToWorldZ(_zSize); ++z){
+						
+						double t = (-1)*(double)x*sine + (double)y*cosine;
+						double s = (double)x*cosine + (double)y*sine;
+						double u = (t*_SD) / (_SD - s);
+						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SD - s);
 						//correct the u-offset
 						u += _uOffset;
 
@@ -583,19 +564,15 @@ void CtVolume::reconstructionThread(cv::Point3i lowerBounds, cv::Point3i upperBo
 								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
 								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
 								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-								sum += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
+								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
-					//now write the value into the voxel
-					_volumeMutex.lock();
-					_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] = sum;
-					_volumeMutex.unlock();
 				}
 			}
 		}
 	}
-	if (consoleOutput){
+	if (omp_get_thread_num() == 0){
 		std::cout << std::endl << "Waiting for all threads to finish" << std::endl;
 	}
 }
