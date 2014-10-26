@@ -181,7 +181,7 @@ void CtVolume::displaySinogram(bool normalize) const{
 	}
 }
 
-void CtVolume::reconstructVolume(ThreadingType threading){
+void CtVolume::reconstructVolume(){
 	if (_sinogram.size() > 0){
 		//resize the volume to the correct size
 		_volume.clear();
@@ -451,6 +451,7 @@ double CtVolume::rectangleWindowFilter(double n, double N) const{
 	return 1;
 }
 
+//This filter is not used, code could theoretically be removed
 void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 	CV_Assert(image.depth() == CV_32F);
 
