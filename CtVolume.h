@@ -27,7 +27,6 @@ struct Projection{
 //The actual reconstruction class
 class CtVolume{
 public:
-	enum ThreadingType{SINGLETHREADED, MULTITHREADED};
 	enum FilterType{RAMLAK, HANN, RECTANGLE};
 	//functions		
 	CtVolume();																//constructor 1
@@ -36,7 +35,7 @@ public:
 	void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
 							CtVolume::FilterType filterType = CtVolume::RAMLAK);
 	void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
-	void reconstructVolume(ThreadingType threading);						//reconstructs the 3d-volume from the sinogram
+	void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 	void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 private:			
 	//variables					
