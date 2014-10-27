@@ -1,3 +1,5 @@
+This project implements the Feldkamp algorithm for reconstructing a computer tomography density volume from x-ray images.
+
 With cmake you can automatically create a Visual Studio project.
 
 Currently only Windows and Visual Studio 2010/2012/2013 is supported. At least I didn't test anything else. Maybe it'll work, maybe not.
@@ -44,7 +46,3 @@ and copy them to your Debug directory (note that they are called the same, excep
 The same you have to do for FFTW. Here we have no different DLLs for Release and Debug. just move the libfftw3f-3.dll file to both directories.
 
 Now you should be able to compile and run the program in Release as well as in Debug mode.
-
-When something on the code is changed, you don't have to run cmake again. Only if new files or libraries are added, then you have to run cmake again. Fortunately it stores all variables in the cache, so you just have to click "Configure" and "Generate" and your project will be updated.
-
-If there are any problems, just ask me.
