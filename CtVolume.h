@@ -69,7 +69,7 @@ private:
 	double hannWindowFilter(double n, double N) const;						//fourier filters for each n out of N
 	double rectangleWindowFilter(double n, double N) const;
 	void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
-	void CtVolume::reconstructionCore();									//does the actual reconstruction
+	void reconstructionCore();									//does the actual reconstruction
 	float bilinearInterpolation(double u,									//interpolates bilinear between those four intensities
 								double v,							
 								float u0v0,				
