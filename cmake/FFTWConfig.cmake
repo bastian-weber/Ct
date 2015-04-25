@@ -2,7 +2,7 @@
 			set(FFTW_LIB_NAME "libfftw3f-3.dll")
 			SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll")
 		elseif(UNIX)
-			set(FFTW_LIB_NAME "libfftw3.a")
+			set(FFTW_LIB_NAME "libfftw3f.a")
 		endif()
 
 		FIND_PATH(FFTW_INCLUDE_DIR fftw3.h)
