@@ -1,13 +1,20 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.0.2)
 
+#=======================================================================#
 
 #Opencv modules
 set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc")
+set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
+
+#=======================================================================#
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 project(Cv)
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
 
@@ -37,6 +44,19 @@ if(OPENCV_ROOT_FOUND OR UNIX)
 	find_package(OpenCV 2.4.10 REQUIRED)
 endif(OPENCV_ROOT_FOUND OR UNIX)
 
+#Qt
+set(QT_MODULES_ALL)
+list(APPEND QT_MODULES_ALL ${QT_MODULES_CV})
+list(REMOVE_DUPLICATES QT_MODULES_ALL)
+include(AskForQtPath)
+if(QT_ROOT_FOUND)
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT_ROOT_DIR})
+	foreach(module ${QT_MODULES_ALL})
+		string(REGEX REPLACE "::" "" MODULE_NAME ${module})
+		find_package(${MODULE_NAME} 5.4.0 REQUIRED)
+	endforeach(module ${QT_MODULES_ALL})
+endif(QT_ROOT_FOUND)
+
 #FFTW
 if(NOT UNIX)
 	include(AskForFFTWPath)
@@ -53,32 +73,56 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+
+#add lib files and copy dlls
 include(Macros)
 
-if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
+########################################### OpenCV Libs ###########################################
 
+if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
-
 	target_link_libraries(Cv ${OPENCV_MODULES_CV})
-
 	if(MSVC)
 		copydlls("${OPENCV_MODULES_ALL}")
 	endif(MSVC)
-
 endif()
 
+########################################### FFTW Libs ###########################################
+
 if((DEFINED FFTW_ROOT_FOUND) OR UNIX)
-
 	target_link_libraries(Cv fftw)
-
 	if(MSVC)
 		copydlls("fftw")
 	endif(MSVC)
-
 endif()
 
-IF((OPENCV_ROOT_FOUND OR UNIX) AND ((DEFINED FFTW_ROOT_FOUND) OR UNIX))
+########################################### Qt Libs ###########################################
+
+IF(DEFINED QT_ROOT_FOUND)
+
+	target_link_libraries(Cv ${QT_MODULES_CV})
+
+	#copy the dlls
+	IF(MSVC)
+
+		copydlls("${QT_MODULES_ALL}")	
+
+		file(COPY ${QT_ROOT_DIR}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${QT_ROOT_DIR}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${QT_ROOT_DIR}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${QT_ROOT_DIR}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+
+		file(COPY ${QT_ROOT_DIR}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${QT_ROOT_DIR}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${QT_ROOT_DIR}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${QT_ROOT_DIR}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+
+	ENDIF(MSVC)
+
+ENDIF(DEFINED QT_ROOT_FOUND)
+
+IF((OPENCV_ROOT_FOUND OR UNIX) AND ((DEFINED FFTW_ROOT_FOUND) OR UNIX) AND QT_ROOT_FOUND)
 	message("Everything fine, ready to generate.")
 ENDIF()
