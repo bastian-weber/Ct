@@ -7,11 +7,18 @@
 #include <ctime>			
 #include <future>			
 #include <omp.h>
-			
+
+//OpenCV
 #include <opencv2/core/core.hpp>											//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>										//image processing functionality of OpenCV (filter masks etc)
-#include <fftw3.h>															//FFTW - provides fast fourier transform functionality				
+
+//FFTW
+#include <fftw3.h>															//FFTW - provides fast fourier transform functionality	
+
+//Qt
+#include <QtCore/QtCore>
+
 //for std::numeric_limits<std::streamsize>::max()
 #undef max
 			
