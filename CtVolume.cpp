@@ -232,23 +232,26 @@ void CtVolume::reconstructVolume(){
 
 void CtVolume::saveVolumeToBinaryFile(std::string filename) const{
 	if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0){
-		//open a filestream to the specified filename
-		std::ofstream stream(filename, std::ios::out | std::ios::binary);
-		if (!stream.is_open()){
-			std::cout << "Could not open the filestream. Maybe your path does not exist. No files were written." << std::endl;
-		} else{
-			//iterate through the volume
-			for (int x = 0; x < _xSize; ++x){
-				for (int y = 0; y < _ySize; ++y){
-					for (int z = 0; z < _zSize; ++z){
-						//save one float of data
-						stream.write((char*)&_volume[x][y][z], sizeof(float));
-					}
+
+		QFile file(filename.c_str());
+		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+			std::cout << "Could not open the files. Maybe your path does not exist. No files were written." << std::endl;
+			return;
+		}
+		QDataStream out(&file);
+		out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+		out.setByteOrder(QDataStream::LittleEndian);
+		//iterate through the volume
+		for (int x = 0; x < _xSize; ++x){
+			for (int y = 0; y < _ySize; ++y){
+				for (int z = 0; z < _zSize; ++z){
+					//save one float of data
+					out<<_volume[x][y][z];
 				}
 			}
-			stream.close();
-			std::cout << "Volume successfully saved" << std::endl;
 		}
+		file.close();
+		std::cout << "Volume successfully saved" << std::endl;
 	} else{
 		std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
 	}
