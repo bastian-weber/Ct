@@ -56,20 +56,25 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		std::getline(stream, line);
 		strstr.str(line);
+		strstr.clear();
 		strstr >> pixelSize;
 		std::getline(stream, rotationDirection, '\t');
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		std::getline(stream, line);
 		strstr.str(line);
+		strstr.clear();
 		strstr >> uOffset;
 		std::getline(stream, line);
 		strstr.str(line);
+		strstr.clear();
 		strstr >> vOffset;
 		std::getline(stream, line);
 		strstr.str(line);
+		strstr.clear();
 		strstr >> SO;
 		std::getline(stream, line);
 		strstr.str(line);
+		strstr.clear();
 		strstr >> SD;
 		//leave out one line
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
@@ -83,9 +88,11 @@ void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filt
 			std::getline(stream, file, '\t');
 			std::getline(stream, line, '\t');
 			strstr.str(line);
+			strstr.clear();
 			strstr >> angle;
 			std::getline(stream, line);
 			strstr.str(line);
+			strstr.clear();
 			strstr >> heightOffset;
 			//load the image
 			_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
