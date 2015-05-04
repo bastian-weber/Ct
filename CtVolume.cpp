@@ -530,12 +530,21 @@ void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const{
 
 void CtVolume::reconstructionCore(){
 	double imageLowerBoundU = matToImageU(0);
-	double imageUpperBoundU = matToImageU(_imageWidth);
+	double imageUpperBoundU = matToImageU(_imageWidth - 1);
 	double imageLowerBoundV = matToImageV(0);
-	double imageUpperBoundV = matToImageV(_imageHeight);
+	double imageUpperBoundV = matToImageV(_imageHeight - 1);
+
+	int volumeLowerBoundX = volumeToWorldX(0);
+	int volumeUpperBoundX = volumeToWorldX(_xSize);
+	int volumeLowerBoundY = volumeToWorldY(0);
+	int volumeUpperBoundY = volumeToWorldY(_ySize);
+	int volumeLowerBoundZ = volumeToWorldZ(0);
+	int volumeUpperBoundZ = volumeToWorldZ(_zSize);
+
 
 	#pragma omp parallel for schedule(dynamic)
 	for (int projection = 0; projection < _sinogram.size(); ++projection){
+
 		//output percentage
 		if (omp_get_thread_num() == 0){
 			std::cout << "\r" << "Backprojecting: " << floor((double)projection/(double)_sinogram.size() * 100 + 0.5) << "%";
@@ -543,40 +552,46 @@ void CtVolume::reconstructionCore(){
 		double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 		double sine = sin(beta_rad);
 		double cosine = cos(beta_rad);
-		for (int x = volumeToWorldX(0); x < volumeToWorldX(_xSize); ++x){
-			for (int y = volumeToWorldY(0); y < volumeToWorldY(_ySize); ++y){
-				if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2) - 3){
+		cv::Mat image = _sinogram[projection].image;
+		double heightOffset = _sinogram[projection].heightOffset;
+
+		for (int x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
+			for (int y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
+				if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2.0) - 3){
 					//if the voxel is inside the reconstructable cylinder
-					for (int z = volumeToWorldZ(0); z < volumeToWorldZ(_zSize); ++z){
+					for (int z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
 						
-						double t = (-1)*(double)x*sine + (double)y*cosine;
-						double s = (double)x*cosine + (double)y*sine;
+						double t = (-1)*double(x)*sine + double(y)*cosine;
+						double s = double(x)*cosine + double(y)*sine;
 						double u = (t*_SD) / (_SD - s);
-						double v = (((double)z - _sinogram[projection].heightOffset)*_SD) / (_SD - s);
+						double v = ((double(z) - heightOffset)*_SD) / (_SD - s);
 						//correct the u-offset
 						u += _uOffset;
 
 						//check if it's inside the image (before the coordinate transformation)
-						if (u > imageLowerBoundU && u < imageUpperBoundU && v > imageLowerBoundV && v < imageUpperBoundV){
+						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV){
 
 							double weight = W(_SD, u, v);
 
 							u = imageToMatU(u);
 							v = imageToMatV(v);
 
-							//get the 4 surrounding pixels for the bilinear interpolation
-							double u0 = floor(u);
-							double u1 = ceil(u);
-							double v0 = floor(v);
-							double v1 = ceil(v);
-							//check if all the pixels are inside the image (after the coordinate transformation)
-							if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0){
-								float u0v0 = _sinogram[projection].image.at<float>(v0, u0);
-								float u1v0 = _sinogram[projection].image.at<float>(v0, u1);
-								float u0v1 = _sinogram[projection].image.at<float>(v1, u0);
-								float u1v1 = _sinogram[projection].image.at<float>(v1, u1);
-								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += weight * bilinearInterpolation(u - u0, v - v0, u0v0, u1v0, u0v1, u1v1);
-							}
+							//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
+							int u0 = u;
+							int u1 = u0 + 1;
+							int v0 = v;
+							int v1 = v0 + 1;
+							
+							//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
+							//if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0) {
+
+							float* row = image.ptr<float>(v0);
+							float u0v0 = row[u0];
+							float u1v0 = row[u1];
+							row = image.ptr<float>(v1);
+							float u0v1 = row[u0];
+							float u1v1 = row[u1];
+							_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += weight * bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
@@ -588,7 +603,7 @@ void CtVolume::reconstructionCore(){
 	}
 }
 
-float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
+inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const{
 	//the two interpolations on the u axis
 	double v0 = (1 - u)*u0v0 + u*u1v0;
 	double v1 = (1 - u)*u0v1 + u*u1v1;
@@ -596,47 +611,47 @@ float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0
 	return (1 - v)*v0 + v*v1;
 }
 
-double CtVolume::W(double D, double u, double v) const{
+inline double CtVolume::W(double D, double u, double v) const{
 	return D / sqrt(D*D + u*u + v*v);
 }
 
-double CtVolume::worldToVolumeX(double xCoord) const{
+inline double CtVolume::worldToVolumeX(double xCoord) const{
 	return xCoord + ((double)_xSize / 2.0);
 }
 
-double CtVolume::worldToVolumeY(double yCoord) const{
+inline double CtVolume::worldToVolumeY(double yCoord) const{
 	return yCoord + ((double)_ySize / 2.0);
 }
 
-double CtVolume::worldToVolumeZ(double zCoord) const{
+inline double CtVolume::worldToVolumeZ(double zCoord) const {
 	return zCoord + ((double)_zSize / 2.0);
 }
 
-double CtVolume::volumeToWorldX(double xCoord) const{
+inline double CtVolume::volumeToWorldX(double xCoord) const {
 	return xCoord - ((double)_xSize / 2.0);
 }
 
-double CtVolume::volumeToWorldY(double yCoord) const{
+inline double CtVolume::volumeToWorldY(double yCoord) const {
 	return yCoord - ((double)_ySize / 2.0);
 }
 
-double CtVolume::volumeToWorldZ(double zCoord) const{
+inline double CtVolume::volumeToWorldZ(double zCoord) const {
 	return zCoord - ((double)_zSize / 2.0);
 }
 
-double CtVolume::imageToMatU(double uCoord)const{
+inline double CtVolume::imageToMatU(double uCoord)const {
 	return uCoord + ((double)_imageWidth / 2.0);
 }
 
-double CtVolume::imageToMatV(double vCoord)const{
+inline double CtVolume::imageToMatV(double vCoord)const {
 	return vCoord + ((double)_imageHeight / 2.0);
 }
 
-double CtVolume::matToImageU(double uCoord)const{
+inline double CtVolume::matToImageU(double uCoord)const {
 	return uCoord - ((double)_imageWidth / 2.0);
 }
 
-double CtVolume::matToImageV(double vCoord)const{
+inline double CtVolume::matToImageV(double vCoord)const {
 	return vCoord - ((double)_imageHeight / 2.0);
 }
 
