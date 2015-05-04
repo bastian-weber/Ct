@@ -552,8 +552,11 @@ void CtVolume::reconstructionCore(){
 		double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 		double sine = sin(beta_rad);
 		double cosine = cos(beta_rad);
+		//copy some member variables to local variables, performance is better this way
 		cv::Mat image = _sinogram[projection].image;
 		double heightOffset = _sinogram[projection].heightOffset;
+		double uOffset = _uOffset;
+		double SD = _SD;
 
 		for (int x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
 			for (int y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
@@ -563,15 +566,15 @@ void CtVolume::reconstructionCore(){
 						
 						double t = (-1)*double(x)*sine + double(y)*cosine;
 						double s = double(x)*cosine + double(y)*sine;
-						double u = (t*_SD) / (_SD - s);
-						double v = ((double(z) - heightOffset)*_SD) / (_SD - s);
+						double u = (t*SD) / (SD - s);
+						double v = ((double(z) - heightOffset)*SD) / (SD - s);
 						//correct the u-offset
-						u += _uOffset;
+						u += uOffset;
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV){
 
-							double weight = W(_SD, u, v);
+							double weight = W(SD, u, v);
 
 							u = imageToMatU(u);
 							v = imageToMatV(v);
