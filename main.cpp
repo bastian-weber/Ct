@@ -1,5 +1,10 @@
 #include <iostream>
+
+#include <QtCore/QtCore>
+#include <QtWidgets/QtWidgets>
+
 #include "CtVolume.h"
+#include "MainInterface.h"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #define WINDOWS
@@ -9,8 +14,16 @@
 #include <Windows.h>	//for setting the process priority
 #endif
 
-int main(int argc, char* argv[]) {
+int init(int argc, char* argv[]) {
+	QApplication app(argc, argv);
 
+	ct::MainInterface* mainInterface = new ct::MainInterface();
+	mainInterface->show();
+
+	return app.exec();
+}
+
+int main(int argc, char* argv[]) {
 
 	bool showSinogram = false;
 	bool inputProvided = false;
@@ -57,7 +70,7 @@ int main(int argc, char* argv[]) {
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
 				std::cout << "\tDisplay sinogram:\t" << ((showSinogram) ? "YES" : "NO") << std::endl << std::endl;;
-				CtVolume myVolume(input, CtVolume::RAMLAK);
+				ct::CtVolume myVolume(input, ct::CtVolume::RAMLAK);
 				if (showSinogram)myVolume.displaySinogram(true);
 				myVolume.reconstructVolume();
 				myVolume.saveVolumeToBinaryFile(output);
@@ -67,8 +80,8 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	} else {
-		std::cout << "Invalid argument count. Use --help for help." << std::endl;
-		return 1;
+		std::cout << "Launching in GUI mode." << std::endl;
+		return init(argc, argv);
 	}
 	//CtVolume myVolume("G:/Desktop/Turnschuh_1200/angles.csv", CtVolume::RAMLAK);
 	//myVolume.displaySinogram(true);	
