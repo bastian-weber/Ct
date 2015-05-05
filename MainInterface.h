@@ -13,7 +13,13 @@ namespace ct {
 		~MainInterface();
 		QSize sizeHint() const;
 	private:
-
+		QHBoxLayout* _mainLayout;
+		QVBoxLayout* _leftLayout;
+		QHBoxLayout* _openLayout;
+		QLineEdit* _inputFileEdit;
+		QPushButton* _browseButton;
+		QPushButton* _loadButton;
+		QProgressBar* _progressBar;
 	};
 
 }
