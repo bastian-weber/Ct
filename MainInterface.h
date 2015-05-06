@@ -36,8 +36,8 @@ namespace ct {
 		void reactToBrowseButtonClick();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
-		void reactToLoadProgressUpdate();
-		void reactToLoadCompletion();
+		void reactToLoadProgressUpdate(double percentage);
+		void reactToLoadCompletion(CtVolume::LoadStatus status);
 		void reactToReconstructionProgressUpdate();
 		void reactToReconstructionCompletion();
 		void reactToSaveProgressUpdate();

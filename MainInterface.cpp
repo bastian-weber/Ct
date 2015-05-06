@@ -3,6 +3,11 @@
 namespace ct {
 
 	MainInterface::MainInterface(QWidget *parent) : QWidget(parent) {
+		_volume.setEmitSignals(true);
+		qRegisterMetaType<CtVolume::LoadStatus>("CtVolume::LoadStatus");
+		QObject::connect(&_volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
+		QObject::connect(&_volume, SIGNAL(loadingFinished(CtVolume::LoadStatus)), this, SLOT(reactToLoadCompletion(CtVolume::LoadStatus)));
+
 		_openLabel = new QLabel(tr("Configuration file:"));
 		_inputFileEdit = new QLineEdit;
 		_inputFileEdit->setPlaceholderText("Configuration File");
@@ -35,7 +40,6 @@ namespace ct {
 		_subLayout->addWidget(_imageView, 1);
 
 		_progressBar = new QProgressBar;
-		_progressBar->setValue(0);
 		_progressBar->setAlignment(Qt::AlignCenter);
 
 		_mainLayout = new QVBoxLayout;
@@ -61,7 +65,7 @@ namespace ct {
 	}
 
 	QSize MainInterface::sizeHint() const {
-		return QSize(700, 700);
+		return QSize(900, 600);
 	}
 
 	void MainInterface::reactToBrowseButtonClick() {
@@ -80,19 +84,21 @@ namespace ct {
 	}
 
 	void MainInterface::reactToLoadButtonClick() {
-		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), CtVolume::RAMLAK).detach();	
+		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), CtVolume::FilterType::RAMLAK).detach();	
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
 
 	}
 
-	void MainInterface::reactToLoadProgressUpdate() {
-
+	void MainInterface::reactToLoadProgressUpdate(double percentage) {
+		_progressBar->setValue(percentage);
 	}
 
-	void MainInterface::reactToLoadCompletion() {
-
+	void MainInterface::reactToLoadCompletion(CtVolume::LoadStatus status) {
+		if (status == CtVolume::LoadStatus::SUCCESS) {
+			_progressBar->reset();
+		}
 	}
 
 	void MainInterface::reactToReconstructionProgressUpdate() {

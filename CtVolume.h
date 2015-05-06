@@ -37,20 +37,32 @@ namespace ct {
 	};
 
 	//The actual reconstruction class
-	class CtVolume{
+	class CtVolume : public QObject{
+		Q_OBJECT
 	public:
-		enum FilterType{ RAMLAK, HANN, RECTANGLE };
+		enum class FilterType{ RAMLAK, HANN, RECTANGLE };
+		enum class LoadStatus{
+			SUCCESS
+		};
+		enum class ReconstructStatus{
+			SUCCESS
+		};
+		enum class SaveStatus{
+			SUCCESS
+		};
 		//functions		
 		CtVolume();																//constructor 1
 		CtVolume(std::string csvFile,
-				 CtVolume::FilterType filterType = CtVolume::RAMLAK);
+				 CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
-								CtVolume::FilterType filterType = CtVolume::RAMLAK);
+								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
+		void setEmitSignals(bool value);
 	private:
-		//variables					
+		//variables		
+		bool _emitSignals;
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
@@ -100,8 +112,10 @@ namespace ct {
 		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
-		int fftCoordToIndex(int coord, int size) const;							//coordinate transformation for the FFT lowpass filtering
-		//only used for the 2D highpass filtering, which is currently not used
+		int fftCoordToIndex(int coord, int size) const;							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
+	signals:	
+		void loadingProgress(double percentage);
+		void loadingFinished(CtVolume::LoadStatus status);
 	};
 
 }
