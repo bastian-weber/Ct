@@ -40,6 +40,7 @@ namespace hb{
 		  _spanningSelectionRectangle(false),
 		  _polylineColor(60, 60, 60) {
 		setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
+		setFocusPolicy(Qt::FocusPolicy::StrongFocus);
 		setMouseTracking(true);
 	}
 

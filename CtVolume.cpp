@@ -169,8 +169,24 @@ namespace ct {
 			std::cout << "CSV file does not contain any images." << std::endl;
 			return;
 		}
-
+		_minMaxCaclulated = false;
 		if (_emitSignals) emit(loadingFinished(LoadStatus::SUCCESS));
+	}
+
+	cv::Mat CtVolume::sinogramImageAt(size_t index) const {
+		if (index < 0 || index >= _sinogram.size()) {
+			throw std::out_of_range("Index out of bounds.");
+		} else {
+			if (!_minMaxCaclulated) {
+				_minMaxValues = getSinogramMinMaxIntensity();
+				_minMaxCaclulated = true;
+			}
+			return normalizeImage(_sinogram[index].image, _minMaxValues.first, _minMaxValues.second);
+		}
+	}
+
+	size_t CtVolume::sinogramSize() const {
+		return _sinogram.size();
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
@@ -179,7 +195,10 @@ namespace ct {
 			if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
 			//normalizes all the images to the same values
 			if (normalize) {
-				_minMaxValues = getSinogramMinMaxIntensity();
+				if (!_minMaxCaclulated) {
+					_minMaxValues = getSinogramMinMaxIntensity();
+					_minMaxCaclulated = true;
+				}
 				cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
 				imshow("Projections", normalizedImage);
 			} else {
