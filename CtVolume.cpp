@@ -352,7 +352,7 @@ namespace ct {
 
 			applyLogScaling(_sinogram[i].image);
 			applyFourierFilter(_sinogram[i].image, filterType);
-			//applyWeightingFilter(_sinogram[i].image);
+			applyFeldkampWeight(_sinogram[i].image);
 		}
 		std::cout << std::endl;
 		clock_t end = clock();
@@ -403,6 +403,19 @@ namespace ct {
 				factor = abs(j - centerColumn) / centerColumn;
 				inverseFactor = 1 - factor;
 				ptr[j] = ptr[j] * (factor * minAttenuation + inverseFactor * maxAttenuation);
+			}
+		}
+	}
+
+	void CtVolume::applyFeldkampWeight(cv::Mat& image) const {
+		CV_Assert(image.channels() == 1);
+		CV_Assert(image.depth() == CV_32F);
+
+		float* ptr;
+		for (int r = 0; r < image.rows; ++r) {
+			ptr = image.ptr<float>(r);
+			for (int c = 0; c < image.cols; ++c) {
+				ptr[c] = ptr[c] * W(_SD, matToImageU(c), matToImageV(r));
 			}
 		}
 	}
@@ -621,7 +634,7 @@ namespace ct {
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-								double weight = W(SD, u, v);
+								//double weight = W(SD, u, v);
 
 								u = imageToMatU(u);
 								v = imageToMatV(v);
@@ -641,7 +654,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += weight * bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
