@@ -114,8 +114,12 @@ namespace ct {
 		double matToImageV(double vCoord)const;
 		int fftCoordToIndex(int coord, int size) const;							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 	signals:	
-		void loadingProgress(double percentage);
-		void loadingFinished(CtVolume::LoadStatus status);
+		void loadingProgress(double percentage) const;
+		void loadingFinished(CtVolume::LoadStatus status) const;
+		void reconstructionProgress(double percentage) const;
+		void reconstructionFinished(CtVolume::ReconstructStatus status) const;
+		void savingProgress(double percentage) const;
+		void savingFinished(CtVolume::SaveStatus status) const;
 	};
 
 }

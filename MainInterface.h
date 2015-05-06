@@ -18,6 +18,12 @@ namespace ct {
 		~MainInterface();
 		QSize sizeHint() const;
 	private:
+		void disableAllControls();
+		void startupState();
+		void fileSelectedState();
+		void preprocessedState();
+		void reconstructedState();
+
 		CtVolume _volume;
 
 		QVBoxLayout* _mainLayout;
@@ -33,15 +39,17 @@ namespace ct {
 		QProgressBar* _progressBar;
 		hb::ImageView* _imageView;
 	private slots:
+		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
+		void reactToSaveButtonClick();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CtVolume::LoadStatus status);
-		void reactToReconstructionProgressUpdate();
-		void reactToReconstructionCompletion();
-		void reactToSaveProgressUpdate();
-		void reactToSaveCompletion();
+		void reactToReconstructionProgressUpdate(double percentage);
+		void reactToReconstructionCompletion(CtVolume::ReconstructStatus status);
+		void reactToSaveProgressUpdate(double percentage);
+		void reactToSaveCompletion(CtVolume::SaveStatus status);
 	};
 
 }
