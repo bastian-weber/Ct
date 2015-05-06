@@ -13,11 +13,11 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() :_currentlyDisplayedImage(0) {
+	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false) {
 		//empty
 	}
 
-	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0) {
+	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false) {
 		sinogramFromImages(csvFile, filterType);
 	}
 
@@ -166,10 +166,11 @@ namespace ct {
 				imagePreprocessing(filterType);
 			}
 		} else {
-
 			std::cout << "CSV file does not contain any images." << std::endl;
 			return;
 		}
+
+		if (_emitSignals) emit(loadingFinished(LoadStatus::SUCCESS));
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
@@ -259,6 +260,10 @@ namespace ct {
 		}
 	}
 
+	void CtVolume::setEmitSignals(bool value) {
+		_emitSignals = value;
+	}
+
 	//============================================== PRIVATE ==============================================\\
 
 	std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const {
@@ -318,7 +323,11 @@ namespace ct {
 	void CtVolume::imagePreprocessing(CtVolume::FilterType filterType) {
 		clock_t start = clock();
 		for (int i = 0; i < _sinogram.size(); ++i) {
-			if (i % 20 == 0)std::cout << "\r" << "Preprocessing: " << floor((double)i / (double)_sinogram.size() * 100 + 0.5) << "%";
+			if (i % 20 == 0) {
+				double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
+				std::cout << "\r" << "Preprocessing: " << percentage << "%";
+				if (_emitSignals) emit(loadingProgress(percentage));
+			}
 			applyLogScaling(_sinogram[i].image);
 			applyFourierFilter(_sinogram[i].image, filterType);
 			//applyWeightingFilter(_sinogram[i].image);
@@ -406,13 +415,13 @@ namespace ct {
 			double factor;
 			for (int column = 0; column < nyquist; ++column) {
 				switch (type) {
-					case RAMLAK:
+					case FilterType::RAMLAK:
 						factor = ramLakWindowFilter(column, nyquist);
 						break;
-					case HANN:
+					case FilterType::HANN:
 						factor = hannWindowFilter(column, nyquist);
 						break;
-					case RECTANGLE:
+					case FilterType::RECTANGLE:
 						factor = rectangleWindowFilter(column, nyquist);
 						break;
 				}

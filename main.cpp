@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
 				std::cout << "\tDisplay sinogram:\t" << ((showSinogram) ? "YES" : "NO") << std::endl << std::endl;;
-				ct::CtVolume myVolume(input, ct::CtVolume::RAMLAK);
+				ct::CtVolume myVolume(input, ct::CtVolume::FilterType::RAMLAK);
 				if (showSinogram)myVolume.displaySinogram(true);
 				myVolume.reconstructVolume();
 				myVolume.saveVolumeToBinaryFile(output);
