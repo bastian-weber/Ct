@@ -55,8 +55,8 @@ namespace ct {
 		void reactToSaveButtonClick();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CtVolume::LoadStatus status);
-		void reactToReconstructionProgressUpdate(double percentage);
-		void reactToReconstructionCompletion(CtVolume::ReconstructStatus status);
+		void reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection);
+		void reactToReconstructionCompletion(CtVolume::ReconstructStatus status, cv::Mat crossSection);
 		void reactToSaveProgressUpdate(double percentage);
 		void reactToSaveCompletion(CtVolume::SaveStatus status);
 	};

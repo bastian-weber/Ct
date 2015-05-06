@@ -372,6 +372,18 @@ namespace ct {
 		}
 	}
 
+	cv::Mat CtVolume::getVolumeCrossSection() const {
+		cv::Mat result(_ySize, _xSize, CV_32FC1);
+		float* ptr;
+		for (int row = 0; row < result.rows; ++row) {
+			ptr = result.ptr<float>(row);
+			for (int column = 0; column < result.cols; ++column) {
+				ptr[column] = _volume[column][row][_zSize/2];
+			}
+		}
+		return result;
+	}
+
 	//Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
 	void CtVolume::applyWeightingFilter(cv::Mat& img) const {
 		CV_Assert(img.channels() == 1);
@@ -584,7 +596,7 @@ namespace ct {
 			if (omp_get_thread_num() == 0) {
 				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
 				std::cout << "\r" << "Backprojecting: " << percentage << "%";
-				if (_emitSignals) emit(reconstructionProgress(percentage));
+				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection()));
 			}
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
@@ -639,7 +651,7 @@ namespace ct {
 			}
 		}
 		std::cout << std::endl;
-		if (_emitSignals) emit(reconstructionFinished(ReconstructStatus::SUCCESS));
+		if (_emitSignals) emit(reconstructionFinished(ReconstructStatus::SUCCESS, getVolumeCrossSection()));
 	}
 
 	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const {

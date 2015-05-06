@@ -86,6 +86,7 @@ namespace ct {
 		void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
 		void imagePreprocessing(CtVolume::FilterType filterType);				//applies the necessary filters to the images prior to the reconstruction
 		void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
+		cv::Mat getVolumeCrossSection() const;
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyHighpassFilter(cv::Mat& img) const;							//applies the highpass filter to an image
 		void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
@@ -119,8 +120,8 @@ namespace ct {
 	signals:	
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::LoadStatus status) const;
-		void reconstructionProgress(double percentage) const;
-		void reconstructionFinished(CtVolume::ReconstructStatus status) const;
+		void reconstructionProgress(double percentage, cv::Mat crossSection) const;
+		void reconstructionFinished(CtVolume::ReconstructStatus status, cv::Mat crossSection) const;
 		void savingProgress(double percentage) const;
 		void savingFinished(CtVolume::SaveStatus status) const;
 	};

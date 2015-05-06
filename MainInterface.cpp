@@ -10,8 +10,9 @@ namespace ct {
 		QObject::connect(&_volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 		QObject::connect(&_volume, SIGNAL(loadingFinished(CtVolume::LoadStatus)), this, SLOT(reactToLoadCompletion(CtVolume::LoadStatus)));
 		qRegisterMetaType<CtVolume::ReconstructStatus>("CtVolume::ReconstructStatus");
-		QObject::connect(&_volume, SIGNAL(reconstructionProgress(double)), this, SLOT(reactToReconstructionProgressUpdate(double)));
-		QObject::connect(&_volume, SIGNAL(reconstructionFinished(CtVolume::ReconstructStatus)), this, SLOT(reactToReconstructionCompletion(CtVolume::ReconstructStatus)));
+		qRegisterMetaType<cv::Mat>("cv::Mat");
+		QObject::connect(&_volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
+		QObject::connect(&_volume, SIGNAL(reconstructionFinished(CtVolume::ReconstructStatus, cv::Mat)), this, SLOT(reactToReconstructionCompletion(CtVolume::ReconstructStatus, cv::Mat)));
 		qRegisterMetaType<CtVolume::SaveStatus>("CtVolume::SaveStatus");
 		QObject::connect(&_volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
 		QObject::connect(&_volume, SIGNAL(savingFinished(CtVolume::SaveStatus)), this, SLOT(reactToSaveCompletion(CtVolume::SaveStatus)));
@@ -168,13 +169,17 @@ namespace ct {
 
 	void MainInterface::setNextSinogramImage() {
 		size_t nextIndex = _currentIndex + 1;
-		if (nextIndex > _volume.sinogramSize()) nextIndex = 0;
+		if (nextIndex >= _volume.sinogramSize()) nextIndex = 0;
 		setSinogramImage(nextIndex);
 	}
 
 	void MainInterface::setPreviousSinogramImage() {
-		size_t previousIndex = _currentIndex - 1;
-		if (previousIndex < 0) previousIndex = _volume.sinogramSize() - 1;
+		size_t previousIndex;
+		if (_currentIndex == 0) {
+			previousIndex = _volume.sinogramSize() - 1;
+		} else {
+			previousIndex = _currentIndex - 1;
+		}
 		setSinogramImage(previousIndex);
 	}
 
@@ -233,13 +238,17 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToReconstructionProgressUpdate(double percentage) {
+	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		_progressBar->setValue(percentage);
+		cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		_imageView->setImage(crossSection);
 	}
 
-	void MainInterface::reactToReconstructionCompletion(CtVolume::ReconstructStatus status) {
+	void MainInterface::reactToReconstructionCompletion(CtVolume::ReconstructStatus status, cv::Mat crossSection) {
 		if (status == CtVolume::ReconstructStatus::SUCCESS) {
 			_progressBar->reset();
+			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			_imageView->setImage(crossSection);
 			reconstructedState();
 		}
 	}
