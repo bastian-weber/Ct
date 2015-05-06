@@ -13,9 +13,7 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false) {
-		//empty
-	}
+	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false) { }
 
 	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false) {
 		sinogramFromImages(csvFile, filterType);
@@ -347,11 +345,11 @@ namespace ct {
 	void CtVolume::imagePreprocessing(CtVolume::FilterType filterType) {
 		clock_t start = clock();
 		for (int i = 0; i < _sinogram.size(); ++i) {
-			if (i % 20 == 0) {
-				double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
-				std::cout << "\r" << "Preprocessing: " << percentage << "%";
-				if (_emitSignals) emit(loadingProgress(percentage));
-			}
+
+			double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
+			std::cout << "\r" << "Preprocessing: " << percentage << "%";
+			if (_emitSignals) emit(loadingProgress(percentage));
+
 			applyLogScaling(_sinogram[i].image);
 			applyFourierFilter(_sinogram[i].image, filterType);
 			//applyWeightingFilter(_sinogram[i].image);
@@ -662,7 +660,7 @@ namespace ct {
 		return (1 - v)*v0 + v*v1;
 	}
 
-	inline double CtVolume::W(double D, double u, double v) const {
+	inline double CtVolume::W(double D, double u, double v) {
 		return D / sqrt(D*D + u*u + v*v);
 	}
 

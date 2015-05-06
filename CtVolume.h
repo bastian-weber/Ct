@@ -104,7 +104,7 @@ namespace ct {
 									float u1v0,
 									float u0v1,
 									float u1v1) const;
-		double W(double D, double u, double v) const;							//weight function for the reconstruction of the volume
+		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume
 		//coordinate transformation functions			
 		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to
 		double worldToVolumeY(double yCoord) const;								//the coordinates of the "world" and the other way around
