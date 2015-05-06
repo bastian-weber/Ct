@@ -20,6 +20,10 @@ int init(int argc, char* argv[]) {
 	ct::MainInterface* mainInterface = new ct::MainInterface();
 	mainInterface->show();
 
+	//QMainWindow window;
+	//window.setCentralWidget(mainInterface);
+	//window.show();
+
 	return app.exec();
 }
 
