@@ -246,6 +246,10 @@ namespace ct {
 			out.setByteOrder(QDataStream::LittleEndian);
 			//iterate through the volume
 			for (int x = 0; x < _xSize; ++x) {
+				if (_emitSignals) {
+					double percentage = floor(double(x) / double(_xSize) * 100 + 0.5);
+					emit(savingProgress(percentage));
+				}
 				for (int y = 0; y < _ySize; ++y) {
 					for (int z = 0; z < _zSize; ++z) {
 						//save one float of data
@@ -255,6 +259,7 @@ namespace ct {
 			}
 			file.close();
 			std::cout << "Volume successfully saved" << std::endl;
+			if (_emitSignals) emit(savingFinished(SaveStatus::SUCCESS));
 		} else {
 			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
 		}
@@ -558,7 +563,9 @@ namespace ct {
 
 			//output percentage
 			if (omp_get_thread_num() == 0) {
-				std::cout << "\r" << "Backprojecting: " << floor((double)projection / (double)_sinogram.size() * 100 + 0.5) << "%";
+				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
+				std::cout << "\r" << "Backprojecting: " << percentage << "%";
+				if (_emitSignals) emit(reconstructionProgress(percentage));
 			}
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
@@ -612,9 +619,8 @@ namespace ct {
 				}
 			}
 		}
-		if (omp_get_thread_num() == 0) {
-			std::cout << std::endl << "Waiting for all threads to finish" << std::endl;
-		}
+		std::cout << std::endl;
+		if (_emitSignals) emit(reconstructionFinished(ReconstructStatus::SUCCESS));
 	}
 
 	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const {
