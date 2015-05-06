@@ -8,6 +8,7 @@
 
 #include "ImageView.h"
 #include "CtVolume.h"
+#include "Timer.h"
 
 namespace ct {
 
@@ -30,16 +31,16 @@ namespace ct {
 		void setSinogramImage(size_t index);
 		void setNextSinogramImage();
 		void setPreviousSinogramImage();
+		void setStatus(QString text);
 
 		CtVolume _volume;
 		bool _sinogramDisplayActive;
 		size_t _currentIndex;
+		hb::Timer _timer;
 
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
-		QHBoxLayout* _openLayout;
-		QLabel* _openLabel;
 		QLineEdit* _inputFileEdit;
 		QPushButton* _browseButton;
 		QPushButton* _loadButton;
@@ -47,6 +48,8 @@ namespace ct {
 		QPushButton* _saveButton;
 		QProgressBar* _progressBar;
 		hb::ImageView* _imageView;
+		QLabel* _informationLabel;
+		QLabel* _statusLabel;
 	private slots:
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();

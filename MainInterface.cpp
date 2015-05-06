@@ -17,16 +17,11 @@ namespace ct {
 		QObject::connect(&_volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
 		QObject::connect(&_volume, SIGNAL(savingFinished(CtVolume::SaveStatus)), this, SLOT(reactToSaveCompletion(CtVolume::SaveStatus)));
 
-		_openLabel = new QLabel(tr("Configuration file:"));
 		_inputFileEdit = new QLineEdit;
 		_inputFileEdit->setPlaceholderText("Configuration File");
 		QObject::connect(_inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
 		_browseButton = new QPushButton(tr("&Browse"));
 		QObject::connect(_browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
-
-		_openLayout = new QHBoxLayout;
-		_openLayout->addWidget(_inputFileEdit);
-		_openLayout->addWidget(_browseButton);
 
 		_loadButton = new QPushButton(tr("&Load && Preprocess Images"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
@@ -34,15 +29,23 @@ namespace ct {
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
+		_informationLabel = new QLabel;
+		_informationLabel->setText("<p>Test: a</p><p>Bla: b</p>");
+		_statusLabel = new QLabel;
+		_statusLabel->setText("Load a configuration file");
 
 		_leftLayout = new QVBoxLayout;
-		_leftLayout->addWidget(_openLabel);
-		_leftLayout->addLayout(_openLayout);
+		_leftLayout->addStrut(250);
+		_leftLayout->addWidget(_inputFileEdit);
+		_leftLayout->addWidget(_browseButton, 0, Qt::AlignLeft);
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
 		_leftLayout->addWidget(_saveButton);
+		_leftLayout->addSpacing(50);
+		_leftLayout->addWidget(_informationLabel);
 		_leftLayout->addStretch(1);
+		_leftLayout->addWidget(_statusLabel);
 
 		_imageView = new hb::ImageView;
 
@@ -66,8 +69,6 @@ namespace ct {
 		delete _mainLayout;
 		delete _subLayout;
 		delete _leftLayout;
-		delete _openLayout;
-		delete _openLabel;
 		delete _inputFileEdit;
 		delete _browseButton;
 		delete _loadButton;
@@ -75,6 +76,8 @@ namespace ct {
 		delete _saveButton;
 		delete _progressBar;
 		delete _imageView;
+		delete _informationLabel;
+		delete _statusLabel;
 	}
 
 	QSize MainInterface::sizeHint() const {
@@ -183,6 +186,10 @@ namespace ct {
 		setSinogramImage(previousIndex);
 	}
 
+	void MainInterface::setStatus(QString text) {
+		_statusLabel->setText(text);
+	}
+
 	void MainInterface::reactToTextChange(QString text) {
 		if (text != "") {
 			fileSelectedState();
@@ -209,11 +216,15 @@ namespace ct {
 
 	void MainInterface::reactToLoadButtonClick() {
 		disableAllControls();
+		setStatus("Loding and preprocessing images...");
+		_timer.reset();
 		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), CtVolume::FilterType::RAMLAK).detach();	
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
 		disableAllControls();
+		setStatus("Running backprojection...");
+		_timer.reset();
 		std::thread(&CtVolume::reconstructVolume, &_volume).detach();
 	}
 
@@ -222,6 +233,8 @@ namespace ct {
 
 		if (!path.isEmpty()) {
 			disableAllControls();
+			setStatus("Writing volume to disk...");
+			_timer.reset();
 			std::thread(&CtVolume::saveVolumeToBinaryFile, &_volume, path.toStdString()).detach();
 		}
 	}
@@ -233,8 +246,10 @@ namespace ct {
 	void MainInterface::reactToLoadCompletion(CtVolume::LoadStatus status) {
 		if (status == CtVolume::LoadStatus::SUCCESS) {
 			_progressBar->reset();
-			preprocessedState();
 			setSinogramImage(0);
+			double time = _timer.getTime();
+			setStatus("Preprocessing finished (" + QString::number(time, 'f', 1) + "s).");
+			preprocessedState();
 		}
 	}
 
@@ -249,6 +264,8 @@ namespace ct {
 			_progressBar->reset();
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
+			double time = _timer.getTime();
+			setStatus("Reconstruction finished (" + QString::number(time, 'f', 1) + "s).");
 			reconstructedState();
 		}
 	}
@@ -260,6 +277,8 @@ namespace ct {
 	void MainInterface::reactToSaveCompletion(CtVolume::SaveStatus status) {
 		if (status == CtVolume::SaveStatus::SUCCESS) {
 			_progressBar->reset();
+			double time = _timer.getTime();
+			setStatus("Saving finished (" + QString::number(time, 'f', 1) + "s).");
 			reconstructedState();
 		}
 	}
