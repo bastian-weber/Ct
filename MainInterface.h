@@ -17,14 +17,23 @@ namespace ct {
 		MainInterface(QWidget *parent = 0);
 		~MainInterface();
 		QSize sizeHint() const;
+	protected:
+		void dragEnterEvent(QDragEnterEvent* e);
+		void dropEvent(QDropEvent* e);
+		void keyPressEvent(QKeyEvent * e);
 	private:
 		void disableAllControls();
 		void startupState();
 		void fileSelectedState();
 		void preprocessedState();
 		void reconstructedState();
+		void setSinogramImage(size_t index);
+		void setNextSinogramImage();
+		void setPreviousSinogramImage();
 
 		CtVolume _volume;
+		bool _sinogramDisplayActive;
+		size_t _currentIndex;
 
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;

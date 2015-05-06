@@ -2,7 +2,9 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent) {
+	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false) {
+		setAcceptDrops(true);
+
 		_volume.setEmitSignals(true);
 		qRegisterMetaType<CtVolume::LoadStatus>("CtVolume::LoadStatus");
 		QObject::connect(&_volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
@@ -78,12 +80,43 @@ namespace ct {
 		return QSize(900, 600);
 	}
 
+	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
+		if (e->mimeData()->hasUrls()) {
+			if (!e->mimeData()->urls().isEmpty()) {
+				e->acceptProposedAction();
+			}
+		}
+	}
+
+	void MainInterface::dropEvent(QDropEvent* e) {
+		if (!e->mimeData()->urls().isEmpty()) {
+			QString path = e->mimeData()->urls().first().toLocalFile();
+			_inputFileEdit->insert(path);
+			_inputFileEdit->setReadOnly(false);
+			fileSelectedState();
+		}
+	}
+
+	void MainInterface::keyPressEvent(QKeyEvent * e) {
+		if (_sinogramDisplayActive) {
+			if (e->key() == Qt::Key_Right) {
+				setNextSinogramImage();
+			} else if (e->key() == Qt::Key_Left) {
+				setPreviousSinogramImage();
+			} else {
+				e->ignore();
+				return;
+			}
+		}
+	}
+
 	void MainInterface::disableAllControls() {
 		_inputFileEdit->setEnabled(false);
 		_browseButton->setEnabled(false);
 		_loadButton->setEnabled(false);
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
+		_sinogramDisplayActive = false;
 	}
 
 	void MainInterface::startupState() {
@@ -92,6 +125,8 @@ namespace ct {
 		_loadButton->setEnabled(false);
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
+		_sinogramDisplayActive = false;
+		_imageView->resetImage();
 	}
 
 	void MainInterface::fileSelectedState() {
@@ -100,6 +135,8 @@ namespace ct {
 		_loadButton->setEnabled(true);
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
+		_sinogramDisplayActive = false;
+		_imageView->resetImage();
 	}
 
 	void MainInterface::preprocessedState() {
@@ -108,6 +145,7 @@ namespace ct {
 		_loadButton->setEnabled(true);
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(false);
+		_sinogramDisplayActive = true;
 	}
 
 	void MainInterface::reconstructedState() {
@@ -116,6 +154,28 @@ namespace ct {
 		_loadButton->setEnabled(true);
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(true);
+		_sinogramDisplayActive = false;
+	}
+
+	void MainInterface::setSinogramImage(size_t index) {
+		if (index >= 0 && index < _volume.sinogramSize()) {
+			_currentIndex = index;
+			cv::Mat sinogramImage = _volume.sinogramImageAt(index);
+			sinogramImage.convertTo(sinogramImage, CV_8U, 255);
+			_imageView->setImage(sinogramImage);
+		}
+	}
+
+	void MainInterface::setNextSinogramImage() {
+		size_t nextIndex = _currentIndex + 1;
+		if (nextIndex > _volume.sinogramSize()) nextIndex = 0;
+		setSinogramImage(nextIndex);
+	}
+
+	void MainInterface::setPreviousSinogramImage() {
+		size_t previousIndex = _currentIndex - 1;
+		if (previousIndex < 0) previousIndex = _volume.sinogramSize() - 1;
+		setSinogramImage(previousIndex);
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
@@ -169,6 +229,7 @@ namespace ct {
 		if (status == CtVolume::LoadStatus::SUCCESS) {
 			_progressBar->reset();
 			preprocessedState();
+			setSinogramImage(0);
 		}
 	}
 
