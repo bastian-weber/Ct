@@ -40,7 +40,11 @@ namespace ct {
 	class CtVolume : public QObject{
 		Q_OBJECT
 	public:
-		enum class FilterType{ RAMLAK, SHEPP_LOGAN, HANN, RECTANGLE };
+		enum class FilterType{ 
+			RAMLAK, 
+			SHEPP_LOGAN, 
+			HANN, 
+			RECTANGLE };
 		enum class LoadStatus{
 			SUCCESS
 		};
@@ -50,6 +54,7 @@ namespace ct {
 		enum class SaveStatus{
 			SUCCESS
 		};
+
 		//functions		
 		CtVolume();																//constructor 1
 		CtVolume(std::string csvFile,
@@ -58,9 +63,15 @@ namespace ct {
 								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		cv::Mat sinogramImageAt(size_t index) const;
 		size_t sinogramSize() const;
+		size_t getXSize() const;
+		size_t getYSize() const;
+		size_t getZSize() const;
+
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
+
+
 		void setEmitSignals(bool value);
 	private:
 		//variables		

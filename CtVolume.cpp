@@ -184,7 +184,31 @@ namespace ct {
 	}
 
 	size_t CtVolume::sinogramSize() const {
-		return _sinogram.size();
+		if (_sinogram.size() > 0) {
+			return _sinogram.size();
+		}
+		return 0;
+	}
+
+	size_t CtVolume::getXSize() const {
+		if (_sinogram.size() > 0) {
+			return _xSize;
+		}
+		return 0;
+	}
+
+	size_t CtVolume::getYSize() const {
+		if (_sinogram.size() > 0) {
+			return _ySize;
+		}
+		return 0;
+	}
+
+	size_t CtVolume::getZSize() const {
+		if (_sinogram.size() > 0) {
+			return _zSize;
+		}
+		return 0;
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
@@ -638,16 +662,16 @@ namespace ct {
 						for (int z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
 
 							double t = (-1)*double(x)*sine + double(y)*cosine;
+							//correct the u-offset
+							t += uOffset;
 							double s = double(x)*cosine + double(y)*sine;
 							double u = (t*SD) / (SD - s);
 							double v = ((double(z) - heightOffset)*SD) / (SD - s);
 							//correct the u-offset
-							u += uOffset;
+							//u += uOffset;
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
-
-								//double weight = W(SD, u, v);
 
 								u = imageToMatU(u);
 								v = imageToMatV(v);
