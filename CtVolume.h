@@ -40,7 +40,7 @@ namespace ct {
 	class CtVolume : public QObject{
 		Q_OBJECT
 	public:
-		enum class FilterType{ RAMLAK, HANN, RECTANGLE };
+		enum class FilterType{ RAMLAK, SHEPP_LOGAN, HANN, RECTANGLE };
 		enum class LoadStatus{
 			SUCCESS
 		};
@@ -94,9 +94,10 @@ namespace ct {
 								CtVolume::FilterType type) const;
 		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 		double logFunction(double x) const;										//the actual log function used by applyLogScaling
-		double ramLakWindowFilter(double n, double N) const;					//Those functions return the scaling coefficients for the
-		double hannWindowFilter(double n, double N) const;						//fourier filters for each n out of N
-		double rectangleWindowFilter(double n, double N) const;
+		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
+		static double sheppLoganWindowFilter(double n, double N);
+		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
+		static double rectangleWindowFilter(double n, double N);
 		void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
 		void reconstructionCore();												//does the actual reconstruction
 		float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities

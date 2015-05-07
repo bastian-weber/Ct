@@ -465,6 +465,9 @@ namespace ct {
 					case FilterType::RAMLAK:
 						factor = ramLakWindowFilter(column, nyquist);
 						break;
+					case FilterType::SHEPP_LOGAN:
+						factor = sheppLoganWindowFilter(column, nyquist);
+						break;
 					case FilterType::HANN:
 						factor = hannWindowFilter(column, nyquist);
 						break;
@@ -503,15 +506,25 @@ namespace ct {
 		return std::log(x + compressionFactor) - std::log(compressionFactor);
 	}
 
-	double CtVolume::ramLakWindowFilter(double n, double N) const {
-		return (double)n / (double)N;
+	double CtVolume::ramLakWindowFilter(double n, double N) {
+		return double(n) / double(N);
 	}
 
-	double CtVolume::hannWindowFilter(double n, double N) const {
-		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * (double)n) / ((double)N * 2)));
+	double CtVolume::sheppLoganWindowFilter(double n, double N) {
+		if (n == 0) {
+			return 0;
+		} else {
+			double rl = ramLakWindowFilter(n, N);
+			return (rl)* (sin(rl*0.5*M_PI)) / (rl*0.5*M_PI);
+		}
+
 	}
 
-	double CtVolume::rectangleWindowFilter(double n, double N) const {
+	double CtVolume::hannWindowFilter(double n, double N) {
+		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
+	}
+
+	double CtVolume::rectangleWindowFilter(double n, double N) {
 		double cutoffRatio = 0.09;		//defining the width of the filter rectangle, should be in interval [0,1]
 		if (n <= cutoffRatio*N) {
 			return 0;
