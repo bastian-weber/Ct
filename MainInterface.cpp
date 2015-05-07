@@ -6,16 +6,14 @@ namespace ct {
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
-		qRegisterMetaType<CtVolume::LoadStatus>("CtVolume::LoadStatus");
+		qRegisterMetaType<CtVolume::CompletionStatus>("CtVolume::CompletionStatus");
 		QObject::connect(&_volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
-		QObject::connect(&_volume, SIGNAL(loadingFinished(CtVolume::LoadStatus)), this, SLOT(reactToLoadCompletion(CtVolume::LoadStatus)));
-		qRegisterMetaType<CtVolume::ReconstructStatus>("CtVolume::ReconstructStatus");
+		QObject::connect(&_volume, SIGNAL(loadingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToLoadCompletion(CtVolume::CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");
 		QObject::connect(&_volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
-		QObject::connect(&_volume, SIGNAL(reconstructionFinished(CtVolume::ReconstructStatus, cv::Mat)), this, SLOT(reactToReconstructionCompletion(CtVolume::ReconstructStatus, cv::Mat)));
-		qRegisterMetaType<CtVolume::SaveStatus>("CtVolume::SaveStatus");
+		QObject::connect(&_volume, SIGNAL(reconstructionFinished(cv::Mat, CtVolume::CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CtVolume::CompletionStatus)));
 		QObject::connect(&_volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
-		QObject::connect(&_volume, SIGNAL(savingFinished(CtVolume::SaveStatus)), this, SLOT(reactToSaveCompletion(CtVolume::SaveStatus)));
+		QObject::connect(&_volume, SIGNAL(savingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToSaveCompletion(CtVolume::CompletionStatus)));
 
 		_inputFileEdit = new QLineEdit;
 		_inputFileEdit->setPlaceholderText("Configuration File");
@@ -244,9 +242,9 @@ namespace ct {
 		_progressBar->setValue(percentage);
 	}
 
-	void MainInterface::reactToLoadCompletion(CtVolume::LoadStatus status) {
-		if (status == CtVolume::LoadStatus::SUCCESS) {
-			_progressBar->reset();
+	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
+		_progressBar->reset();
+		if (status.successful) {
 			setSinogramImage(0);
 			double time = _timer.getTime();
 			setStatus("Preprocessing finished (" + QString::number(time, 'f', 1) + "s).");
@@ -254,6 +252,12 @@ namespace ct {
 									   "<p>Volume dimensions: " + QString::number(_volume.getXSize()) + "x" + QString::number(_volume.getYSize()) + "x" + QString::number(_volume.getZSize()) + "</p>"
 									   "<p>Projections: " + QString::number(_volume.sinogramSize()));
 			preprocessedState();
+		} else {
+			QMessageBox msgBox;
+			msgBox.setText(status.errorMessage);
+			msgBox.exec();
+			setStatus("Loading failed.");
+			fileSelectedState();
 		}
 	}
 
@@ -263,14 +267,20 @@ namespace ct {
 		_imageView->setImage(crossSection);
 	}
 
-	void MainInterface::reactToReconstructionCompletion(CtVolume::ReconstructStatus status, cv::Mat crossSection) {
-		if (status == CtVolume::ReconstructStatus::SUCCESS) {
-			_progressBar->reset();
+	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
+		_progressBar->reset();		
+		if (status.successful) {
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
 			double time = _timer.getTime();
 			setStatus("Reconstruction finished (" + QString::number(time, 'f', 1) + "s).");
 			reconstructedState();
+		} else {
+			QMessageBox msgBox;
+			msgBox.setText(status.errorMessage);
+			msgBox.exec();
+			setStatus("Reconstruction failed.");
+			preprocessedState();
 		}
 	}
 
@@ -278,13 +288,18 @@ namespace ct {
 		_progressBar->setValue(percentage);
 	}
 
-	void MainInterface::reactToSaveCompletion(CtVolume::SaveStatus status) {
-		if (status == CtVolume::SaveStatus::SUCCESS) {
-			_progressBar->reset();
+	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
+		_progressBar->reset();
+		if (status.successful) {
 			double time = _timer.getTime();
 			setStatus("Saving finished (" + QString::number(time, 'f', 1) + "s).");
-			reconstructedState();
+		} else {
+			QMessageBox msgBox;
+			msgBox.setText(status.errorMessage);
+			msgBox.exec();
+			setStatus("Saving failed.");
 		}
+		reconstructedState();
 	}
 
 }
