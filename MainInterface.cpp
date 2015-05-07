@@ -30,7 +30,6 @@ namespace ct {
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
 		_informationLabel = new QLabel;
-		_informationLabel->setText("<p>Test: a</p><p>Bla: b</p>");
 		_statusLabel = new QLabel;
 		_statusLabel->setText("Load a configuration file");
 
@@ -95,7 +94,7 @@ namespace ct {
 	void MainInterface::dropEvent(QDropEvent* e) {
 		if (!e->mimeData()->urls().isEmpty()) {
 			QString path = e->mimeData()->urls().first().toLocalFile();
-			_inputFileEdit->insert(path);
+			_inputFileEdit->setText(path);
 			_inputFileEdit->setReadOnly(false);
 			fileSelectedState();
 		}
@@ -131,6 +130,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
+		_informationLabel->setText("");
 	}
 
 	void MainInterface::fileSelectedState() {
@@ -141,6 +141,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
+		_informationLabel->setText("");
 	}
 
 	void MainInterface::preprocessedState() {
@@ -208,7 +209,7 @@ namespace ct {
 		QString path = QFileDialog::getOpenFileName(this, tr("Open Config File"), QDir::rootPath(), "Text Files (*.txt *.csv *.*);;");
 
 		if (!path.isEmpty()) {
-			_inputFileEdit->insert(path);
+			_inputFileEdit->setText(path);
 			_inputFileEdit->setReadOnly(false);
 			fileSelectedState();
 		}
@@ -249,6 +250,9 @@ namespace ct {
 			setSinogramImage(0);
 			double time = _timer.getTime();
 			setStatus("Preprocessing finished (" + QString::number(time, 'f', 1) + "s).");
+			_informationLabel->setText("<p>Estimated volume size: " + QString::number(double(_volume.getXSize()*_volume.getYSize()*_volume.getZSize()) / 268435456.0, 'f', 2) + " Gb</p>"
+									   "<p>Volume dimensions: " + QString::number(_volume.getXSize()) + "x" + QString::number(_volume.getYSize()) + "x" + QString::number(_volume.getZSize()) + "</p>"
+									   "<p>Projections: " + QString::number(_volume.sinogramSize()));
 			preprocessedState();
 		}
 	}
