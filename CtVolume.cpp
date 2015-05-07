@@ -26,6 +26,7 @@ namespace ct {
 		std::ifstream stream(csvFile.c_str(), std::ios::in);
 		if (!stream.good()) {
 			std::cerr << "Could not open CSV file - terminating" << std::endl;
+			if (_emitSignals) emit(loadingFinished(CompletionStatus("Could not open the config file.")));
 			return;
 		}
 		//count the lines in the file
@@ -101,12 +102,16 @@ namespace ct {
 				if (!_sinogram[cnt].image.data) {
 					//if there is no image data
 					_sinogram.clear();
-					std::cout << "Error loading the image " << path + std::string("/") + file << ". Maybe it does not exist or permissions are missing." << std::endl;
+					std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\". Maybe it does not exist or permissions are missing.";
+					std::cout << msg << std::endl;
+					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 					return;
 				} else if (_sinogram[cnt].image.channels() != 1) {
 					//if it has more than 1 channel
 					_sinogram.clear();
-					std::cout << "Error loading the image " << path + std::string("/") + file << ", it has not exactly 1 channel." << std::endl;
+					std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\", it has not exactly 1 channel.";
+					std::cout << msg << std::endl;
+					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 					return;
 				} else {
 					//make sure that all images have the same size
@@ -117,7 +122,9 @@ namespace ct {
 						if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols) {
 							//if the image has a different size than the images before stop and reverse
 							_sinogram.clear();
-							std::cout << "Error loading the image " << path + std::string("/") + file << ", its dimensions differ from the images before." << std::endl;
+							std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\", its dimensions differ from the images before.";
+							std::cout << msg << std::endl;
+							if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 							return;
 						}
 					}
@@ -165,10 +172,11 @@ namespace ct {
 			}
 		} else {
 			std::cout << "CSV file does not contain any images." << std::endl;
+			if (_emitSignals) emit(loadingFinished(CompletionStatus("Config file does not contain any images.")));
 			return;
 		}
 		_minMaxCaclulated = false;
-		if (_emitSignals) emit(loadingFinished(LoadStatus::SUCCESS));
+		if (_emitSignals) emit(loadingFinished());
 	}
 
 	cv::Mat CtVolume::sinogramImageAt(size_t index) const {
@@ -269,8 +277,10 @@ namespace ct {
 			//mesure time
 			clock_t end = clock();
 			std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
+			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection()));
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
+			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
 		}
 	}
 
@@ -279,7 +289,8 @@ namespace ct {
 
 			QFile file(filename.c_str());
 			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-				std::cout << "Could not open the files. Maybe your path does not exist. No files were written." << std::endl;
+				std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
+				if (_emitSignals) emit(savingFinished(CompletionStatus("Could not open the file. Maybe your path does not exist. No files were written.")));
 				return;
 			}
 			QDataStream out(&file);
@@ -300,9 +311,10 @@ namespace ct {
 			}
 			file.close();
 			std::cout << "Volume successfully saved" << std::endl;
-			if (_emitSignals) emit(savingFinished(SaveStatus::SUCCESS));
+			if (_emitSignals) emit(savingFinished());
 		} else {
 			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
+			if (_emitSignals) emit(savingFinished(CompletionStatus("Did not save the volume, because it appears to be empty.")));
 		}
 	}
 
@@ -699,7 +711,6 @@ namespace ct {
 			}
 		}
 		std::cout << std::endl;
-		if (_emitSignals) emit(reconstructionFinished(ReconstructStatus::SUCCESS, getVolumeCrossSection()));
 	}
 
 	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const {
