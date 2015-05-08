@@ -35,9 +35,10 @@ namespace ct {
 		int lineCnt = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
 		int imgCnt = lineCnt - 8;
 
-		if (lineCnt > 0) {
+		if (imgCnt > 0) {
 			//resize the sinogram to the correct size
 			_sinogram.resize(imgCnt);
+
 			//go back to the beginning of the file
 			stream.seekg(std::ios::beg);
 			//variables for the values that shall be read
@@ -174,7 +175,7 @@ namespace ct {
 			}
 		} else {
 			std::cout << "CSV file does not contain any images." << std::endl;
-			if (_emitSignals) emit(loadingFinished(CompletionStatus("Config file does not contain any images.")));
+			if (_emitSignals) emit(loadingFinished(CompletionStatus("Apparently the config file does not contain any images.")));
 			return;
 		}
 		_minMaxCaclulated = false;
