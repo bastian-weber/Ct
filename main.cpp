@@ -28,7 +28,6 @@ int init(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-
 	bool showSinogram = false;
 	bool inputProvided = false;
 	bool outputProvided = false;
