@@ -21,6 +21,7 @@ namespace ct {
 
 	void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filterType) {
 		_volume.clear();
+		_minMaxCaclulated = false;
 		//delete the contents of the sinogram
 		_sinogram.clear();
 		//open the csv file
@@ -325,17 +326,14 @@ namespace ct {
 	//============================================== PRIVATE ==============================================\\
 
 	std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const {
-		float min = *std::min_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
-		float max = *std::max_element(_sinogram[0].image.begin<float>(), _sinogram[0].image.end<float>());
-		float tmp;
-
+		double min, max;
 		for (int i = 1; i < _sinogram.size(); ++i) {
-			tmp = *std::min_element(_sinogram[i].image.begin<float>(), _sinogram[i].image.end<float>());
-			if (tmp < min)min = tmp;
-			tmp = *std::max_element(_sinogram[i].image.begin<float>(), _sinogram[i].image.end<float>());
-			if (tmp > max)max = tmp;
+			double lMin, lMax;
+			cv::minMaxLoc(_sinogram[i].image, &lMin, &lMax);
+			if (lMin < min)min = lMin;
+			if (lMax > max)max = lMax;
 		}
-		return std::make_pair(min, max);
+		return std::make_pair(float(min), float(max));
 	}
 
 	cv::Mat CtVolume::normalizeImage(cv::Mat const& image, float minValue, float maxValue) const {
@@ -507,9 +505,6 @@ namespace ct {
 					case FilterType::HANN:
 						factor = hannWindowFilter(column, nyquist);
 						break;
-					case FilterType::RECTANGLE:
-						factor = rectangleWindowFilter(column, nyquist);
-						break;
 				}
 				out[column][0] *= factor;
 				out[column][1] *= factor;
@@ -558,14 +553,6 @@ namespace ct {
 
 	double CtVolume::hannWindowFilter(double n, double N) {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
-	}
-
-	double CtVolume::rectangleWindowFilter(double n, double N) {
-		double cutoffRatio = 0.09;		//defining the width of the filter rectangle, should be in interval [0,1]
-		if (n <= cutoffRatio*N) {
-			return 0;
-		}
-		return 1;
 	}
 
 	//This filter is not used, code could theoretically be removed

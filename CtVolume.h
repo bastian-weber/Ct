@@ -43,8 +43,8 @@ namespace ct {
 		enum class FilterType{ 
 			RAMLAK, 
 			SHEPP_LOGAN, 
-			HANN, 
-			RECTANGLE };
+			HANN
+		};
 		struct CompletionStatus{
 			CompletionStatus() : successful(true) { }
 			CompletionStatus(QString errorMessage) : successful(false), errorMessage(errorMessage) { }
@@ -106,7 +106,6 @@ namespace ct {
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		static double rectangleWindowFilter(double n, double N);
 		void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
 		void reconstructionCore();												//does the actual reconstruction
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
