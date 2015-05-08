@@ -109,12 +109,12 @@ namespace ct {
 		static double rectangleWindowFilter(double n, double N);
 		void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
 		void reconstructionCore();												//does the actual reconstruction
-		float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
+		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
 									float u0v0,
 									float u1v0,
 									float u0v1,
-									float u1v1) const;
+									float u1v1);
 		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume
 		//coordinate transformation functions			
 		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to

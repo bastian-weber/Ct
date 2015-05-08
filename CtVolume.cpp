@@ -713,7 +713,7 @@ namespace ct {
 		std::cout << std::endl;
 	}
 
-	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) const {
+	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
 		//the two interpolations on the u axis
 		double v0 = (1 - u)*u0v0 + u*u1v0;
 		double v1 = (1 - u)*u0v1 + u*u1v1;
