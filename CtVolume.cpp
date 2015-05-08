@@ -476,16 +476,15 @@ namespace ct {
 
 		const int nyquist = (C / 2) + 1;
 
-		float* ptr;
-		fftwf_complex *out;
-		out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
-		fftwf_plan p;
+		float* ptr = image.ptr<float>(0);
+		fftwf_complex* out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
+
+		fftwf_plan plan = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
+		fftwf_plan planInverse = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
 
 		for (int row = 0; row < R; ++row) {
 			ptr = image.ptr<float>(row);
-			p = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
-			fftwf_execute(p);
-			fftwf_destroy_plan(p);
+			fftwf_execute_dft_r2c(plan, ptr, out);
 
 			for (int i = 0; i < nyquist; ++i) {
 				out[i][0] = out[i][0] / C;
@@ -511,11 +510,11 @@ namespace ct {
 			}
 
 			//inverse
-			p = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
-			fftwf_execute(p);
-			fftwf_destroy_plan(p);
+			fftwf_execute_dft_c2r(planInverse, out, ptr);
 		}
 
+		fftwf_destroy_plan(plan);
+		fftwf_destroy_plan(planInverse);
 		fftwf_free(out);
 	}
 
