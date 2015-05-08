@@ -20,6 +20,7 @@ namespace ct {
 	}
 
 	void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filterType) {
+		_volume.clear();
 		//delete the contents of the sinogram
 		_sinogram.clear();
 		//open the csv file
@@ -243,7 +244,6 @@ namespace ct {
 	void CtVolume::reconstructVolume() {
 		if (_sinogram.size() > 0) {
 			//resize the volume to the correct size
-			_volume.clear();
 			_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize, 0)));
 			//mesure time
 			clock_t start = clock();
