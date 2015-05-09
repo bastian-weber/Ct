@@ -35,17 +35,25 @@ namespace ct {
 
 		CtVolume _volume;
 		bool _sinogramDisplayActive;
+		bool _runAll;
+		QString _savingPath;
 		size_t _currentIndex;
 		hb::Timer _timer;
 
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
+		QVBoxLayout* _filterLayout;
+		QGroupBox* _filterGroupBox;
+		QRadioButton* _ramlakRadioButton;
+		QRadioButton* _shepploganRadioButton;
+		QRadioButton* _hannRadioButton;
 		QLineEdit* _inputFileEdit;
 		QPushButton* _browseButton;
 		QPushButton* _loadButton;
 		QPushButton* _reconstructButton;
 		QPushButton* _saveButton;
+		QPushButton* _runAllButton;
 		QProgressBar* _progressBar;
 		hb::ImageView* _imageView;
 		QLabel* _informationLabel;
@@ -56,6 +64,7 @@ namespace ct {
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();
+		void reactToRunAllButtonClick();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CtVolume::CompletionStatus status);
 		void reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection);
