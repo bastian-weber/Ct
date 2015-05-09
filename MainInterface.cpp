@@ -315,6 +315,12 @@ namespace ct {
 
 	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		_progressBar->setValue(percentage);
+		if (percentage > 1.0) {
+			double remaining = _timer.getTime() * ((100.0 - percentage) / percentage);
+			int mins = std::floor(remaining / 60.0);
+			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
+			setStatus(tr("Running backprojection... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
+		}
 		cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 		_imageView->setImage(crossSection);
 	}
