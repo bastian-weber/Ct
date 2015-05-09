@@ -291,7 +291,6 @@ namespace ct {
 	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
 		_progressBar->reset();
 		if (status.successful) {
-			setSinogramImage(0);
 			double time = _timer.getTime();
 			setStatus(tr("Preprocessing finished (") + QString::number(time, 'f', 1) + "s).");
 			_informationLabel->setText("<p>" + tr("Estimated volume size: ") + QString::number(double(_volume.getXSize()*_volume.getYSize()*_volume.getZSize()) / 268435456.0, 'f', 2) + " Gb</p>"
@@ -301,6 +300,7 @@ namespace ct {
 			if (_runAll) {
 				reactToReconstructButtonClick();
 			} else {
+				setSinogramImage(0);
 				preprocessedState();
 			}
 		} else {
