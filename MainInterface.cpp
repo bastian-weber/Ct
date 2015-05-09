@@ -250,7 +250,7 @@ namespace ct {
 			setStatus("Preprocessing finished (" + QString::number(time, 'f', 1) + "s).");
 			_informationLabel->setText("<p>Estimated volume size: " + QString::number(double(_volume.getXSize()*_volume.getYSize()*_volume.getZSize()) / 268435456.0, 'f', 2) + " Gb</p>"
 									   "<p>Volume dimensions: " + QString::number(_volume.getXSize()) + "x" + QString::number(_volume.getYSize()) + "x" + QString::number(_volume.getZSize()) + "</p>"
-										"<p>Sinogram size:" + QString::number(double(_volume.getXSize()*_volume.getZSize()*_volume.sinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
+										"<p>Sinogram size: " + QString::number(double(_volume.getXSize()*_volume.getZSize()*_volume.sinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
 									   "<p>Projections: " + QString::number(_volume.sinogramSize()));
 			preprocessedState();
 		} else {
