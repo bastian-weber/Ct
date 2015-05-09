@@ -327,7 +327,9 @@ namespace ct {
 	//============================================== PRIVATE ==============================================\\
 
 	std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const {
-		double min, max;
+		double min = 0;
+		double max = 0;
+		cv::minMaxLoc(_sinogram[0].image, &min, &max);
 		for (int i = 1; i < _sinogram.size(); ++i) {
 			double lMin, lMax;
 			cv::minMaxLoc(_sinogram[i].image, &lMin, &lMax);
@@ -666,8 +668,6 @@ namespace ct {
 							double s = double(x)*cosine + double(y)*sine;
 							double u = (t*SD) / (SD - s);
 							double v = ((double(z) - heightOffset)*SD) / (SD - s);
-							//correct the u-offset
-							//u += uOffset;
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
