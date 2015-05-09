@@ -6,7 +6,7 @@ namespace ct {
 
 	Projection::Projection() { }
 
-	Projection::Projection(cv::Mat image, double angle, double heightOffset) :image(image), angle(angle), heightOffset(heightOffset) {
+	Projection::Projection(cv::Mat image, double angle, double heightOffset, double sine, double cosine) :image(image), angle(angle), heightOffset(heightOffset), sine(sine), cosine(cosine) {
 		//empty
 	}
 
@@ -99,7 +99,7 @@ namespace ct {
 				strstr.clear();
 				strstr >> heightOffset;
 				//load the image
-				_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
+				_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset, 0, 0);
 
 				//check if everything is ok
 				if (!_sinogram[cnt].image.data) {
@@ -155,6 +155,9 @@ namespace ct {
 					if ((rotationDirection == "cw" && diff < 0) || (rotationDirection == "ccw" && diff > 0)) {
 						for (int i = 0; i < _sinogram.size(); ++i) {
 							_sinogram[i].angle *= -1;
+							double beta_rad = (_sinogram[i].angle / 180.0) * M_PI;
+							_sinogram[i].sine = sin(beta_rad);
+							_sinogram[i].cosine = cos(beta_rad);
 						}
 					}
 				}
@@ -639,35 +642,30 @@ namespace ct {
 
 
 #pragma omp parallel for schedule(dynamic)
-		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 
-			//output percentage
-			if (omp_get_thread_num() == 0) {
-				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
-				std::cout << "\r" << "Backprojecting: " << percentage << "%";
-				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection()));
-			}
-			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
-			double sine = sin(beta_rad);
-			double cosine = cos(beta_rad);
-			//copy some member variables to local variables, performance is better this way
-			cv::Mat image = _sinogram[projection].image;
-			double heightOffset = _sinogram[projection].heightOffset;
-			double uOffset = _uOffset;
-			double SD = _SD;
 
-			for (int x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
-				for (int y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
-					if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2.0) - 3) {
-						//if the voxel is inside the reconstructable cylinder
-						for (int z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
+		////output percentage
+		//if (omp_get_thread_num() == 0) {
+		//	double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
+		//	std::cout << "\r" << "Backprojecting: " << percentage << "%";
+		//	if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection()));
+		//}
 
-							double t = (-1)*double(x)*sine + double(y)*cosine;
+		for (int x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
+			for (int y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
+				if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2.0) - 3) {
+					//if the voxel is inside the reconstructable cylinder
+					for (int z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
+
+
+						for (int projection = 0; projection < _sinogram.size(); ++projection) {
+
+							double t = (-1)*double(x)*_sinogram[projection].sine + double(y)*_sinogram[projection].cosine;
 							//correct the u-offset
-							t += uOffset;
-							double s = double(x)*cosine + double(y)*sine;
-							double u = (t*SD) / (SD - s);
-							double v = ((double(z) - heightOffset)*SD) / (SD - s);
+							t += _uOffset;
+							double s = double(x)*_sinogram[projection].cosine + double(y)*_sinogram[projection].sine;
+							double u = (t*_SD) / (_SD - s);
+							double v = ((double(z) - _sinogram[projection].heightOffset)*_SD) / (_SD - s);
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
@@ -684,10 +682,10 @@ namespace ct {
 								//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
 								//if (u0 < _imageWidth && u0 >= 0 && u1 < _imageWidth && u1 >= 0 && v0 < _imageHeight && v0 >= 0 && v1 < _imageHeight && v1 >= 0) {
 
-								float* row = image.ptr<float>(v0);
+								float* row = _sinogram[projection].image.ptr<float>(v0);
 								float u0v0 = row[u0];
 								float u1v0 = row[u1];
-								row = image.ptr<float>(v1);
+								row = _sinogram[projection].image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
 								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
