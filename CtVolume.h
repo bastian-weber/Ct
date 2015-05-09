@@ -30,10 +30,12 @@ namespace ct {
 	//struct for storing one projection
 	struct Projection{
 		Projection();
-		Projection(cv::Mat image, double angle, double heightOffset);			//Constructor
+		Projection(cv::Mat image, double angle, double heightOffset, double sine, double cosine);			//Constructor
 		cv::Mat image;
 		double angle;
 		double heightOffset;													//for random trajectory
+		double sine;
+		double cosine;
 	};
 
 	//The actual reconstruction class
