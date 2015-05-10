@@ -100,6 +100,7 @@ namespace ct {
 		size_t _xFrom, _xTo;
 		size_t _yFrom, _yTo;
 		size_t _zFrom, _zTo;
+		size_t _xMax, _yMax, _zMax;
 		//functions						
 		std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
