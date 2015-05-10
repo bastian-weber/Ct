@@ -262,33 +262,35 @@ namespace ct {
 			_zFrom = _zFrom_float * _zSize;
 			_zTo = _zTo_float * _zSize;
 			//resize the volume to the correct size
-			size_t xSize = _xTo - _xFrom + 1;
-			size_t ySize = _yTo - _yFrom + 1;
-			size_t zSize = _zTo - _zFrom + 1;
-			_volume = std::vector<std::vector<std::vector<float>>>(xSize, std::vector<std::vector<float>>(ySize, std::vector<float>(zSize, 0)));
+			_xMax = _xTo - _xFrom;
+			_yMax = _yTo - _yFrom;
+			_zMax = _zTo - _zFrom;
+			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
 			reconstructionCore();
 
 			//now fill the corners around the cylinder with the lowest density value
-			double smallestValue;
-			smallestValue = _volume[0][0][0];
-			for (int x = _xFrom; x < _xTo; ++x) {
-				for (int y = _yFrom; y < _yTo; ++y) {
-					for (int z = _zFrom; z < _zTo; ++z) {
-						if (_volume[x - _xFrom][y - _yFrom][z - _zFrom] < smallestValue) {
-							smallestValue = _volume[x - _xFrom][y - _yFrom][z - _zFrom];
+			if (_xMax > 0 && _yMax > 0 && _zMax > 0) {
+				double smallestValue;
+				smallestValue = _volume[0][0][0];
+				for (int x = 0; x < _xMax; ++x) {
+					for (int y = 0; y < _yMax; ++y) {
+						for (int z = 0; z < _zMax; ++z) {
+							if (_volume[x][y][z] < smallestValue) {
+								smallestValue = _volume[x][y][z];
+							}
 						}
 					}
 				}
-			}
 
-			for (int x = _xFrom; x < _xTo; ++x) {
-				for (int y = _yFrom; y < _yTo; ++y) {
-					if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3) {
-						for (int z = _zFrom; z < _zTo; ++z) {
-							_volume[x - _xFrom][y - _yFrom][z - _zFrom] = smallestValue;
+				for (int x = 0; x < _xMax; ++x) {
+					for (int y = 0; y < _yMax; ++y) {
+						if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3) {
+							for (int z = 0; z < _zMax; ++z) {
+								_volume[x][y][z] = smallestValue;
+							}
 						}
 					}
 				}
@@ -317,13 +319,13 @@ namespace ct {
 			out.setFloatingPointPrecision(QDataStream::SinglePrecision);
 			out.setByteOrder(QDataStream::LittleEndian);
 			//iterate through the volume
-			for (int x = 0; x < _volume.size(); ++x) {
+			for (int x = 0; x < _xMax; ++x) {
 				if (_emitSignals) {
 					double percentage = floor(double(x) / double(_volume.size()) * 100 + 0.5);
 					emit(savingProgress(percentage));
 				}
-				for (int y = 0; y < _volume[x].size(); ++y) {
-					for (int z = 0; z < _volume[x][y].size(); ++z) {
+				for (int y = 0; y < _yMax; ++y) {
+					for (int z = 0; z < _zMax; ++z) {
 						//save one float of data
 						out << _volume[x][y][z];
 					}
@@ -651,13 +653,14 @@ namespace ct {
 		double imageLowerBoundV = matToImageV(0);
 		double imageUpperBoundV = matToImageV(_imageHeight - 1);
 
-		double volumeLowerBoundX = volumeToWorldX(_xFrom);
-		double volumeUpperBoundX = volumeToWorldX(_xTo);
-		double volumeLowerBoundY = volumeToWorldY(_yFrom);
-		double volumeUpperBoundY = volumeToWorldY(_yTo);
-		double volumeLowerBoundZ = volumeToWorldZ(_zFrom);
-		double volumeUpperBoundZ = volumeToWorldZ(_zTo);
+		double volumeLowerBoundX = volumeToWorldX(0);
+		double volumeUpperBoundX = volumeToWorldX(_xMax);
+		double volumeLowerBoundY = volumeToWorldY(0);
+		double volumeUpperBoundY = volumeToWorldY(_yMax);
+		double volumeLowerBoundZ = volumeToWorldZ(0);
+		double volumeUpperBoundZ = volumeToWorldZ(_zMax);
 
+		std::cout << volumeLowerBoundZ << "  " << volumeUpperBoundZ << std::endl;
 
 #pragma omp parallel for schedule(dynamic)
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
@@ -711,7 +714,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								_volume[worldToVolumeX(x) - _xFrom][worldToVolumeY(y) - _yFrom][worldToVolumeZ(z) - _zFrom] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
@@ -734,27 +737,27 @@ namespace ct {
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
-		return xCoord + ((double)_xSize / 2.0);
+		return xCoord + ((double)_xSize / 2.0) - double(_xFrom);
 	}
 
 	inline double CtVolume::worldToVolumeY(double yCoord) const {
-		return yCoord + ((double)_ySize / 2.0);
+		return yCoord + ((double)_ySize / 2.0) - double(_yFrom);
 	}
 
 	inline double CtVolume::worldToVolumeZ(double zCoord) const {
-		return zCoord + ((double)_zSize / 2.0);
+		return zCoord + ((double)_zSize / 2.0) - double(_zFrom);
 	}
 
 	inline double CtVolume::volumeToWorldX(double xCoord) const {
-		return xCoord - ((double)_xSize / 2.0);
+		return xCoord - (double(_xSize) / 2.0) + double(_xFrom);
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - ((double)_ySize / 2.0);
+		return yCoord - (double(_ySize) / 2.0) + double(_yFrom);
 	}
 
 	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - ((double)_zSize / 2.0);
+		return zCoord - (double(_zSize) / 2.0) + double(_zFrom);
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
