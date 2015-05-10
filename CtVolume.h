@@ -66,6 +66,12 @@ namespace ct {
 		size_t getZSize() const;
 
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
+		void setVolumeBounds(double xFrom, 
+							 double xTo, 
+							 double yFrom, 
+							 double yTo,
+							 double zFrom, 
+							 double zTo);
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 
@@ -87,6 +93,13 @@ namespace ct {
 		double _SD;																//the distance of the source to the detector in pixel
 		double _SO;																//the distance of the source to the object in pixel
 		double _uOffset;														//the offset of the rotation axis in u direction
+		//bounds of what will be reconstructed
+		double _xFrom_float, _xTo_float;
+		double _yFrom_float, _yTo_float;
+		double _zFrom_float, _zTo_float;
+		size_t _xFrom, _xTo;
+		size_t _yFrom, _yTo;
+		size_t _zFrom, _zTo;
 		//functions						
 		std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
