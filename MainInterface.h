@@ -32,6 +32,8 @@ namespace ct {
 		void setNextSinogramImage();
 		void setPreviousSinogramImage();
 		void setStatus(QString text);
+		void setInfo();
+		void resetInfo();
 
 		CtVolume _volume;
 		bool _sinogramDisplayActive;
@@ -59,6 +61,12 @@ namespace ct {
 		QDoubleSpinBox* _yTo;
 		QDoubleSpinBox* _zFrom;
 		QDoubleSpinBox* _zTo;
+		QLabel* _xLabel;
+		QLabel* _yLabel;
+		QLabel* _zLabel;
+		QLabel* _to1;
+		QLabel* _to2;
+		QLabel* _to3;
 		QLineEdit* _inputFileEdit;
 		QPushButton* _browseButton;
 		QPushButton* _loadButton;
@@ -72,6 +80,7 @@ namespace ct {
 	private slots:
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
+		void reactToBoundsChange(double value);
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();
