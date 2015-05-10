@@ -13,9 +13,9 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false) { }
+	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) { }
 
-	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false) {
+	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) {
 		sinogramFromImages(csvFile, filterType);
 	}
 
@@ -243,10 +243,29 @@ namespace ct {
 		}
 	}
 
+	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
+		_xFrom_float = std::max(0.0, std::min(1.0, xFrom));
+		_xTo_float = std::max(_xFrom_float, std::min(1.0, xTo));
+		_yFrom_float = std::max(0.0, std::min(1.0, yFrom));
+		_yTo_float = std::max(_xFrom_float, std::min(1.0, yTo));
+		_zFrom_float = std::max(0.0, std::min(1.0, zFrom));
+		_zTo_float = std::max(_xFrom_float, std::min(1.0, zTo));
+	}
+
 	void CtVolume::reconstructVolume() {
 		if (_sinogram.size() > 0) {
+			//calcualte bounds
+			_xFrom = _xFrom_float * _xSize;
+			_xTo = _xTo_float * _xSize;
+			_yFrom = _yFrom_float * _ySize;
+			_yTo = _yTo_float * _ySize;
+			_zFrom = _zFrom_float * _zSize;
+			_zTo = _zTo_float * _zSize;
 			//resize the volume to the correct size
-			_volume = std::vector<std::vector<std::vector<float>>>(_xSize, std::vector<std::vector<float>>(_ySize, std::vector<float>(_zSize, 0)));
+			size_t xSize = _xTo - _xFrom + 1;
+			size_t ySize = _yTo - _yFrom + 1;
+			size_t zSize = _zTo - _zFrom + 1;
+			_volume = std::vector<std::vector<std::vector<float>>>(xSize, std::vector<std::vector<float>>(ySize, std::vector<float>(zSize, 0)));
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
@@ -254,23 +273,22 @@ namespace ct {
 
 			//now fill the corners around the cylinder with the lowest density value
 			double smallestValue;
-			for (int x = 0; x < _xSize; ++x) {
-				for (int y = 0; y < _ySize; ++y) {
-					for (int z = 0; z < _zSize; ++z) {
-						if (x == 0 && y == 0 && z == 0) {
-							smallestValue = _volume[x][y][z];
-						} else if (_volume[x][y][z] < smallestValue) {
-							smallestValue = _volume[x][y][z];
+			smallestValue = _volume[0][0][0];
+			for (int x = _xFrom; x < _xTo; ++x) {
+				for (int y = _yFrom; y < _yTo; ++y) {
+					for (int z = _zFrom; z < _zTo; ++z) {
+						if (_volume[x - _xFrom][y - _yFrom][z - _zFrom] < smallestValue) {
+							smallestValue = _volume[x - _xFrom][y - _yFrom][z - _zFrom];
 						}
 					}
 				}
 			}
 
-			for (int x = 0; x < _xSize; ++x) {
-				for (int y = 0; y < _ySize; ++y) {
+			for (int x = _xFrom; x < _xTo; ++x) {
+				for (int y = _yFrom; y < _yTo; ++y) {
 					if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3) {
-						for (int z = 0; z < _zSize; ++z) {
-							_volume[x][y][z] = smallestValue;
+						for (int z = _zFrom; z < _zTo; ++z) {
+							_volume[x - _xFrom][y - _yFrom][z - _zFrom] = smallestValue;
 						}
 					}
 				}
@@ -299,13 +317,13 @@ namespace ct {
 			out.setFloatingPointPrecision(QDataStream::SinglePrecision);
 			out.setByteOrder(QDataStream::LittleEndian);
 			//iterate through the volume
-			for (int x = 0; x < _xSize; ++x) {
+			for (int x = 0; x < _volume.size(); ++x) {
 				if (_emitSignals) {
-					double percentage = floor(double(x) / double(_xSize) * 100 + 0.5);
+					double percentage = floor(double(x) / double(_volume.size()) * 100 + 0.5);
 					emit(savingProgress(percentage));
 				}
-				for (int y = 0; y < _ySize; ++y) {
-					for (int z = 0; z < _zSize; ++z) {
+				for (int y = 0; y < _volume[x].size(); ++y) {
+					for (int z = 0; z < _volume[x][y].size(); ++z) {
 						//save one float of data
 						out << _volume[x][y][z];
 					}
@@ -408,15 +426,18 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection() const {
-		cv::Mat result(_ySize, _xSize, CV_32FC1);
-		float* ptr;
-		for (int row = 0; row < result.rows; ++row) {
-			ptr = result.ptr<float>(row);
-			for (int column = 0; column < result.cols; ++column) {
-				ptr[column] = _volume[column][row][_zSize/2];
+		if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
+			cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
+			float* ptr;
+			for (int row = 0; row < result.rows; ++row) {
+				ptr = result.ptr<float>(row);
+				for (int column = 0; column < result.cols; ++column) {
+					ptr[column] = _volume[column][row][_volume[0][0].size() / 2];
+				}
 			}
+			return result;
 		}
-		return result;
+		return cv::Mat();
 	}
 
 	//Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
@@ -630,12 +651,12 @@ namespace ct {
 		double imageLowerBoundV = matToImageV(0);
 		double imageUpperBoundV = matToImageV(_imageHeight - 1);
 
-		int volumeLowerBoundX = volumeToWorldX(0);
-		int volumeUpperBoundX = volumeToWorldX(_xSize);
-		int volumeLowerBoundY = volumeToWorldY(0);
-		int volumeUpperBoundY = volumeToWorldY(_ySize);
-		int volumeLowerBoundZ = volumeToWorldZ(0);
-		int volumeUpperBoundZ = volumeToWorldZ(_zSize);
+		double volumeLowerBoundX = volumeToWorldX(_xFrom);
+		double volumeUpperBoundX = volumeToWorldX(_xTo);
+		double volumeLowerBoundY = volumeToWorldY(_yFrom);
+		double volumeUpperBoundY = volumeToWorldY(_yTo);
+		double volumeLowerBoundZ = volumeToWorldZ(_zFrom);
+		double volumeUpperBoundZ = volumeToWorldZ(_zTo);
 
 
 #pragma omp parallel for schedule(dynamic)
@@ -656,18 +677,18 @@ namespace ct {
 			double uOffset = _uOffset;
 			double SD = _SD;
 
-			for (int x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
-				for (int y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
-					if (sqrt((double)x*(double)x + (double)y*(double)y) < ((double)_xSize / 2.0) - 3) {
+			for (double x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
+				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
+					if (sqrt(x*x + y*y) < (_xSize / 2.0) - 3) {
 						//if the voxel is inside the reconstructable cylinder
-						for (int z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
+						for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
 
-							double t = (-1)*double(x)*sine + double(y)*cosine;
+							double t = (-1)*x*sine + y*cosine;
 							//correct the u-offset
 							t += uOffset;
-							double s = double(x)*cosine + double(y)*sine;
+							double s = x*cosine + y*sine;
 							double u = (t*SD) / (SD - s);
-							double v = ((double(z) - heightOffset)*SD) / (SD - s);
+							double v = ((z - heightOffset)*SD) / (SD - s);
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
@@ -690,7 +711,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								_volume[worldToVolumeX(x) - _xFrom][worldToVolumeY(y) - _yFrom][worldToVolumeZ(z) - _zFrom] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}

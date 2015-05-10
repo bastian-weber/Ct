@@ -32,6 +32,52 @@ namespace ct {
 		_filterGroupBox = new QGroupBox(tr("Filter Type"));
 		_filterGroupBox->setLayout(_filterLayout);
 
+		_xFrom = new QDoubleSpinBox;
+		_xFrom->setRange(0, 1);
+		_xFrom->setValue(0);
+		_xFrom->setDecimals(3);
+		_xFrom->setSingleStep(0.01);
+		_xTo = new QDoubleSpinBox;
+		_xTo->setRange(0, 1);
+		_xTo->setValue(1);
+		_xTo->setDecimals(3);
+		_xTo->setSingleStep(0.01);
+		_xLayout = new QHBoxLayout;
+		_xLayout->addWidget(_xFrom);
+		_xLayout->addWidget(_xTo);
+		_yFrom = new QDoubleSpinBox;
+		_yFrom->setRange(0, 1);
+		_yFrom->setValue(0);
+		_yFrom->setDecimals(3);
+		_yFrom->setSingleStep(0.01);
+		_yTo = new QDoubleSpinBox;
+		_yTo->setRange(0, 1);
+		_yTo->setValue(1);
+		_yTo->setDecimals(3);
+		_yTo->setSingleStep(0.01);
+		_yLayout = new QHBoxLayout;
+		_yLayout->addWidget(_yFrom);
+		_yLayout->addWidget(_yTo);
+		_zFrom = new QDoubleSpinBox;
+		_zFrom->setRange(0, 1);
+		_zFrom->setValue(0);
+		_zFrom->setDecimals(3);
+		_zFrom->setSingleStep(0.01);
+		_zTo = new QDoubleSpinBox;
+		_zTo->setRange(0, 1);
+		_zTo->setValue(1);
+		_zTo->setDecimals(3);
+		_zTo->setSingleStep(0.01);
+		_zLayout = new QHBoxLayout;
+		_zLayout->addWidget(_zFrom);
+		_zLayout->addWidget(_zTo);
+		_boundsLayout = new QVBoxLayout;
+		_boundsLayout->addLayout(_xLayout);
+		_boundsLayout->addLayout(_yLayout);
+		_boundsLayout->addLayout(_zLayout);
+		_boundsGroupBox = new QGroupBox(tr("Reconstruction bounds"));
+		_boundsGroupBox->setLayout(_boundsLayout);
+
 		_loadButton = new QPushButton(tr("&Load && Preprocess Images"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
@@ -50,13 +96,16 @@ namespace ct {
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_filterGroupBox);
 		_leftLayout->addSpacing(20);
+		_leftLayout->addWidget(_boundsGroupBox);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
 		_leftLayout->addWidget(_saveButton);
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_runAllButton);
-		_leftLayout->addSpacing(50);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_informationLabel);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addStretch(1);
 		_leftLayout->addWidget(_statusLabel);
 
@@ -83,10 +132,21 @@ namespace ct {
 		delete _subLayout;
 		delete _leftLayout;
 		delete _filterLayout;
+		delete _boundsLayout;
+		delete _xLayout;
+		delete _yLayout;
+		delete _zLayout;
 		delete _filterGroupBox;
 		delete _ramlakRadioButton;
 		delete _shepploganRadioButton;
 		delete _hannRadioButton;
+		delete _boundsGroupBox;
+		delete _xFrom;
+		delete _xTo;
+		delete _yFrom;
+		delete _yTo;
+		delete _zFrom;
+		delete _zTo;
 		delete _inputFileEdit;
 		delete _browseButton;
 		delete _loadButton;
@@ -154,7 +214,7 @@ namespace ct {
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
-		_informationLabel->setText("");
+		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
 	}
 
 	void MainInterface::fileSelectedState() {
@@ -167,7 +227,7 @@ namespace ct {
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
-		_informationLabel->setText("");
+		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
 	}
 
 	void MainInterface::preprocessedState() {
@@ -262,6 +322,7 @@ namespace ct {
 		disableAllControls();
 		setStatus(tr("Running backprojection..."));
 		_timer.reset();
+		//_volume.setVolumeBounds(0, 1, 0.4, 1, 0, 1);
 		std::thread(&CtVolume::reconstructVolume, &_volume).detach();
 	}
 
