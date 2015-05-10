@@ -13,9 +13,9 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) { }
+	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false), _xSize(0), _ySize(0), _zSize(0), _imageWidth(0), _imageHeight(0), _xFrom(0), _xTo(0), _yFrom(0), _yTo(0), _zFrom(0), _zTo(0), _xMax(0), _yMax(0), _zMax(0), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) { }
 
-	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) {
+	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false), _xSize(0), _ySize(0), _zSize(0), _imageWidth(0), _imageHeight(0), _xFrom(0), _xTo(0), _yFrom(0), _yTo(0), _zFrom(0), _zTo(0), _xMax(0), _yMax(0), _zMax(0), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) {
 		sinogramFromImages(csvFile, filterType);
 	}
 
@@ -165,6 +165,7 @@ namespace ct {
 				_xSize = _imageWidth;
 				_ySize = _imageWidth;
 				_zSize = _imageHeight;
+				updateBoundaries();
 				//save the distance
 				_SD = SD / pixelSize;
 				_SO = SO / pixelSize;
@@ -201,25 +202,24 @@ namespace ct {
 		return 0;
 	}
 
+	size_t CtVolume::getImageWidth() const {
+		return _imageWidth;
+	}
+
+	size_t CtVolume::getImageHeight() const {
+		return _imageHeight;
+	}
+
 	size_t CtVolume::getXSize() const {
-		if (_sinogram.size() > 0) {
-			return _xSize;
-		}
-		return 0;
+		return _xMax;
 	}
 
 	size_t CtVolume::getYSize() const {
-		if (_sinogram.size() > 0) {
-			return _ySize;
-		}
-		return 0;
+		return _yMax;
 	}
 
 	size_t CtVolume::getZSize() const {
-		if (_sinogram.size() > 0) {
-			return _zSize;
-		}
-		return 0;
+		return _zMax;
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
@@ -250,21 +250,12 @@ namespace ct {
 		_yTo_float = std::max(_xFrom_float, std::min(1.0, yTo));
 		_zFrom_float = std::max(0.0, std::min(1.0, zFrom));
 		_zTo_float = std::max(_xFrom_float, std::min(1.0, zTo));
+		if (_sinogram.size() > 0) updateBoundaries();
 	}
 
 	void CtVolume::reconstructVolume() {
 		if (_sinogram.size() > 0) {
-			//calcualte bounds
-			_xFrom = _xFrom_float * _xSize;
-			_xTo = _xTo_float * _xSize;
-			_yFrom = _yFrom_float * _ySize;
-			_yTo = _yTo_float * _ySize;
-			_zFrom = _zFrom_float * _zSize;
-			_zTo = _zTo_float * _zSize;
 			//resize the volume to the correct size
-			_xMax = _xTo - _xFrom;
-			_yMax = _yTo - _yFrom;
-			_zMax = _zTo - _zFrom;
 			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
 			//mesure time
 			clock_t start = clock();
@@ -734,6 +725,19 @@ namespace ct {
 
 	inline double CtVolume::W(double D, double u, double v) {
 		return D / sqrt(D*D + u*u + v*v);
+	}
+
+	void CtVolume::updateBoundaries() {
+		//calcualte bounds (+0.5 for correct rouding)
+		_xFrom = _xFrom_float * _xSize + 0.5;
+		_xTo = _xTo_float * _xSize + 0.5;
+		_yFrom = _yFrom_float * _ySize + 0.5;
+		_yTo = _yTo_float * _ySize + 0.5;
+		_zFrom = _zFrom_float * _zSize + 0.5;
+		_zTo = _zTo_float * _zSize + 0.5;
+		_xMax = _xTo - _xFrom;
+		_yMax = _yTo - _yFrom;
+		_zMax = _zTo - _zFrom;
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {

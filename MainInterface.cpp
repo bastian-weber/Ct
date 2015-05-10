@@ -32,45 +32,63 @@ namespace ct {
 		_filterGroupBox = new QGroupBox(tr("Filter Type"));
 		_filterGroupBox->setLayout(_filterLayout);
 
+		_xLabel = new QLabel("x:");
+		_to1 = new QLabel("to");
 		_xFrom = new QDoubleSpinBox;
 		_xFrom->setRange(0, 1);
 		_xFrom->setValue(0);
 		_xFrom->setDecimals(3);
 		_xFrom->setSingleStep(0.01);
+		QObject::connect(_xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_xTo = new QDoubleSpinBox;
 		_xTo->setRange(0, 1);
 		_xTo->setValue(1);
 		_xTo->setDecimals(3);
 		_xTo->setSingleStep(0.01);
+		QObject::connect(_xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_xLayout = new QHBoxLayout;
-		_xLayout->addWidget(_xFrom);
-		_xLayout->addWidget(_xTo);
+		_xLayout->addWidget(_xLabel, 0);
+		_xLayout->addWidget(_xFrom, 1);
+		_xLayout->addWidget(_to1, 0);
+		_xLayout->addWidget(_xTo, 1);
+		_yLabel = new QLabel("y:");
+		_to2 = new QLabel("to");
 		_yFrom = new QDoubleSpinBox;
 		_yFrom->setRange(0, 1);
 		_yFrom->setValue(0);
 		_yFrom->setDecimals(3);
 		_yFrom->setSingleStep(0.01);
+		QObject::connect(_yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_yTo = new QDoubleSpinBox;
 		_yTo->setRange(0, 1);
 		_yTo->setValue(1);
 		_yTo->setDecimals(3);
 		_yTo->setSingleStep(0.01);
+		QObject::connect(_yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_yLayout = new QHBoxLayout;
-		_yLayout->addWidget(_yFrom);
-		_yLayout->addWidget(_yTo);
+		_yLayout->addWidget(_yLabel, 0);
+		_yLayout->addWidget(_yFrom, 1);
+		_yLayout->addWidget(_to2, 0);
+		_yLayout->addWidget(_yTo, 1);
+		_zLabel = new QLabel("z:");
+		_to3 = new QLabel("to");
 		_zFrom = new QDoubleSpinBox;
 		_zFrom->setRange(0, 1);
 		_zFrom->setValue(0);
 		_zFrom->setDecimals(3);
 		_zFrom->setSingleStep(0.01);
+		QObject::connect(_zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_zTo = new QDoubleSpinBox;
 		_zTo->setRange(0, 1);
 		_zTo->setValue(1);
 		_zTo->setDecimals(3);
 		_zTo->setSingleStep(0.01);
+		QObject::connect(_zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		_zLayout = new QHBoxLayout;
-		_zLayout->addWidget(_zFrom);
-		_zLayout->addWidget(_zTo);
+		_zLayout->addWidget(_zLabel, 0);
+		_zLayout->addWidget(_zFrom, 1);
+		_zLayout->addWidget(_to3, 0);
+		_zLayout->addWidget(_zTo, 1);
 		_boundsLayout = new QVBoxLayout;
 		_boundsLayout->addLayout(_xLayout);
 		_boundsLayout->addLayout(_yLayout);
@@ -147,6 +165,12 @@ namespace ct {
 		delete _yTo;
 		delete _zFrom;
 		delete _zTo;
+		delete _xLabel;
+		delete _yLabel;
+		delete _zLabel;
+		delete _to1;
+		delete _to2;
+		delete _to3;
 		delete _inputFileEdit;
 		delete _browseButton;
 		delete _loadButton;
@@ -214,7 +238,7 @@ namespace ct {
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
-		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
+		resetInfo();
 	}
 
 	void MainInterface::fileSelectedState() {
@@ -228,6 +252,7 @@ namespace ct {
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
+		resetInfo();
 	}
 
 	void MainInterface::preprocessedState() {
@@ -281,6 +306,22 @@ namespace ct {
 		_statusLabel->setText(text);
 	}
 
+	void MainInterface::setInfo() {
+		size_t xSize = _volume.getXSize();
+		size_t ySize = _volume.getYSize();
+		size_t zSize = _volume.getZSize();
+		size_t width = _volume.getImageWidth();
+		size_t height = _volume.getImageHeight();
+		_informationLabel->setText("<p>" + tr("Estimated volume size: ") + QString::number(double(xSize*ySize*zSize) / 268435456.0, 'f', 2) + " Gb</p>"
+								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
+								   "<p>" + tr("Sinogram size: ") + QString::number(double(width*height*_volume.sinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
+								   "<p>" + tr("Projections: ") + QString::number(_volume.sinogramSize()));
+	}
+
+	void MainInterface::resetInfo() {
+		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
+	}
+
 	void MainInterface::reactToTextChange(QString text) {
 		if (text != "") {
 			fileSelectedState();
@@ -302,6 +343,19 @@ namespace ct {
 			_inputFileEdit->setText(path);
 			_inputFileEdit->setReadOnly(false);
 			fileSelectedState();
+		}
+	}
+
+	void MainInterface::reactToBoundsChange(double value) {
+		if(_xFrom != QObject::sender()) _xFrom->setMaximum(_xTo->value());
+		if (_xTo != QObject::sender()) _xTo->setMinimum(_xFrom->value());
+		if (_yFrom != QObject::sender()) _yFrom->setMaximum(_yTo->value());
+		if (_yTo != QObject::sender()) _yTo->setMinimum(_yFrom->value());
+		if (_zFrom != QObject::sender()) _zFrom->setMaximum(_zTo->value());
+		if (_zTo != QObject::sender()) _zTo->setMinimum(_zFrom->value());
+		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
+		if (_volume.sinogramSize() > 0) {
+			setInfo();
 		}
 	}
 
@@ -359,10 +413,7 @@ namespace ct {
 		if (status.successful) {
 			double time = _timer.getTime();
 			setStatus(tr("Preprocessing finished (") + QString::number(time, 'f', 1) + "s).");
-			_informationLabel->setText("<p>" + tr("Estimated volume size: ") + QString::number(double(_volume.getXSize()*_volume.getYSize()*_volume.getZSize()) / 268435456.0, 'f', 2) + " Gb</p>"
-									   "<p>" + tr("Volume dimensions: ") + QString::number(_volume.getXSize()) + "x" + QString::number(_volume.getYSize()) + "x" + QString::number(_volume.getZSize()) + "</p>"
-										"<p>" +tr("Sinogram size: ") + QString::number(double(_volume.getXSize()*_volume.getZSize()*_volume.sinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
-									   "<p>" + tr("Projections: ") + QString::number(_volume.sinogramSize()));
+			setInfo();
 			if (_runAll) {
 				reactToReconstructButtonClick();
 			} else {

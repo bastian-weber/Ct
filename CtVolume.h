@@ -61,6 +61,8 @@ namespace ct {
 								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		cv::Mat sinogramImageAt(size_t index) const;
 		size_t sinogramSize() const;
+		size_t getImageWidth() const;
+		size_t getImageHeight() const;
 		size_t getXSize() const;
 		size_t getYSize() const;
 		size_t getZSize() const;
@@ -129,7 +131,8 @@ namespace ct {
 									float u0v1,
 									float u1v1);
 		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume
-		//coordinate transformation functions			
+		//coordinate transformation functions
+		void updateBoundaries();
 		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to
 		double worldToVolumeY(double yCoord) const;								//the coordinates of the "world" and the other way around
 		double worldToVolumeZ(double zCoord) const;
