@@ -140,6 +140,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
+		_filterGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
 	}
 
@@ -150,6 +151,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
+		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
 		_informationLabel->setText("");
@@ -162,6 +164,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
+		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_imageView->resetImage();
 		_informationLabel->setText("");
@@ -174,6 +177,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
+		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
 	}
 
@@ -184,6 +188,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(true);
 		_runAllButton->setEnabled(true);
+		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 	}
 
