@@ -275,7 +275,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t zCoord) const {
-		if (zCoord > 0 && zCoord < _zMax) {
+		if (zCoord >= 0 && zCoord < _zMax) {
 			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 				cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
 				float* ptr;
@@ -739,7 +739,7 @@ namespace ct {
 							t += uOffset;
 							double s = x*cosine + y*sine;
 							double u = (t*SD) / (SD - s);
-							double v = ((z - heightOffset)*SD) / (SD - s);
+							double v = ((z + heightOffset)*SD) / (SD - s);
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
