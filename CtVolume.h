@@ -88,11 +88,11 @@ namespace ct {
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
-		size_t _xSize;														//the size of the volume in x, y and z direction, is calculated
-		size_t _ySize;														//when sinogram is created
+		size_t _xSize;															//the size of the volume in x, y and z direction, is calculated
+		size_t _ySize;															//when sinogram is created
 		size_t _zSize;
-		size_t _imageWidth;												//stores the height and width of the images in the sinogram
-		size_t _imageHeight;												//assigned when sinogram is created
+		size_t _imageWidth;														//stores the height and width of the images in the sinogram
+		size_t _imageHeight;													//assigned when sinogram is created
 		mutable std::pair<float, float> _minMaxValues;
 		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
 		double _SD;																//the distance of the source to the detector in pixel
