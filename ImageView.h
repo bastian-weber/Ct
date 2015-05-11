@@ -62,6 +62,9 @@ namespace hb{
 		void setOverlayMask(QBitmap&& mask);
 		void setRenderOverlayMask(bool value);
 
+		void setRenderRectangle(bool value);
+		void setRectangle(QRectF rectangle);
+
 		void setRenderPolyline(bool value);
 		void setPolyline(std::vector<QPointF> border);
 		//if this is activated it will disable point adding
@@ -158,6 +161,9 @@ namespace hb{
 		QBitmap _overlayMask;
 		bool _overlayMaskSet;
 		bool _renderOverlayMask;
+		//related to painting rectangle
+		QRectF _rectangle;
+		bool _renderRectangle;
 		//related to displaying a polyline
 		std::vector<QPointF> _polyline;
 		bool _polylineAssigned;

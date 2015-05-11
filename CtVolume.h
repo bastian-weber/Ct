@@ -59,7 +59,7 @@ namespace ct {
 				 CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
 								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
-		cv::Mat sinogramImageAt(size_t index) const;
+		Projection getProjectionAt(size_t index) const;
 		size_t sinogramSize() const;
 		size_t getImageWidth() const;
 		size_t getImageHeight() const;
@@ -76,8 +76,6 @@ namespace ct {
 							 double zTo);
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
-
-
 		void setEmitSignals(bool value);
 	private:
 		//variables		

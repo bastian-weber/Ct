@@ -183,7 +183,7 @@ namespace ct {
 		if (_emitSignals) emit(loadingFinished());
 	}
 
-	cv::Mat CtVolume::sinogramImageAt(size_t index) const {
+	Projection CtVolume::getProjectionAt(size_t index) const {
 		if (index < 0 || index >= _sinogram.size()) {
 			throw std::out_of_range("Index out of bounds.");
 		} else {
@@ -191,7 +191,9 @@ namespace ct {
 				_minMaxValues = getSinogramMinMaxIntensity();
 				_minMaxCaclulated = true;
 			}
-			return normalizeImage(_sinogram[index].image, _minMaxValues.first, _minMaxValues.second);
+			Projection local(_sinogram[index]);
+			local.image = normalizeImage(local.image, _minMaxValues.first, _minMaxValues.second);
+			return local;
 		}
 	}
 
@@ -425,7 +427,7 @@ namespace ct {
 			for (int row = 0; row < result.rows; ++row) {
 				ptr = result.ptr<float>(row);
 				for (int column = 0; column < result.cols; ++column) {
-					ptr[column] = _volume[column][row][_volume[0][0].size() / 2];
+					ptr[column] = _volume[column][row][_zMax / 2];
 				}
 			}
 			return result;
@@ -641,8 +643,9 @@ namespace ct {
 	void CtVolume::reconstructionCore() {
 		double imageLowerBoundU = matToImageU(0);
 		double imageUpperBoundU = matToImageU(_imageWidth - 1);
-		double imageLowerBoundV = matToImageV(0);
-		double imageUpperBoundV = matToImageV(_imageHeight - 1);
+		//inversed because of inversed v axis in mat/image coordinate system
+		double imageLowerBoundV = matToImageV(_imageHeight - 1);
+		double imageUpperBoundV = matToImageV(0);
 
 		double volumeLowerBoundX = volumeToWorldX(0);
 		double volumeUpperBoundX = volumeToWorldX(_xMax);
@@ -769,7 +772,8 @@ namespace ct {
 	}
 
 	inline double CtVolume::imageToMatV(double vCoord)const {
-		return vCoord + ((double)_imageHeight / 2.0);
+		//factor -1 because of different z-axis direction
+		return ((-1)*vCoord + ((double)_imageHeight / 2.0));
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {
@@ -777,7 +781,8 @@ namespace ct {
 	}
 
 	inline double CtVolume::matToImageV(double vCoord)const {
-		return vCoord - ((double)_imageHeight / 2.0);
+		//factor -1 because of different z-axis direction
+		return (-1)*(vCoord - ((double)_imageHeight / 2.0));
 	}
 
 	int CtVolume::fftCoordToIndex(int coord, int size) const {

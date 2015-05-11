@@ -309,6 +309,16 @@ namespace hb{
 		update();
 	}
 
+	void ImageView::setRenderRectangle(bool value) {
+		_renderRectangle = value;
+		update();
+	}
+
+	void ImageView::setRectangle(QRectF rectangle) {
+		_rectangle = rectangle;
+		update();
+	}
+
 	///Specifies whether the assigned polyline is rendered or not.
 	void ImageView::setRenderPolyline(bool value){
 		_renderPolyline = value;
@@ -700,6 +710,19 @@ namespace hb{
 			canvas.drawImage(QPoint(0, 0), image);
 			canvas.setRenderHint(QPainter::SmoothPixmapTransform, true);
 			canvas.setOpacity(1);
+		}
+
+		if (_imageAssigned && _renderRectangle) {
+			QPixmap rect = QPixmap(canvasSize);
+			rect.fill(QColor(255, 255, 255, 200));
+			QPainter p(&rect);
+			p.setTransform(transform);
+			p.setPen(Qt::NoPen);
+			p.setBrush(QBrush(Qt::transparent));
+			p.setCompositionMode(QPainter::CompositionMode_SourceOut);
+			p.drawRect(_rectangle);
+			canvas.resetTransform();
+			canvas.drawPixmap(0, 0, rect);
 		}
 
 		//drawing of the mask that is currently painted

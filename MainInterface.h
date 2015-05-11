@@ -31,12 +31,14 @@ namespace ct {
 		void setSinogramImage(size_t index);
 		void setNextSinogramImage();
 		void setPreviousSinogramImage();
+		void updateBoundsDisplay();
 		void setStatus(QString text);
 		void setInfo();
 		void resetInfo();
 
 		CtVolume _volume;
 		bool _sinogramDisplayActive;
+		Projection _currentProjection;
 		bool _runAll;
 		QString _savingPath;
 		size_t _currentIndex;

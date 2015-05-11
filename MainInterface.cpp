@@ -226,6 +226,7 @@ namespace ct {
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
+		_imageView->setRenderRectangle(false);
 	}
 
 	void MainInterface::startupState() {
@@ -237,6 +238,7 @@ namespace ct {
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		resetInfo();
 	}
@@ -250,6 +252,7 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
 		resetInfo();
@@ -264,6 +267,7 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
+		_imageView->setRenderRectangle(true);
 	}
 
 	void MainInterface::reconstructedState() {
@@ -275,14 +279,16 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_imageView->setRenderRectangle(false);
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
 		if (index >= 0 && index < _volume.sinogramSize()) {
 			_currentIndex = index;
-			cv::Mat sinogramImage = _volume.sinogramImageAt(index);
-			sinogramImage.convertTo(sinogramImage, CV_8U, 255);
-			_imageView->setImage(sinogramImage);
+			_currentProjection = _volume.getProjectionAt(index);
+			_currentProjection.image.convertTo(_currentProjection.image, CV_8U, 255);
+			_imageView->setImage(_currentProjection.image);
+			updateBoundsDisplay();
 		}
 	}
 
@@ -300,6 +306,33 @@ namespace ct {
 			previousIndex = _currentIndex - 1;
 		}
 		setSinogramImage(previousIndex);
+	}
+
+	void MainInterface::updateBoundsDisplay() {
+		size_t xSize = _volume.getXSize();
+		size_t ySize = _volume.getYSize();
+		size_t zSize = _volume.getZSize();
+		size_t width = _volume.getImageWidth();
+		size_t height = _volume.getImageHeight();
+		double angleRad = (_currentProjection.angle / 180.0) * M_PI;
+		double sine = sin(angleRad);
+		double cosine = cos(angleRad);
+		double xFrom = double(width)*_xFrom->value() - double(width)/2.0;
+		double xTo = double(width)*_xTo->value() - double(width) / 2.0;
+		double yFrom = double(width)*_yFrom->value() - double(width) / 2.0;
+		double yTo = double(width)*_yTo->value() - double(width) / 2.0;
+		double t1 = (-1)*xFrom*sine + yFrom*cosine + double(width) / 2.0;
+		double t2 = (-1)*xFrom*sine + yTo*cosine + double(width) / 2.0;
+		double t3 = (-1)*xTo*sine + yFrom*cosine + double(width) / 2.0;
+		double t4 = (-1)*xTo*sine + yTo*cosine + double(width) / 2.0;
+		double zFrom = double(height) * _zFrom->value();
+		double zTo = double(height) * _zTo->value();
+		std::cout << t1 << "  " << t2 << "  " << t3 << "  " << t4 << std::endl;
+		double left = std::min({ t1, t2, t3, t4 });
+		double right = std::max({ t1, t2, t3, t4 });
+		_imageView->setRectangle(QRectF(left, height - zTo, right - left, height - zFrom));
+		//correct the u-offset
+		//t += uOffset;
 	}
 
 	void MainInterface::setStatus(QString text) {
@@ -356,6 +389,7 @@ namespace ct {
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
 		if (_volume.sinogramSize() > 0) {
 			setInfo();
+			updateBoundsDisplay();
 		}
 	}
 
