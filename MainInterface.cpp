@@ -309,30 +309,25 @@ namespace ct {
 	}
 
 	void MainInterface::updateBoundsDisplay() {
-		size_t xSize = _volume.getXSize();
-		size_t ySize = _volume.getYSize();
-		size_t zSize = _volume.getZSize();
-		size_t width = _volume.getImageWidth();
-		size_t height = _volume.getImageHeight();
+		double width = _volume.getImageWidth();
+		double height = _volume.getImageHeight();
+		double uOffset = _volume.getUOffset();
 		double angleRad = (_currentProjection.angle / 180.0) * M_PI;
 		double sine = sin(angleRad);
 		double cosine = cos(angleRad);
-		double xFrom = double(width)*_xFrom->value() - double(width)/2.0;
-		double xTo = double(width)*_xTo->value() - double(width) / 2.0;
-		double yFrom = double(width)*_yFrom->value() - double(width) / 2.0;
-		double yTo = double(width)*_yTo->value() - double(width) / 2.0;
-		double t1 = (-1)*xFrom*sine + yFrom*cosine + double(width) / 2.0;
-		double t2 = (-1)*xFrom*sine + yTo*cosine + double(width) / 2.0;
-		double t3 = (-1)*xTo*sine + yFrom*cosine + double(width) / 2.0;
-		double t4 = (-1)*xTo*sine + yTo*cosine + double(width) / 2.0;
-		double zFrom = double(height) * _zFrom->value();
-		double zTo = double(height) * _zTo->value();
-		std::cout << t1 << "  " << t2 << "  " << t3 << "  " << t4 << std::endl;
+		double xFrom = width*_xFrom->value() - width/2.0;
+		double xTo = width*_xTo->value() - width / 2.0;
+		double yFrom = width*_yFrom->value() - width / 2.0;
+		double yTo = width*_yTo->value() - width / 2.0;
+		double t1 = (-1)*xFrom*sine + yFrom*cosine + width / 2.0 + uOffset;
+		double t2 = (-1)*xFrom*sine + yTo*cosine + width / 2.0 + uOffset;
+		double t3 = (-1)*xTo*sine + yFrom*cosine + width / 2.0 + uOffset;
+		double t4 = (-1)*xTo*sine + yTo*cosine + width / 2.0 + uOffset;
+		double zFrom = height * _zFrom->value() + _currentProjection.heightOffset;
+		double zTo = height * _zTo->value() + _currentProjection.heightOffset;
 		double left = std::min({ t1, t2, t3, t4 });
 		double right = std::max({ t1, t2, t3, t4 });
-		_imageView->setRectangle(QRectF(left, height - zTo, right - left, height - zFrom));
-		//correct the u-offset
-		//t += uOffset;
+		_imageView->setRectangle(QRectF(left, height - zTo, right - left, zTo - zFrom));
 	}
 
 	void MainInterface::setStatus(QString text) {

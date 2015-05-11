@@ -66,6 +66,7 @@ namespace ct {
 		size_t getXSize() const;
 		size_t getYSize() const;
 		size_t getZSize() const;
+		double getUOffset() const;
 
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void setVolumeBounds(double xFrom, 
