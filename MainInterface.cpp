@@ -2,7 +2,7 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _runAll(false) {
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -214,6 +214,15 @@ namespace ct {
 				e->ignore();
 				return;
 			}
+		} else if (_crossSectionDisplayActive) {
+			if (e->key() == Qt::Key_Up) {
+				setNextSlice();
+			} else if (e->key() == Qt::Key_Down) {
+				setPreviousSlice();
+			} else {
+				e->ignore();
+				return;
+			}
 		}
 	}
 
@@ -226,6 +235,7 @@ namespace ct {
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
+		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
 	}
 
@@ -238,6 +248,7 @@ namespace ct {
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		resetInfo();
@@ -252,6 +263,7 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
@@ -267,6 +279,7 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
+		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(true);
 	}
 
@@ -279,6 +292,7 @@ namespace ct {
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
+		_crossSectionDisplayActive = true;
 		_imageView->setRenderRectangle(false);
 	}
 
@@ -306,6 +320,31 @@ namespace ct {
 			previousIndex = _currentIndex - 1;
 		}
 		setSinogramImage(previousIndex);
+	}
+
+	void MainInterface::setSlice(size_t index) {
+		if (index >= 0 && index < _volume.getZSize()) {
+			_currentSlice = index;
+			cv::Mat crossSection = _volume.getVolumeCrossSection(index);
+			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			_imageView->setImage(crossSection);
+		}
+	}
+
+	void MainInterface::setNextSlice() {
+		size_t nextSlice = _currentSlice + 1;
+		if (nextSlice >= _volume.getZSize()) nextSlice = 0;
+		setSlice(nextSlice);
+	}
+
+	void MainInterface::setPreviousSlice() {
+		size_t previousSlice;
+		if (_currentSlice == 0) {
+			previousSlice = _volume.getZSize() - 1;
+		} else {
+			previousSlice = _currentSlice - 1;
+		}
+		setSlice(previousSlice);
 	}
 
 	void MainInterface::updateBoundsDisplay() {

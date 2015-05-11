@@ -67,6 +67,7 @@ namespace ct {
 		size_t getYSize() const;
 		size_t getZSize() const;
 		double getUOffset() const;
+		cv::Mat getVolumeCrossSection(size_t zCoord) const;		
 
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void setVolumeBounds(double xFrom, 
@@ -110,7 +111,6 @@ namespace ct {
 		void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
 		void imagePreprocessing(CtVolume::FilterType filterType);				//applies the necessary filters to the images prior to the reconstruction
 		void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
-		cv::Mat getVolumeCrossSection() const;
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
 		void applyHighpassFilter(cv::Mat& img) const;							//applies the highpass filter to an image
