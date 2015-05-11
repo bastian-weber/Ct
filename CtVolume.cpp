@@ -13,9 +13,55 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() :_currentlyDisplayedImage(0), _emitSignals(false), _xSize(0), _ySize(0), _zSize(0), _imageWidth(0), _imageHeight(0), _xFrom(0), _xTo(0), _yFrom(0), _yTo(0), _zFrom(0), _zTo(0), _xMax(0), _yMax(0), _zMax(0), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) { }
+	CtVolume::CtVolume()
+		:_currentlyDisplayedImage(0),
+		_emitSignals(false),
+		_xSize(0),
+		_ySize(0),
+		_zSize(0),
+		_imageWidth(0),
+		_imageHeight(0),
+		_uOffset(0),
+		_xFrom(0),
+		_xTo(0),
+		_yFrom(0),
+		_yTo(0),
+		_zFrom(0),
+		_zTo(0),
+		_xMax(0),
+		_yMax(0),
+		_zMax(0),
+		_xFrom_float(0),
+		_xTo_float(1),
+		_yFrom_float(0),
+		_yTo_float(1),
+		_zFrom_float(0),
+		_zTo_float(1) { }
 
-	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType) : _currentlyDisplayedImage(0), _emitSignals(false), _xSize(0), _ySize(0), _zSize(0), _imageWidth(0), _imageHeight(0), _xFrom(0), _xTo(0), _yFrom(0), _yTo(0), _zFrom(0), _zTo(0), _xMax(0), _yMax(0), _zMax(0), _xFrom_float(0), _xTo_float(1), _yFrom_float(0), _yTo_float(1), _zFrom_float(0), _zTo_float(1) {
+	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType)
+		: _currentlyDisplayedImage(0),
+		_emitSignals(false),
+		_xSize(0),
+		_ySize(0),
+		_zSize(0),
+		_imageWidth(0),
+		_imageHeight(0),
+		_uOffset(0),
+		_xFrom(0),
+		_xTo(0),
+		_yFrom(0),
+		_yTo(0),
+		_zFrom(0),
+		_zTo(0),
+		_xMax(0),
+		_yMax(0),
+		_zMax(0),
+		_xFrom_float(0),
+		_xTo_float(1),
+		_yFrom_float(0),
+		_yTo_float(1),
+		_zFrom_float(0),
+		_zTo_float(1) {
 		sinogramFromImages(csvFile, filterType);
 	}
 
@@ -222,6 +268,10 @@ namespace ct {
 
 	size_t CtVolume::getZSize() const {
 		return _zMax;
+	}
+
+	double CtVolume::getUOffset() const {
+		return _uOffset;
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
