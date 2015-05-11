@@ -2,7 +2,7 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _reconstructionActive(false), _runAll(false) {
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -223,6 +223,15 @@ namespace ct {
 				e->ignore();
 				return;
 			}
+		} else if (_reconstructionActive) {
+			if (e->key() == Qt::Key_Up) {
+				setNextSlice();
+			} else if (e->key() == Qt::Key_Down) {
+				setPreviousSlice();
+			} else {
+				e->ignore();
+				return;
+			}
 		}
 	}
 
@@ -297,7 +306,7 @@ namespace ct {
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
-		if (index >= 0 && index < _volume.sinogramSize()) {
+		if (index >= 0 && index < _volume.getSinogramSize()) {
 			_currentIndex = index;
 			_currentProjection = _volume.getProjectionAt(index);
 			_currentProjection.image.convertTo(_currentProjection.image, CV_8U, 255);
@@ -308,14 +317,14 @@ namespace ct {
 
 	void MainInterface::setNextSinogramImage() {
 		size_t nextIndex = _currentIndex + 1;
-		if (nextIndex >= _volume.sinogramSize()) nextIndex = 0;
+		if (nextIndex >= _volume.getSinogramSize()) nextIndex = 0;
 		setSinogramImage(nextIndex);
 	}
 
 	void MainInterface::setPreviousSinogramImage() {
 		size_t previousIndex;
 		if (_currentIndex == 0) {
-			previousIndex = _volume.sinogramSize() - 1;
+			previousIndex = _volume.getSinogramSize() - 1;
 		} else {
 			previousIndex = _currentIndex - 1;
 		}
@@ -324,7 +333,7 @@ namespace ct {
 
 	void MainInterface::setSlice(size_t index) {
 		if (index >= 0 && index < _volume.getZSize()) {
-			_currentSlice = index;
+			_volume.setCrossSectionIndex(index);
 			cv::Mat crossSection = _volume.getVolumeCrossSection(index);
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
@@ -332,14 +341,14 @@ namespace ct {
 	}
 
 	void MainInterface::setNextSlice() {
-		size_t nextSlice = _currentSlice + 1;
+		size_t nextSlice = _volume.getCrossSectionIndex() + 1;
 		if (nextSlice >= _volume.getZSize()) nextSlice = _volume.getZSize() - 1;
 		setSlice(nextSlice);
 	}
 
 	void MainInterface::setPreviousSlice() {
 		size_t previousSlice;
-		if (_currentSlice != 0) previousSlice = _currentSlice - 1;
+		if (_volume.getCrossSectionIndex() != 0) previousSlice = _volume.getCrossSectionIndex() - 1;
 		setSlice(previousSlice);
 	}
 
@@ -377,8 +386,8 @@ namespace ct {
 		size_t height = _volume.getImageHeight();
 		_informationLabel->setText("<p>" + tr("Estimated volume size: ") + QString::number(double(xSize*ySize*zSize) / 268435456.0, 'f', 2) + " Gb</p>"
 								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
-								   "<p>" + tr("Sinogram size: ") + QString::number(double(width*height*_volume.sinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
-								   "<p>" + tr("Projections: ") + QString::number(_volume.sinogramSize()));
+								   "<p>" + tr("Sinogram size: ") + QString::number(double(width*height*_volume.getSinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
+								   "<p>" + tr("Projections: ") + QString::number(_volume.getSinogramSize()));
 	}
 
 	void MainInterface::resetInfo() {
@@ -417,7 +426,7 @@ namespace ct {
 		if (_zFrom != QObject::sender()) _zFrom->setMaximum(_zTo->value());
 		if (_zTo != QObject::sender()) _zTo->setMinimum(_zFrom->value());
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
-		if (_volume.sinogramSize() > 0) {
+		if (_volume.getSinogramSize() > 0) {
 			setInfo();
 			updateBoundsDisplay();
 		}
@@ -441,6 +450,7 @@ namespace ct {
 		setStatus(tr("Running backprojection..."));
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
+		_reconstructionActive = true;
 		std::thread(&CtVolume::reconstructVolume, &_volume).detach();
 	}
 
@@ -507,11 +517,11 @@ namespace ct {
 	}
 
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
+		_reconstructionActive = false;
 		_progressBar->reset();		
 		if (status.successful) {
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
-			_currentSlice = _volume.getZSize() / 2;
 			double time = _timer.getTime();
 			setStatus("Reconstruction finished (" + QString::number(time, 'f', 1) + "s).");
 			if (_runAll) {

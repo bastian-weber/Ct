@@ -43,7 +43,7 @@ namespace ct {
 		bool _sinogramDisplayActive;
 		Projection _currentProjection;
 		bool _crossSectionDisplayActive;
-		size_t _currentSlice;
+		bool _reconstructionActive;
 		bool _runAll;
 		QString _savingPath;
 		size_t _currentIndex;

@@ -16,6 +16,7 @@ namespace ct {
 	CtVolume::CtVolume()
 		:_currentlyDisplayedImage(0),
 		_emitSignals(false),
+		_crossSectionIndex(0),
 		_xSize(0),
 		_ySize(0),
 		_zSize(0),
@@ -40,6 +41,7 @@ namespace ct {
 
 	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType)
 		: _currentlyDisplayedImage(0),
+		_crossSectionIndex(0),
 		_emitSignals(false),
 		_xSize(0),
 		_ySize(0),
@@ -211,7 +213,6 @@ namespace ct {
 				_xSize = _imageWidth;
 				_ySize = _imageWidth;
 				_zSize = _imageHeight;
-				updateBoundaries();
 				//save the distance
 				_SD = SD / pixelSize;
 				_SO = SO / pixelSize;
@@ -226,6 +227,8 @@ namespace ct {
 			return;
 		}
 		_minMaxCaclulated = false;
+		updateBoundaries();
+		_crossSectionIndex = _zMax / 2;
 		if (_emitSignals) emit(loadingFinished());
 	}
 
@@ -243,7 +246,7 @@ namespace ct {
 		}
 	}
 
-	size_t CtVolume::sinogramSize() const {
+	size_t CtVolume::getSinogramSize() const {
 		if (_sinogram.size() > 0) {
 			return _sinogram.size();
 		}
@@ -291,6 +294,16 @@ namespace ct {
 		} else {
 			throw std::out_of_range("Index out of bounds.");
 		}
+	}
+
+	void CtVolume::setCrossSectionIndex(size_t zCoord) {
+		if (zCoord >= 0 && zCoord < _zMax) {
+			_crossSectionIndex = zCoord;
+		}
+	}
+
+	size_t CtVolume::getCrossSectionIndex() const {
+		return _crossSectionIndex;
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
@@ -361,7 +374,7 @@ namespace ct {
 			//mesure time
 			clock_t end = clock();
 			std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
-			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_zMax/2)));
+			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_crossSectionIndex)));
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
 			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
@@ -717,7 +730,7 @@ namespace ct {
 			if (omp_get_thread_num() == 0) {
 				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
 				std::cout << "\r" << "Backprojecting: " << percentage << "%";
-				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection(_zMax/2)));
+				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection(_crossSectionIndex)));
 			}
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);

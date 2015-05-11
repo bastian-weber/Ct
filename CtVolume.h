@@ -60,7 +60,7 @@ namespace ct {
 		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
 								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
 		Projection getProjectionAt(size_t index) const;
-		size_t sinogramSize() const;
+		size_t getSinogramSize() const;
 		size_t getImageWidth() const;
 		size_t getImageHeight() const;
 		size_t getXSize() const;
@@ -68,6 +68,8 @@ namespace ct {
 		size_t getZSize() const;
 		double getUOffset() const;
 		cv::Mat getVolumeCrossSection(size_t zCoord) const;		
+		void setCrossSectionIndex(size_t zCoord);
+		size_t getCrossSectionIndex() const;
 
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void setVolumeBounds(double xFrom, 
@@ -81,7 +83,8 @@ namespace ct {
 		void setEmitSignals(bool value);
 	private:
 		//variables		
-		bool _emitSignals;
+		bool _emitSignals;														//if true the object emits qt signals in certain functions
+		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
@@ -91,7 +94,7 @@ namespace ct {
 		mutable int _imageWidth;												//stores the height and width of the images in the sinogram
 		mutable int _imageHeight;												//assigned when sinogram is created
 		mutable std::pair<float, float> _minMaxValues;
-		mutable bool _minMaxCaclulated;
+		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
 		double _SD;																//the distance of the source to the detector in pixel
 		double _SO;																//the distance of the source to the object in pixel
 		double _uOffset;														//the offset of the rotation axis in u direction
