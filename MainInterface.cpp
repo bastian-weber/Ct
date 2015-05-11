@@ -333,17 +333,13 @@ namespace ct {
 
 	void MainInterface::setNextSlice() {
 		size_t nextSlice = _currentSlice + 1;
-		if (nextSlice >= _volume.getZSize()) nextSlice = 0;
+		if (nextSlice >= _volume.getZSize()) nextSlice = _volume.getZSize() - 1;
 		setSlice(nextSlice);
 	}
 
 	void MainInterface::setPreviousSlice() {
 		size_t previousSlice;
-		if (_currentSlice == 0) {
-			previousSlice = _volume.getZSize() - 1;
-		} else {
-			previousSlice = _currentSlice - 1;
-		}
+		if (_currentSlice != 0) previousSlice = _currentSlice - 1;
 		setSlice(previousSlice);
 	}
 
@@ -515,6 +511,7 @@ namespace ct {
 		if (status.successful) {
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
+			_currentSlice = _volume.getZSize() / 2;
 			double time = _timer.getTime();
 			setStatus("Reconstruction finished (" + QString::number(time, 'f', 1) + "s).");
 			if (_runAll) {
