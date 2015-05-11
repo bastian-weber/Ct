@@ -721,8 +721,6 @@ namespace ct {
 		double volumeLowerBoundZ = volumeToWorldZ(0);
 		double volumeUpperBoundZ = volumeToWorldZ(_zMax);
 
-		std::cout << volumeLowerBoundZ << "  " << volumeUpperBoundZ << std::endl;
-
 #pragma omp parallel for schedule(dynamic)
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 
