@@ -274,6 +274,25 @@ namespace ct {
 		return _uOffset;
 	}
 
+	cv::Mat CtVolume::getVolumeCrossSection(size_t zCoord) const {
+		if (zCoord > 0 && zCoord < _zMax) {
+			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
+				cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
+				float* ptr;
+				for (int row = 0; row < result.rows; ++row) {
+					ptr = result.ptr<float>(row);
+					for (int column = 0; column < result.cols; ++column) {
+						ptr[column] = _volume[column][row][zCoord];
+					}
+				}
+				return result;
+			}
+			return cv::Mat();
+		} else {
+			throw std::out_of_range("Index out of bounds.");
+		}
+	}
+
 	void CtVolume::displaySinogram(bool normalize) const {
 		if (_sinogram.size() > 0) {
 			if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
@@ -342,7 +361,7 @@ namespace ct {
 			//mesure time
 			clock_t end = clock();
 			std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
-			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection()));
+			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_zMax/2)));
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
 			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
@@ -468,21 +487,6 @@ namespace ct {
 		} else if (img.depth() == CV_16U) {
 			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 16));
 		}
-	}
-
-	cv::Mat CtVolume::getVolumeCrossSection() const {
-		if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
-			cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
-			float* ptr;
-			for (int row = 0; row < result.rows; ++row) {
-				ptr = result.ptr<float>(row);
-				for (int column = 0; column < result.cols; ++column) {
-					ptr[column] = _volume[column][row][_zMax / 2];
-				}
-			}
-			return result;
-		}
-		return cv::Mat();
 	}
 
 	//Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
@@ -713,7 +717,7 @@ namespace ct {
 			if (omp_get_thread_num() == 0) {
 				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
 				std::cout << "\r" << "Backprojecting: " << percentage << "%";
-				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection()));
+				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection(_zMax/2)));
 			}
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);

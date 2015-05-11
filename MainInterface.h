@@ -31,6 +31,9 @@ namespace ct {
 		void setSinogramImage(size_t index);
 		void setNextSinogramImage();
 		void setPreviousSinogramImage();
+		void setSlice(size_t index);
+		void setNextSlice();
+		void setPreviousSlice();
 		void updateBoundsDisplay();
 		void setStatus(QString text);
 		void setInfo();
@@ -39,6 +42,8 @@ namespace ct {
 		CtVolume _volume;
 		bool _sinogramDisplayActive;
 		Projection _currentProjection;
+		bool _crossSectionDisplayActive;
+		size_t _currentSlice;
 		bool _runAll;
 		QString _savingPath;
 		size_t _currentIndex;
