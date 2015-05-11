@@ -214,16 +214,7 @@ namespace ct {
 				e->ignore();
 				return;
 			}
-		} else if (_crossSectionDisplayActive) {
-			if (e->key() == Qt::Key_Up) {
-				setNextSlice();
-			} else if (e->key() == Qt::Key_Down) {
-				setPreviousSlice();
-			} else {
-				e->ignore();
-				return;
-			}
-		} else if (_reconstructionActive) {
+		} else if (_crossSectionDisplayActive || _reconstructionActive) {
 			if (e->key() == Qt::Key_Up) {
 				setNextSlice();
 			} else if (e->key() == Qt::Key_Down) {
