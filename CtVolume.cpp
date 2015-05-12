@@ -120,6 +120,9 @@ namespace ct {
 					path = folder + path;
 				}
 			}
+			if (path.size() > 0 && *(path.end() - 1) != '/' && *(path.end() - 1) != '\\') {
+				path = path + std::string("/");
+			}
 			stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 			std::getline(stream, line);
 			strstr.str(line);
@@ -162,20 +165,20 @@ namespace ct {
 				strstr.clear();
 				strstr >> heightOffset;
 				//load the image
-				_sinogram[cnt] = Projection(cv::imread(path + std::string("/") + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
+				_sinogram[cnt] = Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
 
 				//check if everything is ok
 				if (!_sinogram[cnt].image.data) {
 					//if there is no image data
 					_sinogram.clear();
-					std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\". Maybe it does not exist or permissions are missing.";
+					std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
 					std::cout << msg << std::endl;
 					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 					return;
 				} else if (_sinogram[cnt].image.channels() != 1) {
 					//if it has more than 1 channel
 					_sinogram.clear();
-					std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\", it has not exactly 1 channel.";
+					std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
 					std::cout << msg << std::endl;
 					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 					return;
@@ -188,7 +191,7 @@ namespace ct {
 						if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols) {
 							//if the image has a different size than the images before stop and reverse
 							_sinogram.clear();
-							std::string msg = "Error loading the image \"" + path + std::string("/") + file + "\", its dimensions differ from the images before.";
+							std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
 							std::cout << msg << std::endl;
 							if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
 							return;
