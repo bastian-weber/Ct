@@ -105,6 +105,21 @@ namespace ct {
 
 			//manual reading of all the parameters
 			std::getline(stream, path, '\t');
+			//handle relative paths
+			if (path.size() > 0 && path.at(0) == '.') {
+				size_t pos = csvFile.find_last_of("/\\");
+				if (pos != std::string::npos) {
+					std::string folder = csvFile.substr(0, pos + 1);
+					std::cout << folder << std::endl;
+					if (!(path.size() > 1 && path.at(1) == '.')) {
+						//the path starts with . and not ..
+						int cutoff = 1;
+						if (path.size() > 1 && (path.at(1) == '/' || path.at(1) == '\\')) cutoff = 2;
+						path = path.substr(cutoff);
+					}
+					path = folder + path;
+				}
+			}
 			stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 			std::getline(stream, line);
 			strstr.str(line);
