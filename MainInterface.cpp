@@ -438,6 +438,7 @@ namespace ct {
 
 	void MainInterface::reactToReconstructButtonClick() {
 		disableAllControls();
+		_imageView->resetImage();
 		setStatus(tr("Running backprojection..."));
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
