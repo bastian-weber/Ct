@@ -41,7 +41,6 @@ int main(int argc, char* argv[]) {
 			std::cout << "Parameters:" << std::endl << "\t-i [Path]\tFile path to the input config file. Long: --input." << std::endl;
 			std::cout << "\t-o [Path]\tFile path for the output file. Long: --output." << std::endl;
 			std::cout << "\t-d \t\tOptional. Display the sinogram. Long: --display." << std::endl;
-			std::cout << "\t-s \t\tOptional. Run only singlethreaded. \n\t\t\tLong: --singlethreaded." << std::endl;
 			std::cout << "\t-h \t\tDisplay this help. Long: --help." << std::endl;
 		} else {
 			for (int i = 1; i < argc; ++i) {
