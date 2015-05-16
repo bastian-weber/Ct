@@ -601,6 +601,9 @@ namespace ct {
 					case FilterType::HANN:
 						factor = hannWindowFilter(column, nyquist);
 						break;
+					default:
+						factor = ramLakWindowFilter(column, nyquist);
+						break;
 				}
 				out[column][0] *= factor;
 				out[column][1] *= factor;
