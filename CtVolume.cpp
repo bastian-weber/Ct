@@ -227,8 +227,9 @@ namespace ct {
 				//save the distance
 				_SD = SD / pixelSize;
 				_SO = SO / pixelSize;
-				//save the uOffset
+				//save uOffset and vOffset
 				_uOffset = uOffset / pixelSize;
+				_vOffset = vOffset / pixelSize;
 				//now apply the filters
 				imagePreprocessing(filterType);
 			}
