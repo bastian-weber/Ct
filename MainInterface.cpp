@@ -234,6 +234,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
+		_boundsGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
@@ -247,6 +248,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
 		_filterGroupBox->setEnabled(true);
+		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
@@ -262,6 +264,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
+		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
@@ -278,6 +281,7 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
+		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(true);
@@ -291,6 +295,7 @@ namespace ct {
 		_saveButton->setEnabled(true);
 		_runAllButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
+		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = true;
 		_imageView->setRenderRectangle(false);
@@ -339,8 +344,10 @@ namespace ct {
 
 	void MainInterface::setPreviousSlice() {
 		size_t previousSlice;
-		if (_volume.getCrossSectionIndex() != 0) previousSlice = _volume.getCrossSectionIndex() - 1;
-		setSlice(previousSlice);
+		if (_volume.getCrossSectionIndex() != 0) {
+			previousSlice = _volume.getCrossSectionIndex() - 1;
+			setSlice(previousSlice);
+		}
 	}
 
 	void MainInterface::updateBoundsDisplay() {
