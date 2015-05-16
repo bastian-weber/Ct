@@ -88,16 +88,8 @@ namespace ct {
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
-		size_t _xSize;															//the size of the volume in x, y and z direction, is calculated
-		size_t _ySize;															//when sinogram is created
-		size_t _zSize;
-		size_t _imageWidth;														//stores the height and width of the images in the sinogram
-		size_t _imageHeight;													//assigned when sinogram is created
-		mutable std::pair<float, float> _minMaxValues;
-		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
-		double _SD;																//the distance of the source to the detector in pixel
-		double _SO;																//the distance of the source to the object in pixel
-		double _uOffset;														//the offset of the rotation axis in u direction
+		size_t _xSize, _ySize, _zSize;											//the size of the volume in x, y and z direction, is calculated when sinogram is created
+		size_t _imageWidth, _imageHeight;;										//stores the height and width of the images in the sinogram
 		//bounds of what will be reconstructed
 		double _xFrom_float, _xTo_float;
 		double _yFrom_float, _yTo_float;
@@ -106,6 +98,11 @@ namespace ct {
 		size_t _yFrom, _yTo;
 		size_t _zFrom, _zTo;
 		size_t _xMax, _yMax, _zMax;
+		double _SD;																//the distance of the source to the detector in pixel
+		double _SO;																//the distance of the source to the object in pixel
+		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
+		mutable std::pair<float, float> _minMaxValues;
+		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
 		//functions						
 		std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
