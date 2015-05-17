@@ -76,6 +76,7 @@ namespace ct {
 		QLabel* _to2;
 		QLabel* _to3;
 		QLineEdit* _inputFileEdit;
+		QCompleter* _completer;
 		QPushButton* _browseButton;
 		QPushButton* _loadButton;
 		QPushButton* _reconstructButton;

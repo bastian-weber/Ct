@@ -20,6 +20,10 @@ namespace ct {
 		QObject::connect(_inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
 		_browseButton = new QPushButton(tr("&Browse"));
 		QObject::connect(_browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
+		_completer = new QCompleter;
+		QDirModel* model = new QDirModel(_completer);
+		_completer->setModel(model);
+		_inputFileEdit->setCompleter(_completer);
 
 		_ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
 		_ramlakRadioButton->setChecked(true);
@@ -188,6 +192,7 @@ namespace ct {
 		delete _to2;
 		delete _to3;
 		delete _inputFileEdit;
+		delete _completer;
 		delete _browseButton;
 		delete _loadButton;
 		delete _reconstructButton;
