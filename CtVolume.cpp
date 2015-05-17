@@ -69,7 +69,6 @@ namespace ct {
 
 	void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filterType) {
 		_volume.clear();
-		_minMaxCaclulated = false;
 		//delete the contents of the sinogram
 		_sinogram.clear();
 		//open the csv file
@@ -83,140 +82,33 @@ namespace ct {
 		int lineCnt = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
 		int imgCnt = lineCnt - 8;
 
-		if (imgCnt > 0) {
+		if (imgCnt <= 0) {
+			std::cout << "CSV file does not contain any images." << std::endl;
+			if (_emitSignals) emit(loadingFinished(CompletionStatus("Apparently the config file does not contain any images.")));
+			return;
+		}else{
 			//resize the sinogram to the correct size
-			_sinogram.resize(imgCnt);
+			_sinogram.reserve(imgCnt);
 
 			//go back to the beginning of the file
 			stream.seekg(std::ios::beg);
-			//variables for the values that shall be read
-			std::stringstream strstr;
-			std::string line;
+			
+			//read the parameter section of the csv file
 			std::string path;
 			std::string rotationDirection;
-			double pixelSize;
-			double uOffset;
-			double vOffset;
-			double SO;
-			double SD;
-			std::string file;
-			double angle;
-			double heightOffset;
+			readParameters(stream, path, rotationDirection);
 
-			//manual reading of all the parameters
-			std::getline(stream, path, '\t');
-			//handle relative paths
-			if (path.size() > 0 && path.at(0) == '.') {
-				size_t pos = csvFile.find_last_of("/\\");
-				if (pos != std::string::npos) {
-					std::string folder = csvFile.substr(0, pos + 1);
-					path = folder + path;
-				}
-			}
-			if (path.size() > 0 && *(path.end() - 1) != '/' && *(path.end() - 1) != '\\') {
-				path = path + std::string("/");
-			}
-			stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-			std::getline(stream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> pixelSize;
-			std::getline(stream, rotationDirection, '\t');
-			stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-			std::getline(stream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> uOffset;
-			std::getline(stream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> vOffset;
-			std::getline(stream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> SO;
-			std::getline(stream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> SD;
-			//leave out one line
-			stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			//the image path might be relative
+			path = glueRelativePath(csvFile, path);
 
-			//now load the actual image files and their parameters
-			std::cout << "Loading image files" << std::endl;
-			int cnt = 0;
-			int rows;
-			int cols;
-			while (!stream.eof()) {
-				std::getline(stream, file, '\t');
-				std::getline(stream, line, '\t');
-				strstr.str(line);
-				strstr.clear();
-				strstr >> angle;
-				std::getline(stream, line);
-				strstr.str(line);
-				strstr.clear();
-				strstr >> heightOffset;
-				//load the image
-				_sinogram[cnt] = Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset);
-
-				//check if everything is ok
-				if (!_sinogram[cnt].image.data) {
-					//if there is no image data
-					_sinogram.clear();
-					std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
-					std::cout << msg << std::endl;
-					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
-					return;
-				} else if (_sinogram[cnt].image.channels() != 1) {
-					//if it has more than 1 channel
-					_sinogram.clear();
-					std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
-					std::cout << msg << std::endl;
-					if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
-					return;
-				} else {
-					//make sure that all images have the same size
-					if (cnt == 0) {
-						rows = _sinogram[cnt].image.rows;
-						cols = _sinogram[cnt].image.cols;
-					} else {
-						if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols) {
-							//if the image has a different size than the images before stop and reverse
-							_sinogram.clear();
-							std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
-							std::cout << msg << std::endl;
-							if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
-							return;
-						}
-					}
-				}
-				//convert the image to 32 bit float
-				convertTo32bit(_sinogram[cnt].image);
-				++cnt;
-			}
+			//read the images from the csv file
+			if (!readImages(stream, path)) return;
 
 			if (_sinogram.size() > 0) {
-				//convert the heightOffset to a realtive value
-				double sum = 0;
-				for (int i = 0; i < _sinogram.size(); ++i) {
-					sum += _sinogram[i].heightOffset;
-				}
-				sum /= (double)_sinogram.size();
-				for (int i = 0; i < _sinogram.size(); ++i) {
-					_sinogram[i].heightOffset -= sum;			//substract average
-					_sinogram[i].heightOffset /= pixelSize;		//convert to pixels
-				}
-				//make sure the direction of the rotation is correct
-				if (_sinogram.size() > 1) {	//only possible if there are at least 2 images
-					double diff = _sinogram[1].angle - _sinogram[0].angle;
-					//clockwise rotation requires rotation in positive direction and ccw rotation requires negative direction
-					if ((rotationDirection == "cw" && diff < 0) || (rotationDirection == "ccw" && diff > 0)) {
-						for (int i = 0; i < _sinogram.size(); ++i) {
-							_sinogram[i].angle *= -1;
-						}
-					}
-				}
+				//make the height offset values realtive
+				makeHeightOffsetRelative();
+				//make sure the rotation direction is correct
+				correctAngleDirection(rotationDirection);
 				//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
 				_imageWidth = _sinogram[0].image.cols;
 				_imageHeight = _sinogram[0].image.rows;
@@ -224,23 +116,13 @@ namespace ct {
 				_xSize = _imageWidth;
 				_ySize = _imageWidth;
 				_zSize = _imageHeight;
-				//save the distance
-				_SD = SD / pixelSize;
-				_SO = SO / pixelSize;
-				//save uOffset and vOffset
-				_uOffset = uOffset / pixelSize;
-				_vOffset = vOffset / pixelSize;
+				updateBoundaries();
+				_crossSectionIndex = _zMax / 2;
 				//now apply the filters
 				imagePreprocessing(filterType);
 			}
-		} else {
-			std::cout << "CSV file does not contain any images." << std::endl;
-			if (_emitSignals) emit(loadingFinished(CompletionStatus("Apparently the config file does not contain any images.")));
-			return;
 		}
 		_minMaxCaclulated = false;
-		updateBoundaries();
-		_crossSectionIndex = _zMax / 2;
 		if (_emitSignals) emit(loadingFinished());
 	}
 
@@ -432,6 +314,151 @@ namespace ct {
 	}
 
 	//============================================== PRIVATE ==============================================\\
+
+	void CtVolume::readParameters(std::ifstream& stream, std::string& path, std::string& rotationDirection) {
+		//variables for the values that shall be read
+		std::stringstream strstr;
+		std::string line;
+
+		//manual reading of all the parameters
+		std::getline(stream, path, '\t');
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		std::getline(stream, line);
+		strstr.str(line);
+		strstr.clear();
+		strstr >> _pixelSize;
+		std::getline(stream, rotationDirection, '\t');
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		std::getline(stream, line);
+		strstr.str(line);
+		strstr.clear();
+		strstr >> _uOffset;
+		std::getline(stream, line);
+		strstr.str(line);
+		strstr.clear();
+		strstr >> _vOffset;
+		std::getline(stream, line);
+		strstr.str(line);
+		strstr.clear();
+		strstr >> _SO;
+		std::getline(stream, line);
+		strstr.str(line);
+		strstr.clear();
+		strstr >> _SD;
+		//leave out one line
+		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+		//convert the distance
+		_SD /= _pixelSize;
+		_SO /= _pixelSize;
+		//convert uOffset and vOffset
+		_uOffset /= _pixelSize;
+		_vOffset /= _pixelSize;
+	}
+
+	std::string CtVolume::glueRelativePath(std::string const& basePath, std::string const& potentialRelativePath) {
+		//handle relative paths
+		std::string resultPath;
+		if (potentialRelativePath.size() > 0 && potentialRelativePath.at(0) == '.') {
+			size_t pos = basePath.find_last_of("/\\");
+			if (pos != std::string::npos) {
+				std::string folder = basePath.substr(0, pos + 1);
+				resultPath = folder + potentialRelativePath;
+			}
+		}
+		if (resultPath.size() > 0 && *(resultPath.end() - 1) != '/' && *(resultPath.end() - 1) != '\\') {
+			resultPath = resultPath + std::string("/");
+		}
+		return resultPath;
+	}
+
+	bool CtVolume::readImages(std::ifstream& csvStream, std::string path) {
+		//now load the actual image files and their parameters
+		std::cout << "Loading image files" << std::endl;
+		std::stringstream strstr;
+		std::string line;
+		std::string file;
+		double angle;
+		double heightOffset;
+		int cnt = 0;
+		int rows;
+		int cols;
+		while (!csvStream.eof()) {
+			std::getline(csvStream, file, '\t');
+			std::getline(csvStream, line, '\t');
+			strstr.str(line);
+			strstr.clear();
+			strstr >> angle;
+			std::getline(csvStream, line);
+			strstr.str(line);
+			strstr.clear();
+			strstr >> heightOffset;
+			//load the image
+			_sinogram.push_back(Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset));
+
+			//check if everything is ok
+			if (!_sinogram[cnt].image.data) {
+				//if there is no image data
+				_sinogram.clear();
+				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
+				std::cout << msg << std::endl;
+				if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+				return false;
+			} else if (_sinogram[cnt].image.channels() != 1) {
+				//if it has more than 1 channel
+				_sinogram.clear();
+				std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
+				std::cout << msg << std::endl;
+				if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+				return false;
+			} else {
+				//make sure that all images have the same size
+				if (cnt == 0) {
+					rows = _sinogram[cnt].image.rows;
+					cols = _sinogram[cnt].image.cols;
+				} else {
+					if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols) {
+						//if the image has a different size than the images before stop and reverse
+						_sinogram.clear();
+						std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
+						std::cout << msg << std::endl;
+						if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+						return false;
+					}
+				}
+			}
+			//convert the image to 32 bit float
+			convertTo32bit(_sinogram[cnt].image);
+			++cnt;
+		}
+		return true;
+	}
+
+	void CtVolume::makeHeightOffsetRelative() {
+		//convert the heightOffset to a realtive value
+		double sum = 0;
+		for (int i = 0; i < _sinogram.size(); ++i) {
+			sum += _sinogram[i].heightOffset;
+		}
+		sum /= (double)_sinogram.size();
+		for (int i = 0; i < _sinogram.size(); ++i) {
+			_sinogram[i].heightOffset -= sum;			//substract average
+			_sinogram[i].heightOffset /= _pixelSize;		//convert to pixels
+		}
+	}
+
+	void CtVolume::correctAngleDirection(std::string rotationDirection) {
+		//make sure the direction of the rotation is correct
+		if (_sinogram.size() > 1) {	//only possible if there are at least 2 images
+			double diff = _sinogram[1].angle - _sinogram[0].angle;
+			//clockwise rotation requires rotation in positive direction and ccw rotation requires negative direction
+			if ((rotationDirection == "cw" && diff < 0) || (rotationDirection == "ccw" && diff > 0)) {
+				for (int i = 0; i < _sinogram.size(); ++i) {
+					_sinogram[i].angle *= -1;
+				}
+			}
+		}
+	}
 
 	std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const {
 		double min = 0;

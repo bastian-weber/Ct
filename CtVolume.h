@@ -100,10 +100,19 @@ namespace ct {
 		size_t _xMax, _yMax, _zMax;
 		double _SD;																//the distance of the source to the detector in pixel
 		double _SO;																//the distance of the source to the object in pixel
+		double _pixelSize;
 		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
 		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
-		//functions						
+		//functions			
+		void readParameters(std::ifstream& stream, 
+								   std::string& path, 
+								   std::string& rotationDirection);
+		std::string glueRelativePath(std::string const& basePath, 
+									 std::string const& potentialRelativePath);
+		bool readImages(std::ifstream& csvStream, std::string path);
+		void makeHeightOffsetRelative();
+		void correctAngleDirection(std::string rotationDirection);
 		std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
