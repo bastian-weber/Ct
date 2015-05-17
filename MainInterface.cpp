@@ -418,10 +418,20 @@ namespace ct {
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
-		if (text != "") {
+		QFileInfo fileInfo(text);
+		QMimeDatabase mime;
+		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
 			fileSelectedState();
+			_inputFileEdit->setPalette(QPalette());
 		} else {
 			startupState();
+			if (text != "") {
+				QPalette palette;
+				palette.setColor(QPalette::Text, Qt::red);
+				_inputFileEdit->setPalette(palette);
+			} else {
+				_inputFileEdit->setPalette(QPalette());
+			}
 		}
 	}
 
@@ -436,8 +446,6 @@ namespace ct {
 
 		if (!path.isEmpty()) {
 			_inputFileEdit->setText(path);
-			_inputFileEdit->setReadOnly(false);
-			fileSelectedState();
 		}
 	}
 
@@ -507,7 +515,54 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBatchFileAction() {
-		std::cout << "bla" << std::endl;
+		QString filepath = QFileDialog::getSaveFileName(this, tr("Create Batch File"), QDir::rootPath(), "Command Line Scripts (*.cmd);;");
+		QDir cmdDir(QFileInfo(filepath).absoluteDir());
+		if (!filepath.isEmpty()) {
+			bool relativeExePath = false;
+			bool relativeConfigPath = false;
+			QMessageBox msgBox;
+			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+			msgBox.setWindowTitle(tr("Batch File Creation"));
+			msgBox.setText(tr("Shall the path to the <b>executable</b> be absolute or relative?"));
+			msgBox.setButtonText(QMessageBox::Yes, tr("Use Relative Path"));
+			msgBox.setButtonText(QMessageBox::No, tr("Use Absolute Path"));
+			if (QMessageBox::Yes == msgBox.exec()) relativeExePath = true;
+			msgBox.setText(tr("Shall the path to the <b>config file</b> be absolute or relative?"));
+			if (QMessageBox::Yes == msgBox.exec()) relativeConfigPath = true;
+			QString app = QCoreApplication::applicationFilePath();
+			QString appPath;
+			if (!relativeExePath) {
+				appPath = app;
+			} else {
+				appPath = cmdDir.relativeFilePath(app);
+			}
+			QString configPath;
+			if (!relativeConfigPath) {
+				configPath = _inputFileEdit->text();
+			} else {
+				configPath = cmdDir.relativeFilePath(_inputFileEdit->text());
+			}
+			QFile file(filepath);
+			if (file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
+				QTextStream stream(&file);
+				stream << "\"" << appPath << "\" -i \"" << configPath << "\" -o volume.raw";
+				if (!_ramlakRadioButton->isChecked()) {
+					if (_shepploganRadioButton->isChecked()) {
+						stream << " -f shepplogan";
+					} else {
+						stream << " -f hann";
+					}
+				}
+				if (_xFrom->value() != 0) stream << " --xmin " << _xFrom->value();
+				if (_xTo->value() != 1) stream << " --xmax " << _xTo->value();
+				if (_yFrom->value() != 0) stream << " --ymin " << _yFrom->value();
+				if (_yTo->value() != 1) stream << " --ymax " << _yTo->value();
+				if (_zFrom->value() != 0) stream << " --zmin " << _zFrom->value();
+				if (_zTo->value() != 1) stream << " --zmax " << _zTo->value();
+				file.close();
+				setStatus(tr("Batch file saved."));
+			}
+		}
 	}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
