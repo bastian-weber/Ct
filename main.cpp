@@ -27,31 +27,87 @@ int init(int argc, char* argv[]) {
 	return app.exec();
 }
 
+double parseDoubleArgument(int argc, char* argv[], int index, double& output) {
+	if (index < argc) {
+		output = std::stod(argv[index]);
+	}
+}
+
 int main(int argc, char* argv[]) {
 	bool showSinogram = false;
 	bool inputProvided = false;
 	bool outputProvided = false;
 	bool lowerPriority = false;
+	ct::FilterType filterType = ct::FilterType::RAMLAK;
+	std::string filterTypeString = "Ram-Lak";
 	std::string input;
 	std::string output;
+	double xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
 
 	if (argc >= 2) {
 		if (std::string(argv[1]).compare("--help") == 0 || std::string(argv[1]).compare("-h") == 0) {
 			std::cout << "Usage: Cv [parameters]" << std::endl;
-			std::cout << "Parameters:" << std::endl << "\t-i [Path]\tFile path to the input config file. Long: --input." << std::endl;
-			std::cout << "\t-o [Path]\tFile path for the output file. Long: --output." << std::endl;
+			std::cout << "Parameters:" << std::endl << "\t-i [path]\tFile path to the input config file. Long: --input." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-o [path]\tFile path for the output file. Long: --output." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-d \t\tOptional. Display the sinogram. Long: --display." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-b \t\tOptional. Run with background priority.\n\t\t\tLong: --background." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-f [option] \tOptional. Sets the preprocessing filter. Options are\n\t\t\t'ramlak', 'shepplogan' and 'hann'. Long: --filter." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-h \t\tDisplay this help. Long: --help." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--xmin [0..1]\tOptional. The lower x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--xmax [0..1]\tOptional. The upper x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--ymin [0..1]\tOptional. The lower y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--ymax [0..1]\tOptional. The upper y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--zmin [0..1]\tOptional. The lower z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t--zmax [0..1]\tOptional. The upper z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 		} else {
 			for (int i = 1; i < argc; ++i) {
 				if (std::string(argv[i]).compare("-d") == 0 || std::string(argv[i]).compare("--display") == 0) {
 					showSinogram = true;
+				} else if (std::string(argv[i]).compare("--xmin") == 0) {
+					parseDoubleArgument(argc, argv, ++i, xmin);
+				} else if (std::string(argv[i]).compare("--xmax") == 0) {
+					parseDoubleArgument(argc, argv, ++i, xmax);
+				} else if (std::string(argv[i]).compare("--ymin") == 0) {
+					parseDoubleArgument(argc, argv, ++i, ymin);
+				} else if (std::string(argv[i]).compare("--ymax") == 0) {
+					parseDoubleArgument(argc, argv, ++i, ymax);
+				} else if (std::string(argv[i]).compare("--zmin") == 0) {
+					parseDoubleArgument(argc, argv, ++i, zmin);
+				} else if (std::string(argv[i]).compare("--zmax") == 0) {
+					parseDoubleArgument(argc, argv, ++i, zmax);
+				} else if (std::string(argv[i]).compare("-f") == 0 || std::string(argv[i]).compare("--filter") == 0) {
+					if (argc > i + 1) {
+						std::string filter = argv[++i];
+						std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
+						if (filter == "shepplogan") {
+							filterType = ct::FilterType::SHEPP_LOGAN;
+							filterTypeString = "Shepp-Logan";
+						} else if (filter == "hann") {
+							filterType = ct::FilterType::HANN;
+							filterTypeString = "Hann";
+						}
+					}
 				} else if (std::string(argv[i]).compare("-i") == 0 || std::string(argv[i]).compare("--input") == 0) {
-					input = argv[++i];
-					inputProvided = true;
+					if (argc > i + 1) {
+						input = argv[++i];
+						inputProvided = true;
+					}
 				} else if (std::string(argv[i]).compare("-o") == 0 || std::string(argv[i]).compare("--output") == 0) {
-					output = argv[++i];
-					outputProvided = true;
+					if (argc > i + 1) {
+						output = argv[++i];
+						outputProvided = true;
+					}
 				} else if (std::string(argv[i]).compare("-b") == 0 || std::string(argv[i]).compare("--background") == 0) {
 					lowerPriority = true;
 				} else {
@@ -71,8 +127,15 @@ int main(int argc, char* argv[]) {
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
-				std::cout << "\tDisplay sinogram:\t" << ((showSinogram) ? "YES" : "NO") << std::endl << std::endl;;
-				ct::CtVolume myVolume(input, ct::CtVolume::FilterType::RAMLAK);
+				std::cout << "\tDisplay sinogram:\t" << ((showSinogram) ? "YES" : "NO") << std::endl;
+				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
+				std::cout << "\tVolume bounds:";
+				std::cout << "\t\tx: [" << std::to_string(xmin) << " .. " << std::to_string(xmax) << "]" << std::endl;;
+				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
+				std::cout << "\t\t\t\tz: [" << std::to_string(zmin) << " .. " << std::to_string(zmax) << "]" << std::endl;
+				std::cout << std::endl;
+				ct::CtVolume myVolume(input, filterType);
+				myVolume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
 				if (showSinogram)myVolume.displaySinogram(true);
 				myVolume.reconstructVolume();
 				myVolume.saveVolumeToBinaryFile(output);

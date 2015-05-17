@@ -23,6 +23,10 @@ namespace ct {
 		_imageWidth(0),
 		_imageHeight(0),
 		_uOffset(0),
+		_vOffset(0),
+		_pixelSize(0),
+		_SO(0),
+		_SD(0),
 		_xFrom(0),
 		_xTo(0),
 		_yFrom(0),
@@ -39,7 +43,7 @@ namespace ct {
 		_zFrom_float(0),
 		_zTo_float(1) { }
 
-	CtVolume::CtVolume(std::string csvFile, CtVolume::FilterType filterType)
+	CtVolume::CtVolume(std::string csvFile, FilterType filterType)
 		: _currentlyDisplayedImage(0),
 		_crossSectionIndex(0),
 		_emitSignals(false),
@@ -49,6 +53,10 @@ namespace ct {
 		_imageWidth(0),
 		_imageHeight(0),
 		_uOffset(0),
+		_vOffset(0),
+		_pixelSize(0),
+		_SO(0),
+		_SD(0),
 		_xFrom(0),
 		_xTo(0),
 		_yFrom(0),
@@ -67,7 +75,7 @@ namespace ct {
 		sinogramFromImages(csvFile, filterType);
 	}
 
-	void CtVolume::sinogramFromImages(std::string csvFile, CtVolume::FilterType filterType) {
+	void CtVolume::sinogramFromImages(std::string csvFile, FilterType filterType) {
 		_volume.clear();
 		//delete the contents of the sinogram
 		_sinogram.clear();
@@ -169,6 +177,22 @@ namespace ct {
 
 	double CtVolume::getUOffset() const {
 		return _uOffset;
+	}
+
+	double CtVolume::getVOffset() const {
+		return _vOffset;
+	}
+
+	double CtVolume::getPixelSize() const {
+		return _pixelSize;
+	}
+
+	double CtVolume::getSO() const {
+		return _SO;
+	}
+
+	double CtVolume::getSD() const {
+		return _SD;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t zCoord) const {
@@ -513,7 +537,7 @@ namespace ct {
 		handleKeystrokes(normalize);
 	}
 
-	void CtVolume::imagePreprocessing(CtVolume::FilterType filterType) {
+	void CtVolume::imagePreprocessing(FilterType filterType) {
 		clock_t start = clock();
 		for (int i = 0; i < _sinogram.size(); ++i) {
 
@@ -579,7 +603,7 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const {
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) const {
 		CV_Assert(image.depth() == CV_32F);
 
 		//FFT

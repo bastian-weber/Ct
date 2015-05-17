@@ -434,11 +434,11 @@ namespace ct {
 		disableAllControls();
 		setStatus(tr("Loding and preprocessing images..."));
 		_timer.reset();
-		CtVolume::FilterType type = CtVolume::FilterType::RAMLAK;
+		FilterType type = FilterType::RAMLAK;
 		if (_shepploganRadioButton->isChecked()) {
-			type = CtVolume::FilterType::SHEPP_LOGAN;			
+			type = FilterType::SHEPP_LOGAN;			
 		} else if (_hannRadioButton->isChecked()) {
-			type = CtVolume::FilterType::HANN;
+			type = FilterType::HANN;
 		}
 		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), type).detach();	
 	}
