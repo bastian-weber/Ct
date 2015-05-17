@@ -36,15 +36,16 @@ namespace ct {
 		double heightOffset;													//for random trajectory
 	};
 
-	//The actual reconstruction class
-	class CtVolume : public QObject{
-		Q_OBJECT
-	public:
 		enum class FilterType{ 
 			RAMLAK, 
 			SHEPP_LOGAN, 
 			HANN
 		};
+
+	//The actual reconstruction class
+	class CtVolume : public QObject{
+		Q_OBJECT
+	public:
 		struct CompletionStatus{
 			CompletionStatus() : successful(true) { }
 			CompletionStatus(QString errorMessage) : successful(false), errorMessage(errorMessage) { }
@@ -54,11 +55,11 @@ namespace ct {
 		};
 
 		//functions		
-		CtVolume();																//constructor 1
+		//constructor
+		CtVolume();																
 		CtVolume(std::string csvFile,
-				 CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
-		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
-								CtVolume::FilterType filterType = CtVolume::FilterType::RAMLAK);
+				 FilterType filterType = FilterType::RAMLAK);
+		//getters
 		Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
 		size_t getImageWidth() const;
@@ -67,10 +68,16 @@ namespace ct {
 		size_t getYSize() const;
 		size_t getZSize() const;
 		double getUOffset() const;
+		double getVOffset() const;
+		double getPixelSize() const;
+		double getSO() const;
+		double getSD() const;
 		cv::Mat getVolumeCrossSection(size_t zCoord) const;		
 		void setCrossSectionIndex(size_t zCoord);
 		size_t getCrossSectionIndex() const;
-
+		//control functions
+		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
+								FilterType filterType = FilterType::RAMLAK);
 		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
 		void setVolumeBounds(double xFrom, 
 							 double xTo, 
@@ -118,12 +125,12 @@ namespace ct {
 							   float minValue,
 							   float maxValue) const;
 		void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
-		void imagePreprocessing(CtVolume::FilterType filterType);				//applies the necessary filters to the images prior to the reconstruction
+		void imagePreprocessing(FilterType filterType);							//applies the necessary filters to the images prior to the reconstruction
 		void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
 		void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
-								CtVolume::FilterType type) const;
+								FilterType type) const;
 		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 		double logFunction(double x) const;										//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
