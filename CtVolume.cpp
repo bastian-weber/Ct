@@ -579,19 +579,6 @@ namespace ct {
 		}
 	}
 
-	//Applies a filter mask to a 32bit float image
-	//Mind that the values after applying the filter may be greater than 1 and negative
-	void CtVolume::applyHighpassFilter(cv::Mat& img) const {
-		CV_Assert(img.depth() == CV_32F);
-		/*cv::Mat mask = (cv::Mat_<char>(3, 3) << -1, 0, 1,
-												-2, 0, 2,
-												-1, 0, 1);*/
-		cv::Mat mask = (cv::Mat_<char>(3, 3) << 1, 1, 1,
-						1, -8, 1,
-						1, 1, 1);
-		cv::filter2D(img, img, img.depth(), mask, cv::Point(-1, -1), 0, cv::BORDER_REPLICATE);
-	}
-
 	void CtVolume::applyFourierFilter(cv::Mat& image, CtVolume::FilterType type) const {
 		CV_Assert(image.depth() == CV_32F);
 

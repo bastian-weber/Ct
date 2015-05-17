@@ -122,7 +122,6 @@ namespace ct {
 		void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
-		void applyHighpassFilter(cv::Mat& img) const;							//applies the highpass filter to an image
 		void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
 								CtVolume::FilterType type) const;
 		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
