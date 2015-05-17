@@ -107,6 +107,14 @@ namespace ct {
 		_informationLabel = new QLabel;
 		_statusLabel = new QLabel(tr("Load a configuration file"));
 
+		_moreButton = new QPushButton(tr("&More..."));
+		_moreMenu = new QMenu(_moreButton);
+		_cmdAction = new QAction(tr("Save as Batch File"), this);
+		QObject::connect(_cmdAction, SIGNAL(triggered()), this, SLOT(reactToBatchFileAction()));
+		_moreMenu->addAction(_cmdAction);
+		_moreButton->setMenu(_moreMenu);
+		QObject::connect(_moreMenu, SIGNAL(aboutToShow()), this, SLOT(adjustMenuWidth()));
+
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
 		_leftLayout->addWidget(_inputFileEdit);
@@ -122,6 +130,8 @@ namespace ct {
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_runAllButton);
 		_leftLayout->addSpacing(20);
+		_leftLayout->addWidget(_moreButton);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_informationLabel);
 		_leftLayout->addSpacing(20);
 		_leftLayout->addStretch(1);
@@ -135,10 +145,15 @@ namespace ct {
 
 		_progressBar = new QProgressBar;
 		_progressBar->setAlignment(Qt::AlignCenter);
+		_stopButton = new QPushButton(tr("Stop"));
+
+		_progressLayout = new QHBoxLayout;
+		_progressLayout->addWidget(_progressBar, 1);
+		_progressLayout->addWidget(_stopButton, 0);
 
 		_mainLayout = new QVBoxLayout;
 		_mainLayout->addLayout(_subLayout);
-		_mainLayout->addWidget(_progressBar);
+		_mainLayout->addLayout(_progressLayout);
 
 		setLayout(_mainLayout);
 
@@ -151,6 +166,7 @@ namespace ct {
 		delete _leftLayout;
 		delete _filterLayout;
 		delete _boundsLayout;
+		delete _progressLayout;
 		delete _xLayout;
 		delete _yLayout;
 		delete _zLayout;
@@ -177,6 +193,10 @@ namespace ct {
 		delete _reconstructButton;
 		delete _saveButton;
 		delete _runAllButton;
+		delete _moreButton;
+		delete _stopButton;
+		delete _moreMenu;
+		delete _cmdAction;
 		delete _progressBar;
 		delete _imageView;
 		delete _informationLabel;
@@ -233,6 +253,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
+		_cmdAction->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
 		_boundsGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
@@ -247,6 +268,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
+		_cmdAction->setEnabled(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -263,6 +285,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
+		_cmdAction->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -280,6 +303,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
+		_cmdAction->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
@@ -294,6 +318,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(true);
 		_runAllButton->setEnabled(true);
+		_cmdAction->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -475,6 +500,14 @@ namespace ct {
 			_runAll = true;
 			reactToLoadButtonClick();
 		}
+	}
+
+	void MainInterface::adjustMenuWidth() {
+		_moreMenu->setMinimumWidth(_moreButton->width());
+	}
+
+	void MainInterface::reactToBatchFileAction() {
+		std::cout << "bla" << std::endl;
 	}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {

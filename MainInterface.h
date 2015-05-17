@@ -54,6 +54,7 @@ namespace ct {
 		QVBoxLayout* _leftLayout;
 		QVBoxLayout* _filterLayout;
 		QVBoxLayout* _boundsLayout;
+		QHBoxLayout* _progressLayout;
 		QHBoxLayout* _xLayout;
 		QHBoxLayout* _yLayout;
 		QHBoxLayout* _zLayout;
@@ -80,6 +81,10 @@ namespace ct {
 		QPushButton* _reconstructButton;
 		QPushButton* _saveButton;
 		QPushButton* _runAllButton;
+		QPushButton* _moreButton;
+		QPushButton* _stopButton;
+		QMenu* _moreMenu;
+		QAction* _cmdAction;
 		QProgressBar* _progressBar;
 		hb::ImageView* _imageView;
 		QLabel* _informationLabel;
@@ -92,6 +97,8 @@ namespace ct {
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();
 		void reactToRunAllButtonClick();
+		void adjustMenuWidth();
+		void reactToBatchFileAction();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CtVolume::CompletionStatus status);
 		void reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection);
