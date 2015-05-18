@@ -541,14 +541,13 @@ namespace ct {
 
 	void CtVolume::imagePreprocessing(FilterType filterType) {
 		clock_t start = clock();
+#pragma omp parallel for schedule(dynamic)
 		for (int i = 0; i < _sinogram.size(); ++i) {
-
-			double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
-			std::cout << "\r" << "Preprocessing: " << percentage << "%";
-			if (_emitSignals) emit(loadingProgress(percentage));
+				double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
+				if (omp_get_thread_num() == 0) std::cout << "\r" << "Preprocessing: " << percentage << "%";
+				if (_emitSignals) emit(loadingProgress(percentage));
 
 			applyLogScaling(_sinogram[i].image);
-			//applyFourierFilter(_sinogram[i].image, filterType);
 			applyFourierFilterOpenCV(_sinogram[i].image, filterType);
 			applyFeldkampWeight(_sinogram[i].image);
 		}
@@ -559,7 +558,7 @@ namespace ct {
 
 	//converts an image to 32 bit float
 	//only unsigned types are allowed as input
-	void CtVolume::convertTo32bit(cv::Mat& img) const {
+	void CtVolume::convertTo32bit(cv::Mat& img) {
 		CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
 		if (img.depth() == CV_8U) {
 			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 8));
@@ -606,7 +605,7 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) const {
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) {
 		CV_Assert(image.depth() == CV_32F);
 
 		//FFT
@@ -661,7 +660,7 @@ namespace ct {
 		fftwf_free(out);
 	}
 
-	void CtVolume::applyFourierFilterOpenCV(cv::Mat& image, FilterType type) const {
+	void CtVolume::applyFourierFilterOpenCV(cv::Mat& image, FilterType type) {
 		//cv::Mat m = (cv::Mat_<float>(1, 8) << 3, 8, 2, 10, 5, 20, 9, 2);
 		//cv::Mat output;
 		//cv::dft(m, output, cv::DFT_COMPLEX_OUTPUT);
@@ -671,17 +670,27 @@ namespace ct {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
-		float* ptr;
+		cv::Vec2f* ptr;
 		for (int row = 0; row < freq.rows; ++row) {
-			ptr = freq.ptr<float>(row);
+			ptr = freq.ptr<cv::Vec2f>(row);
 			for (int column = 0; column < nyquist; ++column) {
-				ptr[column] *= ramLakWindowFilter(column, nyquist);
+				switch (type) {
+					case FilterType::RAMLAK:
+						ptr[column] *= ramLakWindowFilter(column, nyquist);
+						break;
+					case FilterType::SHEPP_LOGAN:
+						ptr[column] *= sheppLoganWindowFilter(column, nyquist);
+						break;
+					case FilterType::HANN:
+						ptr[column] *= hannWindowFilter(column, nyquist);
+						break;
+				}
 			}
 		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
 	}
 
-	void CtVolume::applyLogScaling(cv::Mat& image) const {
+	void CtVolume::applyLogScaling(cv::Mat& image) {
 		const int R = image.rows;
 		int C = image.cols;
 		const double normalizationConstant = logFunction(1);
@@ -694,7 +703,7 @@ namespace ct {
 		}
 	}
 
-	double CtVolume::logFunction(double x) const {
+	double CtVolume::logFunction(double x) {
 		const double compressionFactor = 0.005; //must be greater than 0; the closer to 0, the stronger the compression
 		return std::log(x + compressionFactor) - std::log(compressionFactor);
 	}
@@ -718,7 +727,7 @@ namespace ct {
 	}
 
 	//This filter is not used, code could theoretically be removed
-	void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) const {
+	void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) {
 		CV_Assert(image.depth() == CV_32F);
 
 		//FFT
@@ -927,7 +936,7 @@ namespace ct {
 		return (-1)*(vCoord - ((double)_imageHeight / 2.0));
 	}
 
-	int CtVolume::fftCoordToIndex(int coord, int size) const {
+	int CtVolume::fftCoordToIndex(int coord, int size) {
 		if (coord < 0)return size + coord;
 		return coord;
 	}

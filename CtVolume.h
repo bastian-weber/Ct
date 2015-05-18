@@ -126,19 +126,19 @@ namespace ct {
 							   float maxValue) const;
 		void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
 		void imagePreprocessing(FilterType filterType);							//applies the necessary filters to the images prior to the reconstruction
-		void convertTo32bit(cv::Mat& img) const;								//converts an image to 32bit float
+		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
-		void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
-								FilterType type) const;
-		void applyFourierFilterOpenCV(cv::Mat& image,
-									  FilterType type) const;
-		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
-		double logFunction(double x) const;										//the actual log function used by applyLogScaling
+		static void applyFourierFilter(cv::Mat& image,							//applies a filter in the frequency domain (only in u direction)
+									   FilterType type);
+		static void applyFourierFilterOpenCV(cv::Mat& image,
+											 FilterType type);
+		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
+		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		void applyFourierHighpassFilter2D(cv::Mat& image) const;				//applies a highpass filter in the frequency domain (2D) (not used)
+		static void applyFourierHighpassFilter2D(cv::Mat& image);				//applies a highpass filter in the frequency domain (2D) (not used)
 		void reconstructionCore();												//does the actual reconstruction
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
@@ -159,7 +159,7 @@ namespace ct {
 		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
-		int fftCoordToIndex(int coord, int size) const;							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
+		static int fftCoordToIndex(int coord, int size);							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 	signals:	
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus()) const;
