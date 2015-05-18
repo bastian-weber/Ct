@@ -106,14 +106,14 @@ namespace ct {
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
-		_runAllButton = new QPushButton(tr("Run All and Save"));
+		_runAllButton = new QPushButton(tr("R&un All and Save"));
 		QObject::connect(_runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
 		_informationLabel = new QLabel;
 		_statusLabel = new QLabel(tr("Load a configuration file"));
 
 		_moreButton = new QPushButton(tr("&More..."));
 		_moreMenu = new QMenu(_moreButton);
-		_cmdAction = new QAction(tr("Save as Batch File"), this);
+		_cmdAction = new QAction(tr("Save as &Batch File"), this);
 		QObject::connect(_cmdAction, SIGNAL(triggered()), this, SLOT(reactToBatchFileAction()));
 		_moreMenu->addAction(_cmdAction);
 		_moreButton->setMenu(_moreMenu);
