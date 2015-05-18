@@ -131,6 +131,8 @@ namespace ct {
 		void applyFeldkampWeight(cv::Mat& image) const;
 		void applyFourierFilter(cv::Mat& image,									//applies a filter in the frequency domain (only in u direction)
 								FilterType type) const;
+		void applyFourierFilterOpenCV(cv::Mat& image,
+									  FilterType type) const;
 		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 		double logFunction(double x) const;										//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
