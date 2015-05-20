@@ -577,7 +577,9 @@ namespace ct {
 			QFile file(filepath);
 #if defined Q_OS_UNIX
 			//On linux make it executable
-			file.setPermissions(QFileDevice::ExeOther);
+			if (!file.setPermissions(QFileDevice::ExeOther)) {
+				std::cout << "Could not make shell script executable." << std::endl;
+			}
 #endif
 			if (file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
 				QTextStream stream(&file);
