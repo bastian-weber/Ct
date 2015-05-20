@@ -150,6 +150,7 @@ namespace ct {
 		_progressBar = new QProgressBar;
 		_progressBar->setAlignment(Qt::AlignCenter);
 		_stopButton = new QPushButton(tr("Stop"));
+		QObject::connect(_stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
 		_progressLayout = new QHBoxLayout;
 		_progressLayout->addWidget(_progressBar, 1);
@@ -264,6 +265,7 @@ namespace ct {
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
+		_stopButton->setEnabled(true);
 	}
 
 	void MainInterface::startupState() {
@@ -281,6 +283,7 @@ namespace ct {
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		resetInfo();
+		_stopButton->setEnabled(false);
 	}
 
 	void MainInterface::fileSelectedState() {
@@ -299,6 +302,7 @@ namespace ct {
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
 		resetInfo();
+		_stopButton->setEnabled(false);
 	}
 
 	void MainInterface::preprocessedState() {
@@ -314,6 +318,7 @@ namespace ct {
 		_sinogramDisplayActive = true;
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(true);
+		_stopButton->setEnabled(false);
 	}
 
 	void MainInterface::reconstructedState() {
@@ -329,6 +334,7 @@ namespace ct {
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = true;
 		_imageView->setRenderRectangle(false);
+		_stopButton->setEnabled(false);
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
@@ -495,6 +501,7 @@ namespace ct {
 		QString path;
 		if (!_runAll) {
 			path = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
+			_savingPath = path;
 		} else {
 			path = _savingPath;
 		}
@@ -513,6 +520,12 @@ namespace ct {
 			_runAll = true;
 			reactToLoadButtonClick();
 		}
+	}
+
+	void MainInterface::reactToStopButtonClick() {
+		_volume.stop();
+		_stopButton->setEnabled(false);
+		setStatus("Stopping...");
 	}
 
 	void MainInterface::adjustMenuWidth() {
@@ -587,10 +600,14 @@ namespace ct {
 				preprocessedState();
 			}
 		} else {
-			QMessageBox msgBox;
-			msgBox.setText(status.errorMessage);
-			msgBox.exec();
-			setStatus(tr("Loading failed."));
+			if (!status.userInterrupted) {
+				QMessageBox msgBox;
+				msgBox.setText(status.errorMessage);
+				msgBox.exec();
+				setStatus(tr("Loading failed."));
+			} else {
+				setStatus(tr("Preprocessing stopped."));
+			}
 			if (_runAll) _runAll = false;
 			fileSelectedState();
 		}
@@ -615,17 +632,22 @@ namespace ct {
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			_imageView->setImage(crossSection);
 			double time = _timer.getTime();
-			setStatus("Reconstruction finished (" + QString::number(time, 'f', 1) + "s).");
+			setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
 			if (_runAll) {
 				reactToSaveButtonClick();
 			} else {
 				reconstructedState();
 			}
 		} else {
-			QMessageBox msgBox;
-			msgBox.setText(status.errorMessage);
-			msgBox.exec();
-			setStatus("Reconstruction failed.");
+			if (!status.userInterrupted) {
+				QMessageBox msgBox;
+				msgBox.setText(status.errorMessage);
+				msgBox.exec();
+				setStatus(tr("Reconstruction failed."));
+			} else {
+				setStatus(tr("Reconstruction stopped."));
+				setSinogramImage(0);
+			}
 			if (_runAll) _runAll = false;
 			preprocessedState();
 		}
@@ -639,12 +661,22 @@ namespace ct {
 		_progressBar->reset();
 		if (status.successful) {
 			double time = _timer.getTime();
-			setStatus("Saving finished (" + QString::number(time, 'f', 1) + "s).");
+			setStatus(tr("Saving finished (") + QString::number(time, 'f', 1) + "s).");
 		} else {
-			QMessageBox msgBox;
-			msgBox.setText(status.errorMessage);
-			msgBox.exec();
-			setStatus("Saving failed.");
+			if (!status.userInterrupted) {
+				QMessageBox msgBox;
+				msgBox.setText(status.errorMessage);
+				msgBox.exec();
+				setStatus(tr("Saving failed."));
+			} else {
+				setStatus(tr("Saving stopped."));
+				QMessageBox msgBox;
+				msgBox.setText(tr("The saving process was stopped. The file is probably unusable. Shall it be deleted?"));
+				msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+				if (QMessageBox::Yes == msgBox.exec()) {
+					QFile::remove(_savingPath);
+				}
+			}
 		}
 		_runAll = false;
 		reconstructedState();
