@@ -27,7 +27,7 @@ int init(int argc, char* argv[]) {
 	return app.exec();
 }
 
-double parseDoubleArgument(int argc, char* argv[], int index, double& output) {
+void parseDoubleArgument(int argc, char* argv[], int index, double& output) {
 	if (index < argc) {
 		output = std::stod(argv[index]);
 	}
