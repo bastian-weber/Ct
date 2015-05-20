@@ -533,14 +533,28 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBatchFileAction() {
-		QString filepath = QFileDialog::getSaveFileName(this, tr("Create Batch File"), QDir::rootPath(), "Command Line Scripts (*.cmd);;");
+#if defined Q_OS_WIN32
+		//The strings for a windows system
+		QString saveDialogCaption = tr("Create Batch File");
+		QString saveDialogFiletype = "Command Line Scripts (*.cmd);;";
+		QString promptWindowTitle = tr("Batch File Creation");
+		QString status = tr("Batch file saved.");
+		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, QDir::rootPath(), saveDialogFiletype);
+#else
+		//The strings for a linux system
+		QString saveDialogCaption = tr("Create Shell Script");
+		QString saveDialogFiletype = "Shell Scripts (*.sh);;";
+		QString promptWindowTitle = tr("Shell Script Creation");
+		QString status = tr("Shell script saved.");
+		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, QDir::rootPath(), saveDialogFiletype);
+#endif
 		QDir cmdDir(QFileInfo(filepath).absoluteDir());
 		if (!filepath.isEmpty()) {
 			bool relativeExePath = false;
 			bool relativeConfigPath = false;
 			QMessageBox msgBox;
 			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-			msgBox.setWindowTitle(tr("Batch File Creation"));
+			msgBox.setWindowTitle(promptWindowTitle);
 			msgBox.setText(tr("Shall the path to the <b>executable</b> be absolute or relative?"));
 			msgBox.setButtonText(QMessageBox::Yes, tr("Use Relative Path"));
 			msgBox.setButtonText(QMessageBox::No, tr("Use Absolute Path"));
@@ -563,6 +577,9 @@ namespace ct {
 			QFile file(filepath);
 			if (file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
 				QTextStream stream(&file);
+#if defined Q_OS_UNIX
+				stream << "#!/bin/sh" << ::endl;
+#endif
 				stream << "\"" << appPath << "\" -i \"" << configPath << "\" -o volume.raw";
 				if (!_ramlakRadioButton->isChecked()) {
 					if (_shepploganRadioButton->isChecked()) {
@@ -578,7 +595,7 @@ namespace ct {
 				if (_zFrom->value() != 0) stream << " --zmin " << _zFrom->value();
 				if (_zTo->value() != 1) stream << " --zmax " << _zTo->value();
 				file.close();
-				setStatus(tr("Batch file saved."));
+				setStatus(status);
 			}
 		}
 	}
