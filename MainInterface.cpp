@@ -575,6 +575,10 @@ namespace ct {
 				configPath = cmdDir.relativeFilePath(_inputFileEdit->text());
 			}
 			QFile file(filepath);
+#if defined Q_OS_UNIX
+			//On linux make it executable
+			file.setPermissions(QFileDevice::ExeOther);
+#endif
 			if (file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
 				QTextStream stream(&file);
 #if defined Q_OS_UNIX
