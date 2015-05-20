@@ -800,22 +800,17 @@ namespace ct {
 		double imageLowerBoundV = matToImageV(_imageHeight - 1);
 		double imageUpperBoundV = matToImageV(0);
 
-		double volumeLowerBoundX = volumeToWorldX(0);
-		double volumeUpperBoundX = volumeToWorldX(_xMax);
 		double volumeLowerBoundY = volumeToWorldY(0);
 		double volumeUpperBoundY = volumeToWorldY(_yMax);
 		double volumeLowerBoundZ = volumeToWorldZ(0);
 		double volumeUpperBoundZ = volumeToWorldZ(_zMax);
 
-#pragma omp parallel for schedule(dynamic)
-		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 
+		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 			//output percentage
-			if (omp_get_thread_num() == 0) {
-				double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
-				std::cout << "\r" << "Backprojecting: " << percentage << "%";
-				if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection(_crossSectionIndex)));
-			}
+			double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
+			std::cout << "\r" << "Backprojecting: " << percentage << "%";
+			if (_emitSignals) emit(reconstructionProgress(percentage, getVolumeCrossSection(_crossSectionIndex)));
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
@@ -825,7 +820,9 @@ namespace ct {
 			double uOffset = _uOffset;
 			double SD = _SD;
 
-			for (double x = volumeLowerBoundX; x < volumeUpperBoundX; ++x) {
+#pragma omp parallel for schedule(dynamic)
+			for (int xIndex = 0; xIndex < _xMax; ++xIndex) {
+				double x = volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
 					if (sqrt(x*x + y*y) < (_xSize / 2.0) - 3) {
 						//if the voxel is inside the reconstructable cylinder
