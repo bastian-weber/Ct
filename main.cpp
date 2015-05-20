@@ -136,6 +136,7 @@ int main(int argc, char* argv[]) {
 				std::cout << std::endl;
 				ct::CtVolume myVolume(input, filterType);
 				myVolume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
+				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << myVolume.getXSize() << "x" << myVolume.getYSize() << "x" << myVolume.getZSize() << " (x:y:z)" << std::endl << std::endl;
 				if (showSinogram)myVolume.displaySinogram(true);
 				myVolume.reconstructVolume();
 				myVolume.saveVolumeToBinaryFile(output);
