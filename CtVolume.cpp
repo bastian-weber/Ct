@@ -17,6 +17,7 @@ namespace ct {
 		:_currentlyDisplayedImage(0),
 		_emitSignals(false),
 		_crossSectionIndex(0),
+		_stop(false),
 		_xSize(0),
 		_ySize(0),
 		_zSize(0),
@@ -46,6 +47,7 @@ namespace ct {
 	CtVolume::CtVolume(std::string csvFile, FilterType filterType)
 		: _currentlyDisplayedImage(0),
 		_crossSectionIndex(0),
+		_stop(false),
 		_emitSignals(false),
 		_xSize(0),
 		_ySize(0),
@@ -76,6 +78,7 @@ namespace ct {
 	}
 
 	void CtVolume::sinogramFromImages(std::string csvFile, FilterType filterType) {
+		_stop = false;
 		_volume.clear();
 		//delete the contents of the sinogram
 		_sinogram.clear();
@@ -83,7 +86,7 @@ namespace ct {
 		std::ifstream stream(csvFile.c_str(), std::ios::in);
 		if (!stream.good()) {
 			std::cerr << "Could not open CSV file - terminating" << std::endl;
-			if (_emitSignals) emit(loadingFinished(CompletionStatus("Could not open the config file.")));
+			if (_emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the config file.")));
 			return;
 		}
 		//count the lines in the file
@@ -92,7 +95,7 @@ namespace ct {
 
 		if (imgCnt <= 0) {
 			std::cout << "CSV file does not contain any images." << std::endl;
-			if (_emitSignals) emit(loadingFinished(CompletionStatus("Apparently the config file does not contain any images.")));
+			if (_emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
 			return;
 		}else{
 			//resize the sinogram to the correct size
@@ -111,6 +114,12 @@ namespace ct {
 
 			//read the images from the csv file
 			if (!readImages(stream, path)) return;
+			if (_stop) {
+				_sinogram.clear();
+				std::cout << "User interrupted. Stopping.";
+				if (_emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+				return;
+			}
 
 			if (_sinogram.size() > 0) {
 				//make the height offset values realtive
@@ -128,6 +137,12 @@ namespace ct {
 				_crossSectionIndex = _zMax / 2;
 				//now apply the filters
 				imagePreprocessing(filterType);
+				if (_stop) {
+					_sinogram.clear();
+					std::cout << "User interrupted. Stopping.";
+					if (_emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+					return;
+				}
 			}
 		}
 		_minMaxCaclulated = false;
@@ -256,6 +271,7 @@ namespace ct {
 	}
 
 	void CtVolume::reconstructVolume() {
+		_stop = false;
 		if (_sinogram.size() > 0) {
 			//resize the volume to the correct size
 			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
@@ -263,6 +279,12 @@ namespace ct {
 			clock_t start = clock();
 			//fill the volume
 			reconstructionCore();
+			if (_stop) {
+				_volume.clear();
+				std::cout << "User interrupted. Stopping." << std::endl;
+				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+				return;
+			}
 
 			//now fill the corners around the cylinder with the lowest density value
 			if (_xMax > 0 && _yMax > 0 && _zMax > 0) {
@@ -295,17 +317,18 @@ namespace ct {
 			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_crossSectionIndex)));
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
-			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
+			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
 		}
 	}
 
 	void CtVolume::saveVolumeToBinaryFile(std::string filename) const {
+		_stop = false;
 		if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 
 			QFile file(filename.c_str());
 			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 				std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-				if (_emitSignals) emit(savingFinished(CompletionStatus("Could not open the file. Maybe your path does not exist. No files were written.")));
+				if (_emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
 				return;
 			}
 			QDataStream out(&file);
@@ -313,6 +336,7 @@ namespace ct {
 			out.setByteOrder(QDataStream::LittleEndian);
 			//iterate through the volume
 			for (int x = 0; x < _xMax; ++x) {
+				if (_stop) break;
 				if (_emitSignals) {
 					double percentage = floor(double(x) / double(_volume.size()) * 100 + 0.5);
 					emit(savingProgress(percentage));
@@ -325,12 +349,21 @@ namespace ct {
 				}
 			}
 			file.close();
-			std::cout << "Volume successfully saved" << std::endl;
+			if (_stop) {
+				std::cout << "User interrupted. Stopping." << std::endl;
+				if (_emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+				return;
+			}
+			std::cout << "Volume successfully saved." << std::endl;
 			if (_emitSignals) emit(savingFinished());
 		} else {
 			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			if (_emitSignals) emit(savingFinished(CompletionStatus("Did not save the volume, because it appears to be empty.")));
+			if (_emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
 		}
+	}
+
+	void CtVolume::stop() {
+		_stop = true;
 	}
 
 	void CtVolume::setEmitSignals(bool value) {
@@ -409,7 +442,7 @@ namespace ct {
 		int cnt = 0;
 		int rows;
 		int cols;
-		while (!csvStream.eof()) {
+		while (!csvStream.eof() && !_stop) {
 			std::getline(csvStream, file, '\t');
 			std::getline(csvStream, line, '\t');
 			strstr.str(line);
@@ -428,14 +461,14 @@ namespace ct {
 				_sinogram.clear();
 				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
 				std::cout << msg << std::endl;
-				if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
 			} else if (_sinogram[cnt].image.channels() != 1) {
 				//if it has more than 1 channel
 				_sinogram.clear();
 				std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
 				std::cout << msg << std::endl;
-				if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
 			} else {
 				//make sure that all images have the same size
@@ -448,7 +481,7 @@ namespace ct {
 						_sinogram.clear();
 						std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
 						std::cout << msg << std::endl;
-						if (_emitSignals) emit(loadingFinished(CompletionStatus(msg.c_str())));
+						if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 						return false;
 					}
 				}
@@ -543,13 +576,15 @@ namespace ct {
 		clock_t start = clock();
 #pragma omp parallel for schedule(dynamic)
 		for (int i = 0; i < _sinogram.size(); ++i) {
+			if (!_stop) {
 				double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
 				if (omp_get_thread_num() == 0) std::cout << "\r" << "Preprocessing: " << percentage << "%";
 				if (_emitSignals) emit(loadingProgress(percentage));
 
-			applyLogScaling(_sinogram[i].image);
-			applyFourierFilterOpenCV(_sinogram[i].image, filterType);
-			applyFeldkampWeight(_sinogram[i].image);
+				applyLogScaling(_sinogram[i].image);
+				applyFourierFilterOpenCV(_sinogram[i].image, filterType);
+				applyFeldkampWeight(_sinogram[i].image);
+			}
 		}
 		std::cout << std::endl;
 		clock_t end = clock();
@@ -807,6 +842,11 @@ namespace ct {
 
 
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
+			if (_stop) {
+				std::cout << "User interrupted. Stopping." << std::endl;
+				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+				return;
+			}
 			//output percentage
 			double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";

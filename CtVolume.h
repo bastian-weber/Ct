@@ -47,10 +47,13 @@ namespace ct {
 		Q_OBJECT
 	public:
 		struct CompletionStatus{
-			CompletionStatus() : successful(true) { }
-			CompletionStatus(QString errorMessage) : successful(false), errorMessage(errorMessage) { }
-			CompletionStatus(bool successful, QString errorMessage) : successful(successful), errorMessage(errorMessage) { }
+			CompletionStatus() : successful(true), userInterrupted(false) { };
+			CompletionStatus(bool successful, bool userInterrupted, QString const& errorMessage = QString()) : successful(successful), userInterrupted(userInterrupted), errorMessage(errorMessage) { }
+			static CompletionStatus success() { return CompletionStatus(true, false); }
+			static CompletionStatus interrupted() { return CompletionStatus(false, true); }
+			static CompletionStatus error(QString const& errorMessage) { return CompletionStatus(false, false, errorMessage); }
 			bool successful;
+			bool userInterrupted;
 			QString errorMessage;
 		};
 
@@ -73,7 +76,6 @@ namespace ct {
 		double getSO() const;
 		double getSD() const;
 		cv::Mat getVolumeCrossSection(size_t zCoord) const;		
-		void setCrossSectionIndex(size_t zCoord);
 		size_t getCrossSectionIndex() const;
 		//control functions
 		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
@@ -87,11 +89,14 @@ namespace ct {
 							 double zTo);
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
+		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
+		void setCrossSectionIndex(size_t zCoord);
 		void setEmitSignals(bool value);
 	private:
 		//variables		
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
+		mutable std::atomic<bool> _stop;
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
@@ -162,11 +167,11 @@ namespace ct {
 		static int fftCoordToIndex(int coord, int size);							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 	signals:	
 		void loadingProgress(double percentage) const;
-		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus()) const;
+		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
 		void reconstructionProgress(double percentage, cv::Mat crossSection) const;
-		void reconstructionFinished(cv::Mat crossSection, CtVolume::CompletionStatus status = CompletionStatus()) const;
+		void reconstructionFinished(cv::Mat crossSection, CtVolume::CompletionStatus status = CompletionStatus::success()) const;
 		void savingProgress(double percentage) const;
-		void savingFinished(CtVolume::CompletionStatus status = CompletionStatus()) const;
+		void savingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
 	};
 
 }
