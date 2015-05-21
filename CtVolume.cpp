@@ -374,34 +374,38 @@ namespace ct {
 
 	void CtVolume::readParameters(std::ifstream& stream, std::string& path, std::string& rotationDirection) {
 		//variables for the values that shall be read
-		std::stringstream strstr;
 		std::string line;
+		std::stringstream lineStream;
+		std::string field;
 
 		//manual reading of all the parameters
 		std::getline(stream, path, '\t');
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		std::getline(stream, line);
-		strstr.str(line);
-		strstr.clear();
-		strstr >> _pixelSize;
-		std::getline(stream, rotationDirection, '\t');
-		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		lineStream.str(line);
+		lineStream.clear();
+		lineStream >> _pixelSize;
 		std::getline(stream, line);
-		strstr.str(line);
-		strstr.clear();
-		strstr >> _uOffset;
+		lineStream.str(line);
+		lineStream.clear();
+		std::getline(lineStream, rotationDirection, '\t');
+		std::cout << rotationDirection << std::endl;
 		std::getline(stream, line);
-		strstr.str(line);
-		strstr.clear();
-		strstr >> _vOffset;
+		lineStream.str(line);
+		lineStream.clear();
+		lineStream >> _uOffset;
 		std::getline(stream, line);
-		strstr.str(line);
-		strstr.clear();
-		strstr >> _SO;
+		lineStream.str(line);
+		lineStream.clear();
+		lineStream >> _vOffset;
 		std::getline(stream, line);
-		strstr.str(line);
-		strstr.clear();
-		strstr >> _SD;
+		lineStream.str(line);
+		lineStream.clear();
+		lineStream >> _SO;
+		std::getline(stream, line);
+		lineStream.str(line);
+		lineStream.clear();
+		lineStream >> _SD;
 		//leave out one line
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
@@ -434,24 +438,23 @@ namespace ct {
 	bool CtVolume::readImages(std::ifstream& csvStream, std::string path) {
 		//now load the actual image files and their parameters
 		std::cout << "Loading image files" << std::endl;
-		std::stringstream strstr;
+		std::stringstream lineStream;
 		std::string line;
+		std::string field;
 		std::string file;
 		double angle;
 		double heightOffset;
 		int cnt = 0;
 		int rows;
 		int cols;
-		while (!csvStream.eof() && !_stop) {
-			std::getline(csvStream, file, '\t');
-			std::getline(csvStream, line, '\t');
-			strstr.str(line);
-			strstr.clear();
-			strstr >> angle;
-			std::getline(csvStream, line);
-			strstr.str(line);
-			strstr.clear();
-			strstr >> heightOffset;
+		while (std::getline(csvStream, line) && !_stop) {
+			lineStream.str(line);
+			lineStream.clear();
+			std::getline(lineStream, file, '\t');
+			std::getline(lineStream, field, '\t');
+			angle = std::stod(field);
+			std::getline(lineStream, field);
+			heightOffset = std::stod(field);
 			//load the image
 			_sinogram.push_back(Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset));
 
