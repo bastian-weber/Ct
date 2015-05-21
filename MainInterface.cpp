@@ -529,6 +529,8 @@ namespace ct {
 	}
 
 	void MainInterface::adjustMenuWidth() {
+		//This is necessary because otherwise lowering the minimum width shows no effect
+		_moreMenu->setFixedWidth(0);
 		_moreMenu->setMinimumWidth(_moreButton->width());
 	}
 
