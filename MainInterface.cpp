@@ -490,7 +490,7 @@ namespace ct {
 	void MainInterface::reactToReconstructButtonClick() {
 		disableAllControls();
 		_imageView->resetImage();
-		setStatus(tr("Running backprojection..."));
+		setStatus(tr("Backprojecting..."));
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
 		_reconstructionActive = true;
@@ -638,7 +638,7 @@ namespace ct {
 			double remaining = _timer.getTime() * ((100.0 - percentage) / percentage);
 			int mins = std::floor(remaining / 60.0);
 			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
-			setStatus(tr("Running backprojection... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
+			setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
 		}
 		cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 		_imageView->setImage(crossSection);

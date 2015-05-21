@@ -390,7 +390,6 @@ namespace ct {
 		lineStream.str(line);
 		lineStream.clear();
 		std::getline(lineStream, rotationDirection, '\t');
-		std::cout << rotationDirection << std::endl;
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
@@ -440,6 +439,7 @@ namespace ct {
 		//now load the actual image files and their parameters
 		std::cout << "Loading image files" << std::endl;
 		std::stringstream lineStream;
+		std::stringstream conversionStream;
 		std::string line;
 		std::string field;
 		std::string file;
@@ -453,9 +453,13 @@ namespace ct {
 			lineStream.clear();
 			std::getline(lineStream, file, '\t');
 			std::getline(lineStream, field, '\t');
-			angle = std::stod(field);
+			conversionStream.str(field);
+			conversionStream.clear();
+			conversionStream >> angle;
 			std::getline(lineStream, field);
-			heightOffset = std::stod(field);
+			conversionStream.str(field);
+			conversionStream.clear();
+			conversionStream >> heightOffset;
 			//load the image
 			_sinogram.push_back(Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset));
 
