@@ -215,6 +215,7 @@ namespace ct {
 			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 				cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
 				float* ptr;
+#pragma omp parallel for
 				for (int row = 0; row < result.rows; ++row) {
 					ptr = result.ptr<float>(row);
 					for (int column = 0; column < result.cols; ++column) {
