@@ -116,8 +116,8 @@ namespace ct {
 		_cmdAction = new QAction(tr("Save as &Batch File"), this);
 		QObject::connect(_cmdAction, SIGNAL(triggered()), this, SLOT(reactToBatchFileAction()));
 		_moreMenu->addAction(_cmdAction);
+		_moreMenu->setMinimumWidth(250);
 		_moreButton->setMenu(_moreMenu);
-		QObject::connect(_moreMenu, SIGNAL(aboutToShow()), this, SLOT(adjustMenuWidth()));
 
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
@@ -526,12 +526,6 @@ namespace ct {
 		_volume.stop();
 		_stopButton->setEnabled(false);
 		setStatus("Stopping...");
-	}
-
-	void MainInterface::adjustMenuWidth() {
-		//This is necessary because otherwise lowering the minimum width shows no effect
-		_moreMenu->setFixedWidth(0);
-		_moreMenu->setMinimumWidth(_moreButton->width());
 	}
 
 	void MainInterface::reactToBatchFileAction() {

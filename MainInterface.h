@@ -99,7 +99,6 @@ namespace ct {
 		void reactToSaveButtonClick();
 		void reactToRunAllButtonClick();
 		void reactToStopButtonClick();
-		void adjustMenuWidth();
 		void reactToBatchFileAction();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CtVolume::CompletionStatus status);
