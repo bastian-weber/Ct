@@ -36,11 +36,17 @@ namespace ct {
 		double heightOffset;													//for random trajectory
 	};
 
-		enum class FilterType{ 
-			RAMLAK, 
-			SHEPP_LOGAN, 
-			HANN
-		};
+	enum class FilterType{ 
+		RAMLAK, 
+		SHEPP_LOGAN, 
+		HANN
+	};
+
+	enum class Axis{
+		X,
+		Y,
+		Z
+	};
 
 	//The actual reconstruction class
 	class CtVolume : public QObject{
@@ -90,12 +96,13 @@ namespace ct {
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
-		void setCrossSectionIndex(size_t zCoord);
+		void setCrossSectionIndex(size_t index);
 		void setEmitSignals(bool value);
 	private:
 		//variables		
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
+		Axis _crossSectionAxis;
 		mutable std::atomic<bool> _stop;
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume

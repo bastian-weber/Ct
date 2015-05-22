@@ -17,6 +17,7 @@ namespace ct {
 		:_currentlyDisplayedImage(0),
 		_emitSignals(false),
 		_crossSectionIndex(0),
+		_crossSectionAxis(Axis::Z),
 		_stop(false),
 		_xSize(0),
 		_ySize(0),
@@ -47,6 +48,7 @@ namespace ct {
 	CtVolume::CtVolume(std::string csvFile, FilterType filterType)
 		: _currentlyDisplayedImage(0),
 		_crossSectionIndex(0),
+		_crossSectionAxis(Axis::Z),
 		_stop(false),
 		_emitSignals(false),
 		_xSize(0),
@@ -210,16 +212,40 @@ namespace ct {
 		return _SD;
 	}
 
-	cv::Mat CtVolume::getVolumeCrossSection(size_t zCoord) const {
-		if (zCoord >= 0 && zCoord < _zMax) {
+	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
+		if (index >= 0 && (_crossSectionAxis == Axis::X && index < _xMax) || (_crossSectionAxis == Axis::Y && index < _yMax) || (_crossSectionAxis == Axis::Z && index < _zMax)) {
 			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
-				cv::Mat result(_volume[0].size(), _volume.size(), CV_32FC1);
+				size_t uSize;
+				size_t vSize;
+				if (_crossSectionAxis == Axis::X) {
+					uSize = _yMax;
+					vSize = _zMax;
+				} else if (_crossSectionAxis == Axis::Y) {
+					uSize = _xMax;
+					vSize = _zMax;
+				} else {
+					uSize = _xMax;
+					vSize = _yMax;
+				}
+
+				cv::Mat result(vSize, uSize, CV_32FC1);
 				float* ptr;
 #pragma omp parallel for private(ptr)
 				for (int row = 0; row < result.rows; ++row) {
 					ptr = result.ptr<float>(row);
 					for (int column = 0; column < result.cols; ++column) {
-						ptr[column] = _volume[column][row][zCoord];
+						switch (_crossSectionAxis) {
+							case Axis::X:
+								ptr[column] = _volume[index][column][row];
+								break;
+							case Axis::Y:
+								ptr[column] = _volume[column][index][row];
+								break;
+							case Axis::Z:
+								ptr[column] = _volume[column][row][index];
+								break;
+						}
+
 					}
 				}
 				return result;
