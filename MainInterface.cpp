@@ -245,6 +245,15 @@ namespace ct {
 				setNextSlice();
 			} else if (e->key() == Qt::Key_Down) {
 				setPreviousSlice();
+			} else if (e->key() == Qt::Key_X) {
+				_volume.setCrossSectionAxis(Axis::X);
+				setSlice(_volume.getCrossSectionIndex());
+			} else if (e->key() == Qt::Key_Y) {
+				_volume.setCrossSectionAxis(Axis::Y);
+				setSlice(_volume.getCrossSectionIndex());
+			} else if (e->key() == Qt::Key_Z){
+				_volume.setCrossSectionAxis(Axis::Z);
+				setSlice(_volume.getCrossSectionIndex());
 			} else {
 				e->ignore();
 				return;
@@ -259,9 +268,9 @@ namespace ct {
 				if (e->delta() < 0) {
 					signum = -1;
 				}
-				long nextSlice = _volume.getCrossSectionIndex() + ((_volume.getZSize() / 10) * signum);
+				long nextSlice = _volume.getCrossSectionIndex() + ((_volume.getCrossSectionSize() / 10) * signum);
 				if (nextSlice < 0) nextSlice = 0;
-				if (nextSlice >= _volume.getZSize()) nextSlice = _volume.getZSize() - 1;
+				if (nextSlice >= _volume.getCrossSectionSize()) nextSlice = _volume.getCrossSectionSize() - 1;
 				setSlice(nextSlice);
 				e->accept();
 			} else {
@@ -382,7 +391,7 @@ namespace ct {
 	}
 
 	void MainInterface::setSlice(size_t index) {
-		if (index >= 0 && index < _volume.getZSize()) {
+		if (index >= 0 && index < _volume.getCrossSectionSize()) {
 			_volume.setCrossSectionIndex(index);
 			cv::Mat crossSection = _volume.getVolumeCrossSection(index);
 			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
@@ -392,7 +401,7 @@ namespace ct {
 
 	void MainInterface::setNextSlice() {
 		size_t nextSlice = _volume.getCrossSectionIndex() + 1;
-		if (nextSlice >= _volume.getZSize()) nextSlice = _volume.getZSize() - 1;
+		if (nextSlice >= _volume.getCrossSectionSize()) nextSlice = _volume.getCrossSectionSize() - 1;
 		setSlice(nextSlice);
 	}
 

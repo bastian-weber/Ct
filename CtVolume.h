@@ -81,8 +81,10 @@ namespace ct {
 		double getPixelSize() const;
 		double getSO() const;
 		double getSD() const;
-		cv::Mat getVolumeCrossSection(size_t zCoord) const;		
+		cv::Mat getVolumeCrossSection(size_t index) const;
 		size_t getCrossSectionIndex() const;
+		size_t getCrossSectionSize() const;
+		Axis getCrossSectionAxis() const;
 		//control functions
 		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
 								FilterType filterType = FilterType::RAMLAK);
@@ -97,12 +99,14 @@ namespace ct {
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 		void setCrossSectionIndex(size_t index);
+		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
 	private:
 		//variables		
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis;
+		mutable std::mutex _crossSectionMutex;
 		mutable std::atomic<bool> _stop;
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
