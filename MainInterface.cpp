@@ -230,7 +230,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::keyPressEvent(QKeyEvent * e) {
+	void MainInterface::keyPressEvent(QKeyEvent* e) {
 		if (_sinogramDisplayActive) {
 			if (e->key() == Qt::Key_Right) {
 				setNextSinogramImage();
@@ -248,6 +248,24 @@ namespace ct {
 			} else {
 				e->ignore();
 				return;
+			}
+		}
+	}
+
+	void MainInterface::wheelEvent(QWheelEvent* e) {
+		if (_crossSectionDisplayActive || _reconstructionActive) {
+			if (e->modifiers() & Qt::ControlModifier) {
+				int signum = 1;
+				if (e->delta() < 0) {
+					signum = -1;
+				}
+				long nextSlice = _volume.getCrossSectionIndex() + ((_volume.getZSize() / 10) * signum);
+				if (nextSlice < 0) nextSlice = 0;
+				if (nextSlice >= _volume.getZSize()) nextSlice = _volume.getZSize() - 1;
+				setSlice(nextSlice);
+				e->accept();
+			} else {
+				e->ignore();
 			}
 		}
 	}
