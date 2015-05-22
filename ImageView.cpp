@@ -652,9 +652,13 @@ namespace hb{
 		if (_imageAssigned){
 			if (e->modifiers() & Qt::AltModifier){
 				_zoomExponent += (double)e->delta() / 600;
-			} else{
+			} else if(!e->modifiers()) {
 				_zoomExponent += (double)e->delta() / 120;
+			} else {
+				e->ignore();
+				return;
 			}
+			e->accept();
 			if (_zoomExponent < 0)_zoomExponent = 0;
 			enforcePanConstraints();
 			updateResizedImage();

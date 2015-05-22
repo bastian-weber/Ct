@@ -21,7 +21,8 @@ namespace ct {
 	protected:
 		void dragEnterEvent(QDragEnterEvent* e);
 		void dropEvent(QDropEvent* e);
-		void keyPressEvent(QKeyEvent * e);
+		void keyPressEvent(QKeyEvent* e);
+		void wheelEvent(QWheelEvent* e);
 	private:
 		void disableAllControls();
 		void startupState();
