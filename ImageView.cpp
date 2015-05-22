@@ -843,10 +843,15 @@ namespace hb{
 		//add a contour
 		canvas.resetTransform();
 		canvas.setRenderHint(QPainter::Antialiasing, 0);
-		QColor strokeColour = palette.base().color();
-		strokeColour.setRed(strokeColour.red() / 2);
-		strokeColour.setGreen(strokeColour.green() / 2);
-		strokeColour.setBlue(strokeColour.blue() / 2);
+		QColor strokeColour;
+		if (hasFocus()) {
+			strokeColour = palette.highlight().color();
+		} else {
+			strokeColour = palette.base().color();
+			strokeColour.setRed(strokeColour.red() / 2);
+			strokeColour.setGreen(strokeColour.green() / 2);
+			strokeColour.setBlue(strokeColour.blue() / 2);
+		}
 		canvas.setPen(QPen(strokeColour, 1));
 		canvas.setBrush(Qt::NoBrush);
 		canvas.drawRect(0, 0, width() - 1, height() - 1);
