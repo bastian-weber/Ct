@@ -213,6 +213,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
+		std::lock_guard<std::mutex> lock(_crossSectionMutex);
 		if (index >= 0 && (_crossSectionAxis == Axis::X && index < _xMax) || (_crossSectionAxis == Axis::Y && index < _yMax) || (_crossSectionAxis == Axis::Z && index < _zMax)) {
 			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 				size_t uSize;
@@ -230,22 +231,29 @@ namespace ct {
 
 				cv::Mat result(vSize, uSize, CV_32FC1);
 				float* ptr;
+				if (_crossSectionAxis == Axis::X) {
 #pragma omp parallel for private(ptr)
-				for (int row = 0; row < result.rows; ++row) {
-					ptr = result.ptr<float>(row);
-					for (int column = 0; column < result.cols; ++column) {
-						switch (_crossSectionAxis) {
-							case Axis::X:
-								ptr[column] = _volume[index][column][row];
-								break;
-							case Axis::Y:
-								ptr[column] = _volume[column][index][row];
-								break;
-							case Axis::Z:
-								ptr[column] = _volume[column][row][index];
-								break;
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = _volume[index][column][row];
 						}
-
+					}
+				} else if (_crossSectionAxis == Axis::Y) {
+#pragma omp parallel for private(ptr)
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = _volume[column][index][row];
+						}
+					}
+				} else {
+#pragma omp parallel for private(ptr)
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = _volume[column][row][index];
+						}
 					}
 				}
 				return result;
@@ -256,14 +264,41 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::setCrossSectionIndex(size_t zCoord) {
-		if (zCoord >= 0 && zCoord < _zMax) {
-			_crossSectionIndex = zCoord;
+	void CtVolume::setCrossSectionIndex(size_t index) {
+		std::lock_guard<std::mutex> lock(_crossSectionMutex);
+		if (index >= 0 && (_crossSectionAxis == Axis::X && index < _xMax) || (_crossSectionAxis == Axis::Y && index < _yMax) || (_crossSectionAxis == Axis::Z && index < _zMax)) {
+			_crossSectionIndex = index;
+		}
+	}
+
+	void CtVolume::setCrossSectionAxis(Axis axis) {
+		std::lock_guard<std::mutex> lock(_crossSectionMutex);
+		_crossSectionAxis = axis;
+		if (_crossSectionAxis == Axis::X) {
+			_crossSectionIndex = _xMax / 2;
+		} else if (_crossSectionAxis == Axis::Y) {
+			_crossSectionIndex = _yMax / 2;
+		} else {
+			_crossSectionIndex = _zMax / 2;
 		}
 	}
 
 	size_t CtVolume::getCrossSectionIndex() const {
 		return _crossSectionIndex;
+	}
+
+	size_t CtVolume::getCrossSectionSize() const {
+		if (_crossSectionAxis == Axis::X) {
+			return _xMax;
+		} else if (_crossSectionAxis == Axis::Y) {
+			return _yMax;
+		} else {
+			return _zMax;
+		}
+	}
+
+	Axis CtVolume::getCrossSectionAxis() const {
+		return _crossSectionAxis;
 	}
 
 	void CtVolume::displaySinogram(bool normalize) const {
