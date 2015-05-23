@@ -276,6 +276,22 @@ namespace ct {
 			} else {
 				e->ignore();
 			}
+		} else if (_sinogramDisplayActive) {
+			if (e->modifiers() & Qt::ControlModifier) {
+				int signum = 1;
+				if (e->delta() < 0) {
+					signum = -1;
+				}
+				long nextProjection = _currentIndex + ((_volume.getSinogramSize() / 12) * signum);
+				if (nextProjection < 0) nextProjection += _volume.getSinogramSize();
+				if (nextProjection >= _volume.getSinogramSize()) nextProjection -= _volume.getSinogramSize();
+				setSinogramImage(nextProjection);
+				e->accept();
+			} else {
+				e->ignore();
+			}
+		} else {
+			e->ignore();
 		}
 	}
 
