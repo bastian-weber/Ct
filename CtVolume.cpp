@@ -247,7 +247,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = _volume[index][column][row];
+							ptr[column] = _volume[index][column][result.rows - 1 - row];
 						}
 					}
 				} else if (axis == Axis::Y) {
@@ -255,7 +255,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = _volume[column][index][row];
+							ptr[column] = _volume[column][index][result.rows - 1 - row];
 						}
 					}
 				} else {
@@ -589,7 +589,7 @@ namespace ct {
 		if (_sinogram.size() > 1) {	//only possible if there are at least 2 images
 			double diff = _sinogram[1].angle - _sinogram[0].angle;
 			//clockwise rotation requires rotation in positive direction and ccw rotation requires negative direction
-			if ((rotationDirection == "cw" && diff < 0) || (rotationDirection == "ccw" && diff > 0)) {
+			if ((rotationDirection == "cw" && diff > 0) || (rotationDirection == "ccw" && diff < 0)) {
 				for (int i = 0; i < _sinogram.size(); ++i) {
 					_sinogram[i].angle *= -1;
 				}
