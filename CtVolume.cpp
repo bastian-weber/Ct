@@ -588,7 +588,8 @@ namespace ct {
 		//make sure the direction of the rotation is correct
 		if (_sinogram.size() > 1) {	//only possible if there are at least 2 images
 			double diff = _sinogram[1].angle - _sinogram[0].angle;
-			//clockwise rotation requires rotation in positive direction and ccw rotation requires negative direction
+			//clockwise rotation requires rotation in negative direction and ccw rotation requires positive direction
+			//refers to the rotatin of the "camera"
 			if ((rotationDirection == "cw" && diff > 0) || (rotationDirection == "ccw" && diff < 0)) {
 				for (int i = 0; i < _sinogram.size(); ++i) {
 					_sinogram[i].angle *= -1;
