@@ -106,7 +106,6 @@ namespace ct {
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis;
-		mutable std::mutex _crossSectionMutex;
 		mutable std::atomic<bool> _stop;
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume

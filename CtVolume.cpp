@@ -136,7 +136,17 @@ namespace ct {
 				_ySize = _imageWidth;
 				_zSize = _imageHeight;
 				updateBoundaries();
-				_crossSectionIndex = _zMax / 2;
+				switch (_crossSectionAxis) {
+					case Axis::X:
+						_crossSectionIndex = _xMax / 2;
+						break;
+					case Axis::Y:
+						_crossSectionIndex = _yMax / 2;
+						break;
+					case Axis::Z:
+						_crossSectionIndex = _zMax / 2;
+						break;
+				}
 				//now apply the filters
 				imagePreprocessing(filterType);
 				if (_stop) {
@@ -213,15 +223,16 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
-		std::lock_guard<std::mutex> lock(_crossSectionMutex);
-		if (index >= 0 && (_crossSectionAxis == Axis::X && index < _xMax) || (_crossSectionAxis == Axis::Y && index < _yMax) || (_crossSectionAxis == Axis::Z && index < _zMax)) {
+		//copy to local variable because member variable might change during execution
+		Axis axis = _crossSectionAxis;
+		if (index >= 0 && (axis == Axis::X && index < _xMax) || (axis == Axis::Y && index < _yMax) || (axis == Axis::Z && index < _zMax)) {
 			if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 				size_t uSize;
 				size_t vSize;
-				if (_crossSectionAxis == Axis::X) {
+				if (axis == Axis::X) {
 					uSize = _yMax;
 					vSize = _zMax;
-				} else if (_crossSectionAxis == Axis::Y) {
+				} else if (axis == Axis::Y) {
 					uSize = _xMax;
 					vSize = _zMax;
 				} else {
@@ -231,7 +242,7 @@ namespace ct {
 
 				cv::Mat result(vSize, uSize, CV_32FC1);
 				float* ptr;
-				if (_crossSectionAxis == Axis::X) {
+				if (axis == Axis::X) {
 #pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
@@ -239,7 +250,7 @@ namespace ct {
 							ptr[column] = _volume[index][column][row];
 						}
 					}
-				} else if (_crossSectionAxis == Axis::Y) {
+				} else if (axis == Axis::Y) {
 #pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
@@ -265,14 +276,12 @@ namespace ct {
 	}
 
 	void CtVolume::setCrossSectionIndex(size_t index) {
-		std::lock_guard<std::mutex> lock(_crossSectionMutex);
 		if (index >= 0 && (_crossSectionAxis == Axis::X && index < _xMax) || (_crossSectionAxis == Axis::Y && index < _yMax) || (_crossSectionAxis == Axis::Z && index < _zMax)) {
 			_crossSectionIndex = index;
 		}
 	}
 
 	void CtVolume::setCrossSectionAxis(Axis axis) {
-		std::lock_guard<std::mutex> lock(_crossSectionMutex);
 		_crossSectionAxis = axis;
 		if (_crossSectionAxis == Axis::X) {
 			_crossSectionIndex = _xMax / 2;
