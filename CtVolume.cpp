@@ -775,33 +775,28 @@ namespace ct {
 	}
 
 	void CtVolume::applyFourierFilterOpenCV(cv::Mat& image, FilterType type) {
-		//cv::Mat m = (cv::Mat_<float>(1, 8) << 3, 8, 2, 10, 5, 20, 9, 2);
-		//cv::Mat output;
-		//cv::dft(m, output, cv::DFT_COMPLEX_OUTPUT);
-		//std::cout << cv::format(output, "python") << std::endl;
-		//system("pause");
-
 		cv::Mat freq;
-		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
+		cv::dft(image, freq, cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
-		cv::Vec2f* ptr;
+		float* ptr;
 		for (int row = 0; row < freq.rows; ++row) {
-			ptr = freq.ptr<cv::Vec2f>(row);
-			for (int column = 0; column < nyquist; ++column) {
+			ptr = freq.ptr<float>(row);
+			for (int column = 0; column < freq.cols; ++column) {
+				int actualIndex = (column + 1) / 2;
 				switch (type) {
 					case FilterType::RAMLAK:
-						ptr[column] *= ramLakWindowFilter(column, nyquist);
+						ptr[column] *= ramLakWindowFilter(actualIndex, nyquist);
 						break;
 					case FilterType::SHEPP_LOGAN:
-						ptr[column] *= sheppLoganWindowFilter(column, nyquist);
+						ptr[column] *= sheppLoganWindowFilter(actualIndex, nyquist);
 						break;
 					case FilterType::HANN:
-						ptr[column] *= hannWindowFilter(column, nyquist);
+						ptr[column] *= hannWindowFilter(actualIndex, nyquist);
 						break;
 				}
 			}
 		}
-		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
+		cv::idft(freq, image, cv::DFT_ROWS);
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) {
