@@ -775,12 +775,6 @@ namespace ct {
 	}
 
 	void CtVolume::applyFourierFilterOpenCV(cv::Mat& image, FilterType type) {
-		//cv::Mat m = (cv::Mat_<float>(1, 8) << 3, 8, 2, 10, 5, 20, 9, 2);
-		//cv::Mat output;
-		//cv::dft(m, output, cv::DFT_COMPLEX_OUTPUT);
-		//std::cout << cv::format(output, "python") << std::endl;
-		//system("pause");
-
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
