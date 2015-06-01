@@ -1006,6 +1006,7 @@ namespace ct {
 		_worldToVolumeXPrecomputed = (double(_xSize) / 2.0) - double(_xFrom);
 		_worldToVolumeYPrecomputed = (double(_ySize) / 2.0) - double(_yFrom);
 		_worldToVolumeZPrecomputed = (double(_zSize) / 2.0) - double(_zFrom);
+		_volumeToWorldXPrecomputed = (double(_xSize) / 2.0) + double(_xFrom);
 		_imageToMatUPrecomputed = double(_imageWidth) / 2.0;
 		_imageToMatVPrecomputed = double(_imageHeight) / 2.0;
 	}
@@ -1023,7 +1024,7 @@ namespace ct {
 	}
 
 	inline double CtVolume::volumeToWorldX(double xCoord) const {
-		return xCoord - (double(_xSize) / 2.0) + double(_xFrom);
+		return xCoord - _volumeToWorldXPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
