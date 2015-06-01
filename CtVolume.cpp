@@ -932,12 +932,13 @@ namespace ct {
 			double heightOffset = _sinogram[projection].heightOffset;
 			double uOffset = _uOffset;
 			double SD = _SD;
+			double radiusSquared = std::pow((_xSize / 2.0) - 3, 2);
 
 #pragma omp parallel for schedule(dynamic)
 			for (int xIndex = 0; xIndex < _xMax; ++xIndex) {
 				double x = volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
-					if (sqrt(x*x + y*y) < (_xSize / 2.0) - 3) {
+					if ((x*x + y*y) < radiusSquared) {
 						//if the voxel is inside the reconstructable cylinder
 						for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
 
@@ -1002,18 +1003,23 @@ namespace ct {
 		_xMax = _xTo - _xFrom;
 		_yMax = _yTo - _yFrom;
 		_zMax = _zTo - _zFrom;
+		_worldToVolumeXPrecomputed = (double(_xSize) / 2.0) - double(_xFrom);
+		_worldToVolumeYPrecomputed = (double(_ySize) / 2.0) - double(_yFrom);
+		_worldToVolumeZPrecomputed = (double(_zSize) / 2.0) - double(_zFrom);
+		_imageToMatUPrecomputed = double(_imageWidth) / 2.0;
+		_imageToMatVPrecomputed = double(_imageHeight) / 2.0;
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
-		return xCoord + ((double)_xSize / 2.0) - double(_xFrom);
+		return xCoord + _worldToVolumeXPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeY(double yCoord) const {
-		return yCoord + ((double)_ySize / 2.0) - double(_yFrom);
+		return yCoord + _worldToVolumeYPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeZ(double zCoord) const {
-		return zCoord + ((double)_zSize / 2.0) - double(_zFrom);
+		return zCoord + _worldToVolumeZPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldX(double xCoord) const {
@@ -1029,12 +1035,12 @@ namespace ct {
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
-		return uCoord + ((double)_imageWidth / 2.0);
+		return uCoord + _imageToMatUPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return ((-1)*vCoord + ((double)_imageHeight / 2.0));
+		return (-1)*vCoord + _imageToMatVPrecomputed;
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {

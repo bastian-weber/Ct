@@ -126,6 +126,12 @@ namespace ct {
 		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
 		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
+		//some precomputed values for the coordinate conversion functions for faster execution
+		double _worldToVolumeXPrecomputed;
+		double _worldToVolumeYPrecomputed;
+		double _worldToVolumeZPrecomputed;
+		double _imageToMatUPrecomputed;
+		double _imageToMatVPrecomputed;
 		//functions			
 		void readParameters(std::ifstream& stream, 
 								   std::string& path, 
