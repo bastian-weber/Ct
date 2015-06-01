@@ -130,6 +130,7 @@ namespace ct {
 		double _worldToVolumeXPrecomputed;
 		double _worldToVolumeYPrecomputed;
 		double _worldToVolumeZPrecomputed;
+		double _volumeToWorldXPrecomputed;
 		double _imageToMatUPrecomputed;
 		double _imageToMatVPrecomputed;
 		//functions			
