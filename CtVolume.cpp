@@ -799,21 +799,9 @@ namespace ct {
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) {
-		const int R = image.rows;
-		int C = image.cols;
-		const double normalizationConstant = logFunction(1);
-		float* ptr;
-		for (int row = 0; row < R; ++row) {
-			ptr = image.ptr<float>(row);
-			for (int cols = 0; cols < C; ++cols) {
-				ptr[cols] = 1 - logFunction(ptr[cols]) / normalizationConstant;
-			}
-		}
-	}
-
-	double CtVolume::logFunction(double x) {
-		const double compressionFactor = 0.005; //must be greater than 0; the closer to 0, the stronger the compression
-		return std::log(x + compressionFactor) - std::log(compressionFactor);
+		// -ln(x)
+		cv::log(image, image);
+		image *= -1;
 	}
 
 	double CtVolume::ramLakWindowFilter(double n, double N) {
