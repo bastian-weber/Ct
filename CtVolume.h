@@ -27,10 +27,10 @@
 
 namespace ct {
 
-	//struct for storing one projection
+	//struct for returning projections
 	struct Projection{
 		Projection();
-		Projection(cv::Mat image, double angle, double heightOffset);			//Constructor
+		Projection(cv::Mat image, double angle, double heightOffset);
 		cv::Mat image;
 		double angle;
 		double heightOffset;													//for random trajectory
@@ -66,10 +66,9 @@ namespace ct {
 		//functions		
 		//constructor
 		CtVolume();																
-		CtVolume(std::string csvFile,
-				 FilterType filterType = FilterType::RAMLAK);
+		CtVolume(std::string csvFile);
 		//getters
-		Projection getProjectionAt(size_t index) const;
+		ct::Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
 		size_t getImageWidth() const;
 		size_t getImageHeight() const;
@@ -86,22 +85,32 @@ namespace ct {
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
 		//control functions
-		void sinogramFromImages(std::string csvFile,							//creates a sinogramm out of images specified in csvFile, filterType specifies the prefilter
-								FilterType filterType = FilterType::RAMLAK);
-		void displaySinogram(bool normalize = false) const;						//lets the user scroll through the images in the sinogram, set normalize for normalizing the gray values	
+		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
 		void setVolumeBounds(double xFrom, 
 							 double xTo, 
 							 double yFrom, 
 							 double yTo,
 							 double zFrom, 
 							 double zTo);
-		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram
+		void reconstructVolume(FilterType filterType = FilterType::RAMLAK);		//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
 	private:
+
+		//struct for storing one projection internally
+		struct Projection{
+			Projection();
+			Projection(std::string imagePath, double angle, double heightOffset);	//Constructor
+			cv::Mat getImage() const;
+			ct::Projection getPublicProjection() const;
+			std::string imagePath;
+			double angle;
+			double heightOffset;													//for random trajectory
+		};
+
 		//variables		
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
@@ -125,7 +134,6 @@ namespace ct {
 		double _pixelSize;
 		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
-		mutable bool _minMaxCaclulated;											//specifies if the min/max values have been calculated for the current sinogram
 		//some precomputed values for the coordinate conversion functions for faster execution
 		double _worldToVolumeXPrecomputed;
 		double _worldToVolumeYPrecomputed;
@@ -139,15 +147,13 @@ namespace ct {
 								   std::string& rotationDirection);
 		std::string glueRelativePath(std::string const& basePath, 
 									 std::string const& potentialRelativePath);
-		bool readImages(std::ifstream& csvStream, std::string path);
+		bool readImages(std::ifstream& csvStream, std::string path, int imgCnt);
 		void makeHeightOffsetRelative();
 		void correctAngleDirection(std::string rotationDirection);
-		std::pair<float, float> getSinogramMinMaxIntensity() const;				//returns the highest and lowest density value out of all images in the sinogram
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		void handleKeystrokes(bool normalize) const;							//handles the forward and backward arrow keys when sinogram is displayed
-		void imagePreprocessing(FilterType filterType);							//applies the necessary filters to the images prior to the reconstruction
+		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
@@ -161,7 +167,7 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		static void applyFourierHighpassFilter2D(cv::Mat& image);				//applies a highpass filter in the frequency domain (2D) (not used)
-		void reconstructionCore();												//does the actual reconstruction
+		void reconstructionCore(FilterType filterType = FilterType::RAMLAK);	//does the actual reconstruction, filterType specifies the type of the highpass filter
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
 									float u0v0,
