@@ -34,7 +34,6 @@ void parseDoubleArgument(int argc, char* argv[], int index, double& output) {
 }
 
 int main(int argc, char* argv[]) {
-	bool showSinogram = false;
 	bool inputProvided = false;
 	bool outputProvided = false;
 	bool lowerPriority = false;
@@ -50,8 +49,6 @@ int main(int argc, char* argv[]) {
 			std::cout << "Parameters:" << std::endl << "\t-i [path]\tFile path to the input config file. Long: --input." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-o [path]\tFile path for the output file. Long: --output." << std::endl;
-			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t-d \t\tOptional. Display the sinogram. Long: --display." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-b \t\tOptional. Run with background priority.\n\t\t\tLong: --background." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
@@ -72,9 +69,7 @@ int main(int argc, char* argv[]) {
 			std::cout << "\t--zmax [0..1]\tOptional. The upper z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 		} else {
 			for (int i = 1; i < argc; ++i) {
-				if (std::string(argv[i]).compare("-d") == 0 || std::string(argv[i]).compare("--display") == 0) {
-					showSinogram = true;
-				} else if (std::string(argv[i]).compare("--xmin") == 0) {
+				if (std::string(argv[i]).compare("--xmin") == 0) {
 					parseDoubleArgument(argc, argv, ++i, xmin);
 				} else if (std::string(argv[i]).compare("--xmax") == 0) {
 					parseDoubleArgument(argc, argv, ++i, xmax);
@@ -127,18 +122,16 @@ int main(int argc, char* argv[]) {
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
-				std::cout << "\tDisplay sinogram:\t" << ((showSinogram) ? "YES" : "NO") << std::endl;
 				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
 				std::cout << "\tVolume bounds:";
 				std::cout << "\t\tx: [" << std::to_string(xmin) << " .. " << std::to_string(xmax) << "]" << std::endl;;
 				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
 				std::cout << "\t\t\t\tz: [" << std::to_string(zmin) << " .. " << std::to_string(zmax) << "]" << std::endl;
 				std::cout << std::endl;
-				ct::CtVolume myVolume(input, filterType);
+				ct::CtVolume myVolume(input);
 				myVolume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
 				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << myVolume.getXSize() << "x" << myVolume.getYSize() << "x" << myVolume.getZSize() << " (x:y:z)" << std::endl << std::endl;
-				if (showSinogram)myVolume.displaySinogram(true);
-				myVolume.reconstructVolume();
+				myVolume.reconstructVolume(filterType);
 				myVolume.saveVolumeToBinaryFile(output);
 			} else {
 				std::cout << "You must provide a file path to the config file as input as well as a file path for the output." << std::endl;

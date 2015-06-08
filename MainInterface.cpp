@@ -521,13 +521,7 @@ namespace ct {
 		disableAllControls();
 		setStatus(tr("Loding and preprocessing images..."));
 		_timer.reset();
-		FilterType type = FilterType::RAMLAK;
-		if (_shepploganRadioButton->isChecked()) {
-			type = FilterType::SHEPP_LOGAN;			
-		} else if (_hannRadioButton->isChecked()) {
-			type = FilterType::HANN;
-		}
-		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), type).detach();	
+		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();	
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
@@ -536,8 +530,14 @@ namespace ct {
 		setStatus(tr("Backprojecting..."));
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
+		FilterType type = FilterType::RAMLAK;
+		if (_shepploganRadioButton->isChecked()) {
+			type = FilterType::SHEPP_LOGAN;
+		} else if (_hannRadioButton->isChecked()) {
+			type = FilterType::HANN;
+		}
 		_reconstructionActive = true;
-		std::thread(&CtVolume::reconstructVolume, &_volume).detach();
+		std::thread(&CtVolume::reconstructVolume, &_volume, type).detach();
 	}
 
 	void MainInterface::reactToSaveButtonClick() {
