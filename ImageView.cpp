@@ -719,13 +719,17 @@ namespace hb{
 		//drawing of bounds (rectangle) overlay
 		if (_imageAssigned && _renderRectangle) {
 			QPixmap rect = QPixmap(canvasSize);
-			rect.fill(QColor(0, 0, 0, 100));
+			rect.fill(Qt::transparent);
+			QRectF imageArea(QPointF(0, 0), _image.size());
+			imageArea = transform.mapRect(imageArea);
 			QPainter p(&rect);
-			p.setTransform(transform);
 			p.setPen(Qt::NoPen);
+			p.setBrush(QColor(0, 0, 0, 100));
+			p.drawRect(imageArea);
 			p.setBrush(QBrush(Qt::transparent));
 			p.setCompositionMode(QPainter::CompositionMode_SourceOut);
-			p.drawRect(_rectangle);
+			QRectF eraseRect = transform.mapRect(_rectangle);
+			p.drawRect(eraseRect);
 			canvas.resetTransform();
 			canvas.drawPixmap(0, 0, rect);
 		}
