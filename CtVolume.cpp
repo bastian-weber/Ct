@@ -18,7 +18,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::Projection::getImage() const {
-		return cv::imread(imagePath, CV_LOAD_IMAGE_UNCHANGED);
+		return cv::imread(imagePath, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
 	}
 
 	ct::Projection CtVolume::Projection::getPublicProjection() const {
@@ -492,7 +492,7 @@ namespace ct {
 
 	bool CtVolume::readImages(std::ifstream& csvStream, std::string path, int imgCnt) {
 		//now load the actual image files and their parameters
-		std::cout << "Loading image files" << std::endl;
+		std::cout << "Parsing config file" << std::endl;
 		std::stringstream lineStream;
 		std::stringstream conversionStream;
 		std::string line;
@@ -528,10 +528,10 @@ namespace ct {
 				std::cout << msg << std::endl;
 				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
-			} else if (image.channels() != 1) {
-				//if it has more than 1 channel
+			} else if (image.depth() != CV_8U && image.depth() != CV_16U && image.depth() != CV_32F) {
+				//wrong depth
 				_sinogram.clear();
-				std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
+				std::string msg = "Error loading the image \"" + path + file + "\". The image depth must be either 8bit, 16bit or 32bit.";
 				std::cout << msg << std::endl;
 				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
@@ -567,7 +567,7 @@ namespace ct {
 				_imageHeight = rows;
 				//output
 				double percentage = floor(double(cnt) / double(imgCnt) * 100 + 0.5);
-				std::cout << "\r" << "Parsing: " << percentage << "%";
+				std::cout << "\r" << "Analysing images: " << percentage << "%";
 				if (_emitSignals) emit(loadingProgress(percentage));
 			}
 			++cnt;

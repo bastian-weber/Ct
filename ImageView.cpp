@@ -716,9 +716,10 @@ namespace hb{
 			canvas.setOpacity(1);
 		}
 
+		//drawing of bounds (rectangle) overlay
 		if (_imageAssigned && _renderRectangle) {
 			QPixmap rect = QPixmap(canvasSize);
-			rect.fill(QColor(255, 255, 255, 100));
+			rect.fill(QColor(0, 0, 0, 100));
 			QPainter p(&rect);
 			p.setTransform(transform);
 			p.setPen(Qt::NoPen);
