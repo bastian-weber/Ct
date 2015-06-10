@@ -524,7 +524,7 @@ namespace ct {
 			if (!image.data) {
 				//if there is no image data
 				_sinogram.clear();
-				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
+				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist, permissions are missing or the format is not supported.";
 				std::cout << msg << std::endl;
 				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
@@ -636,31 +636,6 @@ namespace ct {
 			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 8));
 		} else if (img.depth() == CV_16U) {
 			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 16));
-		}
-	}
-
-	//Applies a ramp filter to a 32bit float image with 1 channel; weights the center less than the borders (in horizontal direction)
-	void CtVolume::applyWeightingFilter(cv::Mat& img) const {
-		CV_Assert(img.channels() == 1);
-		CV_Assert(img.depth() == CV_32F);
-
-		const double minAttenuation = 1;	//the values for the highest and lowest weight
-		const double maxAttenuation = 0;
-
-		int r = img.rows;
-		int c = img.cols;
-
-		double centerColumn = (double)img.cols / 2;
-		double factor;
-		double inverseFactor;
-		float* ptr;
-		for (int i = 0; i < r; ++i) {
-			ptr = img.ptr<float>(i);
-			for (int j = 0; j < c; ++j) {
-				factor = abs(j - centerColumn) / centerColumn;
-				inverseFactor = 1 - factor;
-				ptr[j] = ptr[j] * (factor * minAttenuation + inverseFactor * maxAttenuation);
-			}
 		}
 	}
 
