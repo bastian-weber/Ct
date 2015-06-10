@@ -155,7 +155,6 @@ namespace ct {
 							   float maxValue) const;
 		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
-		void applyWeightingFilter(cv::Mat& img) const;							//applies the ramp filter to an image
 		void applyFeldkampWeight(cv::Mat& image) const;
 		static void applyFourierFilter(cv::Mat& image,							//applies a filter in the frequency domain (only in u direction)
 									   FilterType type);
