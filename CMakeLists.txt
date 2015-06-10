@@ -11,19 +11,19 @@ set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-project(Cv)
+project(Ct)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
 
-add_executable(Cv ${SOURCEFILES})
+add_executable(Ct ${SOURCEFILES})
 
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)
-	set_target_properties(Cv PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
-	set_target_properties(Cv PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
+	set_target_properties(Ct PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
+	set_target_properties(Ct PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
 	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
 endif(MSVC)
 
@@ -83,7 +83,7 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
-	target_link_libraries(Cv ${OPENCV_MODULES_CV})
+	target_link_libraries(Ct ${OPENCV_MODULES_CV})
 	if(MSVC)
 		copydlls("${OPENCV_MODULES_ALL}")
 	endif(MSVC)
@@ -92,7 +92,7 @@ endif()
 ########################################### FFTW Libs ###########################################
 
 if((DEFINED FFTW_ROOT_FOUND) OR UNIX)
-	target_link_libraries(Cv fftw)
+	target_link_libraries(Ct fftw)
 	if(MSVC)
 		copydlls("fftw")
 	endif(MSVC)
@@ -102,7 +102,7 @@ endif()
 
 IF(DEFINED QT_ROOT_FOUND)
 
-	target_link_libraries(Cv ${QT_MODULES_CV})
+	target_link_libraries(Ct ${QT_MODULES_CV})
 
 	#copy the dlls
 	IF(MSVC)

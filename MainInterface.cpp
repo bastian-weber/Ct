@@ -24,6 +24,12 @@ namespace ct {
 		QDirModel* model = new QDirModel(_completer);
 		_completer->setModel(model);
 		_inputFileEdit->setCompleter(_completer);
+		_loadButton = new QPushButton(tr("&Load Config File"));
+		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
+		_loadButtonLayout = new QHBoxLayout;
+		_loadButtonLayout->addWidget(_browseButton, 0);
+		_loadButtonLayout->addSpacing(20);
+		_loadButtonLayout->addWidget(_loadButton, 1);
 
 		_ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
 		_ramlakRadioButton->setChecked(true);
@@ -100,8 +106,6 @@ namespace ct {
 		_boundsGroupBox = new QGroupBox(tr("Reconstruction bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
-		_loadButton = new QPushButton(tr("&Load Config File"));
-		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
 		_saveButton = new QPushButton(tr("&Save Volume"));
@@ -122,30 +126,30 @@ namespace ct {
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
 		_leftLayout->addWidget(_inputFileEdit);
-		_leftLayout->addWidget(_browseButton, 0, Qt::AlignLeft);
+		_leftLayout->addLayout(_loadButtonLayout);
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_filterGroupBox);
-		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_saveButton);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_runAllButton);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_moreButton);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_informationLabel);
-		_leftLayout->addSpacing(20);
 		_leftLayout->addStretch(1);
 		_leftLayout->addWidget(_statusLabel);
+
+		_rightLayout = new QVBoxLayout;
+		_rightLayout->addStrut(250);
+		_rightLayout->addWidget(_runAllButton);
+		_rightLayout->addSpacing(20);
+		_rightLayout->addWidget(_moreButton);
+		_rightLayout->addSpacing(20);
+		_rightLayout->addWidget(_informationLabel);
 
 		_imageView = new hb::ImageView;
 
 		_subLayout = new QHBoxLayout;
 		_subLayout->addLayout(_leftLayout, 0);
 		_subLayout->addWidget(_imageView, 1);
+		_subLayout->addLayout(_rightLayout, 0);
 
 		_progressBar = new QProgressBar;
 		_progressBar->setAlignment(Qt::AlignCenter);
@@ -169,12 +173,14 @@ namespace ct {
 		delete _mainLayout;
 		delete _subLayout;
 		delete _leftLayout;
+		delete _loadButtonLayout;
 		delete _filterLayout;
 		delete _boundsLayout;
 		delete _progressLayout;
 		delete _xLayout;
 		delete _yLayout;
 		delete _zLayout;
+		delete _rightLayout;
 		delete _filterGroupBox;
 		delete _ramlakRadioButton;
 		delete _shepploganRadioButton;

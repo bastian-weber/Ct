@@ -53,12 +53,14 @@ namespace ct {
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
+		QHBoxLayout* _loadButtonLayout;
 		QVBoxLayout* _filterLayout;
 		QVBoxLayout* _boundsLayout;
 		QHBoxLayout* _progressLayout;
 		QHBoxLayout* _xLayout;
 		QHBoxLayout* _yLayout;
 		QHBoxLayout* _zLayout;
+		QVBoxLayout* _rightLayout;
 		QGroupBox* _filterGroupBox;
 		QRadioButton* _ramlakRadioButton;
 		QRadioButton* _shepploganRadioButton;
