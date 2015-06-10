@@ -843,6 +843,7 @@ namespace ct {
 		double volumeLowerBoundZ = volumeToWorldZ(0);
 		double volumeUpperBoundZ = volumeToWorldZ(_zMax);
 
+		std::future<cv::Mat> future;
 
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 			if (_stop) {
@@ -857,7 +858,16 @@ namespace ct {
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
-			cv::Mat image = prepareProjection(projection, filterType);
+			//load the projection, the projection for the next iteration is already prepared in a background thread
+			cv::Mat image;
+			if (projection == 0) {
+				image = prepareProjection(projection, filterType);
+			} else {
+				image = future.get();
+			}
+			if (projection + 1 != _sinogram.size()) {
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
+			}
 			//copy some member variables to local variables, performance is better this way
 			double heightOffset = _sinogram[projection].heightOffset;
 			double uOffset = _uOffset;
