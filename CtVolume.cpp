@@ -573,6 +573,7 @@ namespace ct {
 			++cnt;
 		}
 		_minMaxValues = std::make_pair(float(min), float(max));
+		std::cout << std::endl;
 		return true;
 	}
 
@@ -848,9 +849,11 @@ namespace ct {
 
 	void CtVolume::reconstructionCore(FilterType filterType) {
 		double imageLowerBoundU = matToImageU(0);
-		double imageUpperBoundU = matToImageU(_imageWidth - 1);
+		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
+		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+		double imageUpperBoundU = matToImageU(_imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = matToImageV(_imageHeight - 1);
+		double imageLowerBoundV = matToImageV(_imageHeight - 1 - 0.1);
 		double imageUpperBoundV = matToImageV(0);
 
 		double volumeLowerBoundY = volumeToWorldY(0);
@@ -898,7 +901,7 @@ namespace ct {
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
-
+								
 								u = imageToMatU(u);
 								v = imageToMatV(v);
 
@@ -953,7 +956,7 @@ namespace ct {
 		_worldToVolumeXPrecomputed = (double(_xSize) / 2.0) - double(_xFrom);
 		_worldToVolumeYPrecomputed = (double(_ySize) / 2.0) - double(_yFrom);
 		_worldToVolumeZPrecomputed = (double(_zSize) / 2.0) - double(_zFrom);
-		_volumeToWorldXPrecomputed = (double(_xSize) / 2.0) + double(_xFrom);
+		_volumeToWorldXPrecomputed = (double(_xSize) / 2.0) - double(_xFrom);
 		_imageToMatUPrecomputed = double(_imageWidth) / 2.0;
 		_imageToMatVPrecomputed = double(_imageHeight) / 2.0;
 	}
