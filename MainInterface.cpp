@@ -467,7 +467,7 @@ namespace ct {
 		size_t zSize = _volume.getZSize();
 		size_t width = _volume.getImageWidth();
 		size_t height = _volume.getImageHeight();
-		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + width*height) / 268435456.0, 'f', 2) + " Gb</p>"
+		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + 2*width*height) / 268435456.0, 'f', 2) + " Gb</p>"
 								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
 								   "<p>" + tr("Projections: ") + QString::number(_volume.getSinogramSize()));
 	}
