@@ -622,6 +622,13 @@ namespace ct {
 		return normalizedImage;
 	}
 
+	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
+		cv::Mat image = _sinogram[index].getImage();
+		convertTo32bit(image);
+		preprocessImage(image, filterType);
+		return image;
+	}
+
 	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
 		applyLogScaling(image);
 		applyFourierFilterOpenCV(image, filterType);
@@ -850,10 +857,8 @@ namespace ct {
 			double beta_rad = (_sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
+			cv::Mat image = prepareProjection(projection, filterType);
 			//copy some member variables to local variables, performance is better this way
-			cv::Mat image = _sinogram[projection].getImage();
-			convertTo32bit(image);
-			preprocessImage(image, filterType);
 			double heightOffset = _sinogram[projection].heightOffset;
 			double uOffset = _uOffset;
 			double SD = _SD;
