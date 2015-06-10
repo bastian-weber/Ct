@@ -2,12 +2,27 @@
 
 namespace ct {
 
-	//constructor of data type struct "projection"
+	//data type projection visible to the outside
 
 	Projection::Projection() { }
 
-	Projection::Projection(cv::Mat image, double angle, double heightOffset) :image(image), angle(angle), heightOffset(heightOffset) {
+	Projection::Projection(cv::Mat image, double angle, double heightOffset) : image(image), angle(angle), heightOffset(heightOffset) { }
+
+
+	//internal data type projection
+
+	CtVolume::Projection::Projection() { }
+
+	CtVolume::Projection::Projection(std::string imagePath, double angle, double heightOffset) : imagePath(imagePath), angle(angle), heightOffset(heightOffset) {
 		//empty
+	}
+
+	cv::Mat CtVolume::Projection::getImage() const {
+		return cv::imread(imagePath, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+	}
+
+	ct::Projection CtVolume::Projection::getPublicProjection() const {
+		return ct::Projection(getImage(), angle, heightOffset);
 	}
 
 	//============================================== PUBLIC ==============================================\\
@@ -45,7 +60,7 @@ namespace ct {
 		_zFrom_float(0),
 		_zTo_float(1) { }
 
-	CtVolume::CtVolume(std::string csvFile, FilterType filterType)
+	CtVolume::CtVolume(std::string csvFile)
 		: _currentlyDisplayedImage(0),
 		_crossSectionIndex(0),
 		_crossSectionAxis(Axis::Z),
@@ -76,10 +91,10 @@ namespace ct {
 		_yTo_float(1),
 		_zFrom_float(0),
 		_zTo_float(1) {
-		sinogramFromImages(csvFile, filterType);
+		sinogramFromImages(csvFile);
 	}
 
-	void CtVolume::sinogramFromImages(std::string csvFile, FilterType filterType) {
+	void CtVolume::sinogramFromImages(std::string csvFile) {
 		_stop = false;
 		_volume.clear();
 		//delete the contents of the sinogram
@@ -115,7 +130,7 @@ namespace ct {
 			path = glueRelativePath(csvFile, path);
 
 			//read the images from the csv file
-			if (!readImages(stream, path)) return;
+			if (!readImages(stream, path, imgCnt)) return;
 			if (_stop) {
 				_sinogram.clear();
 				std::cout << "User interrupted. Stopping.";
@@ -128,9 +143,6 @@ namespace ct {
 				makeHeightOffsetRelative();
 				//make sure the rotation direction is correct
 				correctAngleDirection(rotationDirection);
-				//now save the resulting size of the volume in member variables (needed for coodinate conversions later)
-				_imageWidth = _sinogram[0].image.cols;
-				_imageHeight = _sinogram[0].image.rows;
 				//Axes: breadth = x, width = y, height = z
 				_xSize = _imageWidth;
 				_ySize = _imageWidth;
@@ -147,8 +159,6 @@ namespace ct {
 						_crossSectionIndex = _zMax / 2;
 						break;
 				}
-				//now apply the filters
-				imagePreprocessing(filterType);
 				if (_stop) {
 					_sinogram.clear();
 					std::cout << "User interrupted. Stopping.";
@@ -157,21 +167,17 @@ namespace ct {
 				}
 			}
 		}
-		_minMaxCaclulated = false;
 		if (_emitSignals) emit(loadingFinished());
 	}
 
-	Projection CtVolume::getProjectionAt(size_t index) const {
+	ct::Projection CtVolume::getProjectionAt(size_t index) const {
 		if (index < 0 || index >= _sinogram.size()) {
 			throw std::out_of_range("Index out of bounds.");
 		} else {
-			if (!_minMaxCaclulated) {
-				_minMaxValues = getSinogramMinMaxIntensity();
-				_minMaxCaclulated = true;
-			}
-			Projection local(_sinogram[index]);
-			local.image = normalizeImage(local.image, _minMaxValues.first, _minMaxValues.second);
-			return local;
+			ct::Projection projection = _sinogram[index].getPublicProjection();
+			convertTo32bit(projection.image);
+			projection.image = normalizeImage(projection.image, _minMaxValues.first, _minMaxValues.second);
+			return projection;
 		}
 	}
 
@@ -310,27 +316,6 @@ namespace ct {
 		return _crossSectionAxis;
 	}
 
-	void CtVolume::displaySinogram(bool normalize) const {
-		if (_sinogram.size() > 0) {
-			if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
-			if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-			//normalizes all the images to the same values
-			if (normalize) {
-				if (!_minMaxCaclulated) {
-					_minMaxValues = getSinogramMinMaxIntensity();
-					_minMaxCaclulated = true;
-				}
-				cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
-				imshow("Projections", normalizedImage);
-			} else {
-				imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
-			}
-			handleKeystrokes(normalize);
-		} else {
-			std::cout << "Could not display sinogram, it is empty." << std::endl;
-		}
-	}
-
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		_xFrom_float = std::max(0.0, std::min(1.0, xFrom));
 		_xTo_float = std::max(_xFrom_float, std::min(1.0, xTo));
@@ -341,7 +326,7 @@ namespace ct {
 		if (_sinogram.size() > 0) updateBoundaries();
 	}
 
-	void CtVolume::reconstructVolume() {
+	void CtVolume::reconstructVolume(FilterType filterType) {
 		_stop = false;
 		if (_sinogram.size() > 0) {
 			//resize the volume to the correct size
@@ -505,9 +490,9 @@ namespace ct {
 		return resultPath;
 	}
 
-	bool CtVolume::readImages(std::ifstream& csvStream, std::string path) {
+	bool CtVolume::readImages(std::ifstream& csvStream, std::string path, int imgCnt) {
 		//now load the actual image files and their parameters
-		std::cout << "Loading image files" << std::endl;
+		std::cout << "Parsing config file" << std::endl;
 		std::stringstream lineStream;
 		std::stringstream conversionStream;
 		std::string line;
@@ -516,8 +501,10 @@ namespace ct {
 		double angle;
 		double heightOffset;
 		int cnt = 0;
-		int rows;
-		int cols;
+		size_t rows;
+		size_t cols;
+		double min = std::numeric_limits<double>::quiet_NaN();
+		double max = std::numeric_limits<double>::quiet_NaN();
 		while (std::getline(csvStream, line) && !_stop) {
 			lineStream.str(line);
 			lineStream.clear();
@@ -531,30 +518,30 @@ namespace ct {
 			conversionStream.clear();
 			conversionStream >> heightOffset;
 			//load the image
-			_sinogram.push_back(Projection(cv::imread(path + file, CV_LOAD_IMAGE_UNCHANGED), angle, heightOffset));
-
+			_sinogram.push_back(ct::CtVolume::Projection(path + file, angle, heightOffset));
+			cv::Mat image = _sinogram[cnt].getImage();
 			//check if everything is ok
-			if (!_sinogram[cnt].image.data) {
+			if (!image.data) {
 				//if there is no image data
 				_sinogram.clear();
 				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist or permissions are missing.";
 				std::cout << msg << std::endl;
 				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
-			} else if (_sinogram[cnt].image.channels() != 1) {
-				//if it has more than 1 channel
+			} else if (image.depth() != CV_8U && image.depth() != CV_16U && image.depth() != CV_32F) {
+				//wrong depth
 				_sinogram.clear();
-				std::string msg = "Error loading the image \"" + path + file + "\", it has not exactly 1 channel.";
+				std::string msg = "Error loading the image \"" + path + file + "\". The image depth must be either 8bit, 16bit or 32bit.";
 				std::cout << msg << std::endl;
 				if (_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
 			} else {
 				//make sure that all images have the same size
 				if (cnt == 0) {
-					rows = _sinogram[cnt].image.rows;
-					cols = _sinogram[cnt].image.cols;
+					rows = image.rows;
+					cols = image.cols;
 				} else {
-					if (_sinogram[cnt].image.rows != rows || _sinogram[cnt].image.cols != cols) {
+					if (image.rows != rows || image.cols != cols) {
 						//if the image has a different size than the images before stop and reverse
 						_sinogram.clear();
 						std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
@@ -563,11 +550,29 @@ namespace ct {
 						return false;
 					}
 				}
+				//compute the min max values
+				double lMin, lMax;
+				cv::minMaxLoc(image, &lMin, &lMax);
+				if (image.type() == CV_8U) {
+					lMin /= std::pow(2, 8);
+					lMax /= std::pow(2, 8);
+				} else {
+					lMin /= std::pow(2, 16);
+					lMax /= std::pow(2, 16);
+				}
+				if (std::isnan(min) || lMin < min) min = lMin;
+				if (std::isnan(max) || lMax > max) max = lMax;
+				//set image width and image height
+				_imageWidth = cols;
+				_imageHeight = rows;
+				//output
+				double percentage = floor(double(cnt) / double(imgCnt) * 100 + 0.5);
+				std::cout << "\r" << "Analysing images: " << percentage << "%";
+				if (_emitSignals) emit(loadingProgress(percentage));
 			}
-			//convert the image to 32 bit float
-			convertTo32bit(_sinogram[cnt].image);
 			++cnt;
 		}
+		_minMaxValues = std::make_pair(float(min), float(max));
 		return true;
 	}
 
@@ -598,19 +603,6 @@ namespace ct {
 		}
 	}
 
-	std::pair<float, float> CtVolume::getSinogramMinMaxIntensity() const {
-		double min = 0;
-		double max = 0;
-		cv::minMaxLoc(_sinogram[0].image, &min, &max);
-		for (int i = 1; i < _sinogram.size(); ++i) {
-			double lMin, lMax;
-			cv::minMaxLoc(_sinogram[i].image, &lMin, &lMax);
-			if (lMin < min)min = lMin;
-			if (lMax > max)max = lMax;
-		}
-		return std::make_pair(float(min), float(max));
-	}
-
 	cv::Mat CtVolume::normalizeImage(cv::Mat const& image, float minValue, float maxValue) const {
 		int R = image.rows;
 		int C = image.cols;
@@ -629,45 +621,10 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	void CtVolume::handleKeystrokes(bool normalize) const {
-		int key = cv::waitKey(0);				//wait for a keystroke forever
-		if (key == 2424832) {					//left arrow key
-			--_currentlyDisplayedImage;
-		} else if (key == 2555904) {				//right arrow key
-			++_currentlyDisplayedImage;
-		} else if (key == 27) {					//escape key
-			return;
-		} else if (key == -1) {					//if no key was pressed (meaning the window was closed)
-			return;
-		}
-		if (_currentlyDisplayedImage < 0)_currentlyDisplayedImage = _sinogram.size() - 1;
-		if (_currentlyDisplayedImage >= _sinogram.size())_currentlyDisplayedImage = 0;
-		if (normalize) {
-			cv::Mat normalizedImage = normalizeImage(_sinogram[_currentlyDisplayedImage].image, _minMaxValues.first, _minMaxValues.second);
-			imshow("Projections", normalizedImage);
-		} else {
-			imshow("Projections", _sinogram[_currentlyDisplayedImage].image);
-		}
-		handleKeystrokes(normalize);
-	}
-
-	void CtVolume::imagePreprocessing(FilterType filterType) {
-		clock_t start = clock();
-#pragma omp parallel for schedule(dynamic)
-		for (int i = 0; i < _sinogram.size(); ++i) {
-			if (!_stop) {
-				double percentage = floor((double)i / (double)_sinogram.size() * 100 + 0.5);
-				if (omp_get_thread_num() == 0) std::cout << "\r" << "Preprocessing: " << percentage << "%";
-				if (_emitSignals) emit(loadingProgress(percentage));
-
-				applyLogScaling(_sinogram[i].image);
-				applyFourierFilterOpenCV(_sinogram[i].image, filterType);
-				applyFeldkampWeight(_sinogram[i].image);
-			}
-		}
-		std::cout << std::endl;
-		clock_t end = clock();
-		std::cout << "Preprocessing sucessfully finished (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
+	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
+		applyLogScaling(image);
+		applyFourierFilterOpenCV(image, filterType);
+		applyFeldkampWeight(image);
 	}
 
 	//converts an image to 32 bit float
@@ -889,7 +846,7 @@ namespace ct {
 		fftwf_free(out);
 	}
 
-	void CtVolume::reconstructionCore() {
+	void CtVolume::reconstructionCore(FilterType filterType) {
 		double imageLowerBoundU = matToImageU(0);
 		double imageUpperBoundU = matToImageU(_imageWidth - 1);
 		//inversed because of inversed v axis in mat/image coordinate system
@@ -916,7 +873,9 @@ namespace ct {
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
 			//copy some member variables to local variables, performance is better this way
-			cv::Mat image = _sinogram[projection].image;
+			cv::Mat image = _sinogram[projection].getImage();
+			convertTo32bit(image);
+			preprocessImage(image, filterType);
 			double heightOffset = _sinogram[projection].heightOffset;
 			double uOffset = _uOffset;
 			double SD = _SD;

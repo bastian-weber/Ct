@@ -100,7 +100,7 @@ namespace ct {
 		_boundsGroupBox = new QGroupBox(tr("Reconstruction bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
-		_loadButton = new QPushButton(tr("&Load && Preprocess Images"));
+		_loadButton = new QPushButton(tr("&Load Config File"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
@@ -343,7 +343,7 @@ namespace ct {
 		_crossSectionDisplayActive = false;
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
-		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
+		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
 		resetInfo();
 		_stopButton->setEnabled(false);
 	}
@@ -461,14 +461,13 @@ namespace ct {
 		size_t zSize = _volume.getZSize();
 		size_t width = _volume.getImageWidth();
 		size_t height = _volume.getImageHeight();
-		_informationLabel->setText("<p>" + tr("Estimated volume size: ") + QString::number(double(xSize*ySize*zSize) / 268435456.0, 'f', 2) + " Gb</p>"
+		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + width*height) / 268435456.0, 'f', 2) + " Gb</p>"
 								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
-								   "<p>" + tr("Sinogram size: ") + QString::number(double(width*height*_volume.getSinogramSize()) / 268435456.0, 'f', 2) + " Gb</p>"
 								   "<p>" + tr("Projections: ") + QString::number(_volume.getSinogramSize()));
 	}
 
 	void MainInterface::resetInfo() {
-		_informationLabel->setText("<p>Estimated volume size: N/A</p><p>Volume dimensions: N/A</p><p>Sinogram size: N/A</p><p>Projections: N/A</p>");
+		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
@@ -519,15 +518,9 @@ namespace ct {
 
 	void MainInterface::reactToLoadButtonClick() {
 		disableAllControls();
-		setStatus(tr("Loding and preprocessing images..."));
+		setStatus(tr("Loading file and analysing images..."));
 		_timer.reset();
-		FilterType type = FilterType::RAMLAK;
-		if (_shepploganRadioButton->isChecked()) {
-			type = FilterType::SHEPP_LOGAN;			
-		} else if (_hannRadioButton->isChecked()) {
-			type = FilterType::HANN;
-		}
-		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString(), type).detach();	
+		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();	
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
@@ -536,8 +529,14 @@ namespace ct {
 		setStatus(tr("Backprojecting..."));
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
+		FilterType type = FilterType::RAMLAK;
+		if (_shepploganRadioButton->isChecked()) {
+			type = FilterType::SHEPP_LOGAN;
+		} else if (_hannRadioButton->isChecked()) {
+			type = FilterType::HANN;
+		}
 		_reconstructionActive = true;
-		std::thread(&CtVolume::reconstructVolume, &_volume).detach();
+		std::thread(&CtVolume::reconstructVolume, &_volume, type).detach();
 	}
 
 	void MainInterface::reactToSaveButtonClick() {
@@ -653,7 +652,7 @@ namespace ct {
 		_progressBar->reset();
 		if (status.successful) {
 			double time = _timer.getTime();
-			setStatus(tr("Preprocessing finished (") + QString::number(time, 'f', 1) + "s).");
+			setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
 			setInfo();
 			if (_runAll) {
 				reactToReconstructButtonClick();
@@ -668,7 +667,7 @@ namespace ct {
 				msgBox.exec();
 				setStatus(tr("Loading failed."));
 			} else {
-				setStatus(tr("Preprocessing stopped."));
+				setStatus(tr("Loading stopped."));
 			}
 			if (_runAll) _runAll = false;
 			fileSelectedState();
