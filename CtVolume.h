@@ -153,6 +153,7 @@ namespace ct {
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
+		cv::Mat prepareProjection(size_t index, FilterType filterType) const;							//returns the image of the projection at position index preprocessed and converted
 		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
