@@ -50,6 +50,7 @@ namespace ct {
 		size_t _currentIndex;
 		hb::Timer _timer;
 
+		//interface widgets
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
@@ -61,6 +62,16 @@ namespace ct {
 		QHBoxLayout* _yLayout;
 		QHBoxLayout* _zLayout;
 		QVBoxLayout* _rightLayout;
+		QVBoxLayout* _loadLayout;
+		QVBoxLayout* _reconstructLayout;
+		QVBoxLayout* _saveLayout;
+		QVBoxLayout* _advancedLayout;
+		QVBoxLayout* _infoLayout;
+		QGroupBox* _loadGroupBox;
+		QGroupBox* _reconstructGroupBox;
+		QGroupBox* _saveGroupBox;
+		QGroupBox* _advancedGroupBox;
+		QGroupBox* _infoGroupBox;
 		QGroupBox* _filterGroupBox;
 		QRadioButton* _ramlakRadioButton;
 		QRadioButton* _shepploganRadioButton;
@@ -85,10 +96,8 @@ namespace ct {
 		QPushButton* _reconstructButton;
 		QPushButton* _saveButton;
 		QPushButton* _runAllButton;
-		QPushButton* _moreButton;
+		QPushButton* _cmdButton;
 		QPushButton* _stopButton;
-		QMenu* _moreMenu;
-		QAction* _cmdAction;
 		QProgressBar* _progressBar;
 		hb::ImageView* _imageView;
 		QLabel* _informationLabel;

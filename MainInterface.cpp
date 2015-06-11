@@ -31,6 +31,12 @@ namespace ct {
 		_loadButtonLayout->addSpacing(20);
 		_loadButtonLayout->addWidget(_loadButton, 1);
 
+		_loadLayout = new QVBoxLayout;
+		_loadLayout->addWidget(_inputFileEdit);
+		_loadLayout->addLayout(_loadButtonLayout);
+		_loadGroupBox = new QGroupBox(tr("(1) Load config file"));
+		_loadGroupBox->setLayout(_loadLayout);
+
 		_ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
 		_ramlakRadioButton->setChecked(true);
 		_shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
@@ -108,41 +114,55 @@ namespace ct {
 
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
+		
+		_reconstructLayout = new QVBoxLayout;
+		_reconstructLayout->addWidget(_filterGroupBox);
+		_reconstructLayout->addWidget(_boundsGroupBox);
+		_reconstructLayout->addWidget(_reconstructButton);
+		_reconstructGroupBox = new QGroupBox(tr("(2) Reconstruct"));
+		_reconstructGroupBox->setLayout(_reconstructLayout);
+		
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
+		_saveLayout = new QVBoxLayout;
+		_saveLayout->addWidget(_saveButton);
+		_saveGroupBox = new QGroupBox(tr("(3) Save"));
+		_saveGroupBox->setLayout(_saveLayout);
+
 		_runAllButton = new QPushButton(tr("R&un All and Save"));
 		QObject::connect(_runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
-		_informationLabel = new QLabel;
-		_statusLabel = new QLabel(tr("Load a configuration file"));
+		_cmdButton = new QPushButton(tr("Save as &Batch File"));
+		QObject::connect(_cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
+		_advancedLayout = new QVBoxLayout;
+		_advancedLayout->addWidget(_runAllButton);
+		_advancedLayout->addWidget(_cmdButton);
+		_advancedGroupBox = new QGroupBox(tr("Advanced"));
+		_advancedGroupBox->setLayout(_advancedLayout);
 
-		_moreButton = new QPushButton(tr("&More..."));
-		_moreMenu = new QMenu(_moreButton);
-		_cmdAction = new QAction(tr("Save as &Batch File"), this);
-		QObject::connect(_cmdAction, SIGNAL(triggered()), this, SLOT(reactToBatchFileAction()));
-		_moreMenu->addAction(_cmdAction);
-		_moreMenu->setMinimumWidth(250);
-		_moreButton->setMenu(_moreMenu);
+		_informationLabel = new QLabel;
+		_infoLayout = new QVBoxLayout;
+		_infoLayout->addWidget(_informationLabel);
+		_infoGroupBox = new QGroupBox(tr("Information"));
+		_infoGroupBox->setLayout(_infoLayout);
+
+		_statusLabel = new QLabel(tr("Load a configuration file"));
 
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
-		_leftLayout->addWidget(_inputFileEdit);
-		_leftLayout->addLayout(_loadButtonLayout);
+		_leftLayout->addWidget(_loadGroupBox);
 		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_filterGroupBox);
-		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addWidget(_reconstructButton);
+		_leftLayout->addWidget(_reconstructGroupBox);
 		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_saveButton);
+		_leftLayout->addWidget(_saveGroupBox);
 		_leftLayout->addStretch(1);
 		_leftLayout->addWidget(_statusLabel);
 
 		_rightLayout = new QVBoxLayout;
 		_rightLayout->addStrut(250);
-		_rightLayout->addWidget(_runAllButton);
+		_rightLayout->addWidget(_advancedGroupBox);
 		_rightLayout->addSpacing(20);
-		_rightLayout->addWidget(_moreButton);
-		_rightLayout->addSpacing(20);
-		_rightLayout->addWidget(_informationLabel);
+		_rightLayout->addWidget(_infoGroupBox);
+		_rightLayout->addStretch(1);
 
 		_imageView = new hb::ImageView;
 
@@ -181,6 +201,16 @@ namespace ct {
 		delete _yLayout;
 		delete _zLayout;
 		delete _rightLayout;
+		delete _loadLayout;
+		delete _reconstructLayout;
+		delete _saveLayout;
+		delete _advancedLayout;
+		delete _infoLayout;
+		delete _loadGroupBox;
+		delete _reconstructGroupBox;
+		delete _saveGroupBox;
+		delete _advancedGroupBox;
+		delete _infoGroupBox;
 		delete _filterGroupBox;
 		delete _ramlakRadioButton;
 		delete _shepploganRadioButton;
@@ -205,10 +235,8 @@ namespace ct {
 		delete _reconstructButton;
 		delete _saveButton;
 		delete _runAllButton;
-		delete _moreButton;
+		delete _cmdButton;
 		delete _stopButton;
-		delete _moreMenu;
-		delete _cmdAction;
 		delete _progressBar;
 		delete _imageView;
 		delete _informationLabel;
@@ -216,7 +244,7 @@ namespace ct {
 	}
 
 	QSize MainInterface::sizeHint() const {
-		return QSize(900, 600);
+		return QSize(1000, 570);
 	}
 
 	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
@@ -308,7 +336,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
-		_cmdAction->setEnabled(false);
+		_cmdButton->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
 		_boundsGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
@@ -324,7 +352,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
-		_cmdAction->setEnabled(false);
+		_cmdButton->setEnabled(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -342,7 +370,7 @@ namespace ct {
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
-		_cmdAction->setEnabled(true);
+		_cmdButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -361,7 +389,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
-		_cmdAction->setEnabled(true);
+		_cmdButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
@@ -377,7 +405,7 @@ namespace ct {
 		_reconstructButton->setEnabled(true);
 		_saveButton->setEnabled(true);
 		_runAllButton->setEnabled(true);
-		_cmdAction->setEnabled(true);
+		_cmdButton->setEnabled(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
