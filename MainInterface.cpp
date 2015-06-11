@@ -741,10 +741,10 @@ namespace ct {
 				setStatus(tr("Reconstruction failed."));
 			} else {
 				setStatus(tr("Reconstruction stopped."));
-				setSinogramImage(0);
 			}
 			if (_runAll) _runAll = false;
 			preprocessedState();
+			setSinogramImage(0);
 		}
 	}
 

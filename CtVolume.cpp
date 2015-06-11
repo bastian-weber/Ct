@@ -334,43 +334,39 @@ namespace ct {
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
-			reconstructionCore();
-			if (_stop) {
-				_volume.clear();
-				std::cout << "User interrupted. Stopping." << std::endl;
-				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
-				return;
-			}
-
-			//now fill the corners around the cylinder with the lowest density value
-			if (_xMax > 0 && _yMax > 0 && _zMax > 0) {
-				double smallestValue;
-				smallestValue = _volume[0][0][0];
-				for (int x = 0; x < _xMax; ++x) {
-					for (int y = 0; y < _yMax; ++y) {
-						for (int z = 0; z < _zMax; ++z) {
-							if (_volume[x][y][z] < smallestValue) {
-								smallestValue = _volume[x][y][z];
-							}
-						}
-					}
-				}
-
-				for (int x = 0; x < _xMax; ++x) {
-					for (int y = 0; y < _yMax; ++y) {
-						if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3) {
+			if (reconstructionCore()) {
+				//now fill the corners around the cylinder with the lowest density value
+				if (_xMax > 0 && _yMax > 0 && _zMax > 0) {
+					double smallestValue;
+					smallestValue = _volume[0][0][0];
+					for (int x = 0; x < _xMax; ++x) {
+						for (int y = 0; y < _yMax; ++y) {
 							for (int z = 0; z < _zMax; ++z) {
-								_volume[x][y][z] = smallestValue;
+								if (_volume[x][y][z] < smallestValue) {
+									smallestValue = _volume[x][y][z];
+								}
+							}
+						}
+					}
+
+					for (int x = 0; x < _xMax; ++x) {
+						for (int y = 0; y < _yMax; ++y) {
+							if (sqrt(volumeToWorldX(x)*volumeToWorldX(x) + volumeToWorldY(y)*volumeToWorldY(y)) >= ((double)_xSize / 2) - 3) {
+								for (int z = 0; z < _zMax; ++z) {
+									_volume[x][y][z] = smallestValue;
+								}
 							}
 						}
 					}
 				}
-			}
 
-			//mesure time
-			clock_t end = clock();
-			std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
-			if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_crossSectionIndex)));
+				//mesure time
+				clock_t end = clock();
+				std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
+				if (_emitSignals) emit(reconstructionFinished(getVolumeCrossSection(_crossSectionIndex)));
+			} else {
+				_volume.clear();
+			}
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
 			if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
@@ -624,8 +620,10 @@ namespace ct {
 
 	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
 		cv::Mat image = _sinogram[index].getImage();
-		convertTo32bit(image);
-		preprocessImage(image, filterType);
+		if (image.data) {
+			convertTo32bit(image);
+			preprocessImage(image, filterType);
+		}
 		return image;
 	}
 
@@ -829,10 +827,11 @@ namespace ct {
 		fftwf_free(out);
 	}
 
-	void CtVolume::reconstructionCore(FilterType filterType) {
+	bool CtVolume::reconstructionCore(FilterType filterType) {
 		double imageLowerBoundU = matToImageU(0);
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
 		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
 		double imageUpperBoundU = matToImageU(_imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
 		double imageLowerBoundV = matToImageV(_imageHeight - 1 - 0.1);
@@ -843,13 +842,14 @@ namespace ct {
 		double volumeLowerBoundZ = volumeToWorldZ(0);
 		double volumeUpperBoundZ = volumeToWorldZ(_zMax);
 
+		//for the preloading of the next projection
 		std::future<cv::Mat> future;
 
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 			if (_stop) {
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
-				return;
+				return false;
 			}
 			//output percentage
 			double percentage = floor((double)projection / (double)_sinogram.size() * 100 + 0.5);
@@ -867,6 +867,13 @@ namespace ct {
 			}
 			if (projection + 1 != _sinogram.size()) {
 				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
+			}
+			//check if the image is good
+			if (!image.data) {
+				std::string msg = "The image " + _sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+				std::cout << msg << std::endl;
+				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(msg.c_str())));
+				return false;
 			}
 			//copy some member variables to local variables, performance is better this way
 			double heightOffset = _sinogram[projection].heightOffset;
@@ -918,6 +925,7 @@ namespace ct {
 			}
 		}
 		std::cout << std::endl;
+		return true;
 	}
 
 	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {

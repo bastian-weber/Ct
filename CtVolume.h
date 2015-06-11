@@ -167,7 +167,7 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		static void applyFourierHighpassFilter2D(cv::Mat& image);				//applies a highpass filter in the frequency domain (2D) (not used)
-		void reconstructionCore(FilterType filterType = FilterType::RAMLAK);	//does the actual reconstruction, filterType specifies the type of the highpass filter
+		bool reconstructionCore(FilterType filterType = FilterType::RAMLAK);	//does the actual reconstruction, filterType specifies the type of the highpass filter
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
 									float u0v0,
