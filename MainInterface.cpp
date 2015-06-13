@@ -444,8 +444,9 @@ namespace ct {
 		if (index >= 0 && index < _volume.getCrossSectionSize()) {
 			_volume.setCrossSectionIndex(index);
 			cv::Mat crossSection = _volume.getVolumeCrossSection(index);
-			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-			_imageView->setImage(crossSection);
+			cv::Mat normalized;
+			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			_imageView->setImage(normalized);
 		}
 	}
 
@@ -716,16 +717,18 @@ namespace ct {
 			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
 			setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
 		}
-		cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		_imageView->setImage(crossSection);
+		cv::Mat normalized;
+		cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		_imageView->setImage(normalized);
 	}
 
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
 		_reconstructionActive = false;
 		_progressBar->reset();		
 		if (status.successful) {
-			cv::normalize(crossSection, crossSection, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-			_imageView->setImage(crossSection);
+			cv::Mat normalized;
+			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			_imageView->setImage(normalized);
 			double time = _timer.getTime();
 			setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
 			if (_runAll) {

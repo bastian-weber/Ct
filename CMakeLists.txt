@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc")
+set(OPENCV_MODULES_CV "opencv_core" "opencv_imgcodecs" "opencv_highgui" "opencv_imgproc")
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 
 #=======================================================================#
@@ -33,6 +33,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif(CMAKE_COMPILER_IS_GNUCC)
 
 #OpenCV
+set(OpenCV_STATIC OFF)
 set(OPENCV_MODULES_ALL)
 list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CV})
 list(REMOVE_DUPLICATES OPENCV_MODULES_ALL)
@@ -41,7 +42,7 @@ if(NOT UNIX)
 endif(NOT UNIX)
 if(OPENCV_ROOT_FOUND OR UNIX)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPENCV_ROOT_DIR})
-	find_package(OpenCV 2.4.10 REQUIRED)
+	find_package(OpenCV 3.0 REQUIRED)
 endif(OPENCV_ROOT_FOUND OR UNIX)
 
 #Qt
@@ -84,6 +85,8 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 		message("Copying dlls, please wait.")
 	endif()
 	target_link_libraries(Ct ${OPENCV_MODULES_CV})
+	#somehow include directories have to be added manually since OpenCV 3
+	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
 		copydlls("${OPENCV_MODULES_ALL}")
 	endif(MSVC)
