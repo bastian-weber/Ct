@@ -58,15 +58,6 @@ if(QT_ROOT_FOUND)
 	endforeach(module ${QT_MODULES_ALL})
 endif(QT_ROOT_FOUND)
 
-#FFTW
-if(NOT UNIX)
-	include(AskForFFTWPath)
-endif(NOT UNIX)
-if(FFTW_ROOT_FOUND OR UNIX)
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${FFTW_ROOT_DIR})	
-	find_package(FFTW REQUIRED)
-endif()
-
 #enable openmp
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -89,15 +80,6 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
 		copydlls("${OPENCV_MODULES_ALL}")
-	endif(MSVC)
-endif()
-
-########################################### FFTW Libs ###########################################
-
-if((DEFINED FFTW_ROOT_FOUND) OR UNIX)
-	target_link_libraries(Ct fftw)
-	if(MSVC)
-		copydlls("fftw")
 	endif(MSVC)
 endif()
 

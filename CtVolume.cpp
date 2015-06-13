@@ -629,7 +629,7 @@ namespace ct {
 
 	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
 		applyLogScaling(image);
-		applyFourierFilterOpenCV(image, filterType);
+		applyFourierFilter(image, filterType);
 		applyFeldkampWeight(image);
 	}
 
@@ -658,61 +658,6 @@ namespace ct {
 	}
 
 	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) {
-		CV_Assert(image.depth() == CV_32F);
-
-		//FFT
-		const int R = image.rows;
-		const int C = image.cols;
-
-		const int nyquist = (C / 2) + 1;
-
-		float* ptr = image.ptr<float>(0);
-		fftwf_complex* out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* nyquist);
-
-		fftwf_plan plan = fftwf_plan_dft_r2c_1d(C, ptr, out, FFTW_ESTIMATE);
-		fftwf_plan planInverse = fftwf_plan_dft_c2r_1d(C, out, ptr, FFTW_ESTIMATE);
-
-		for (int row = 0; row < R; ++row) {
-			ptr = image.ptr<float>(row);
-			fftwf_execute_dft_r2c(plan, ptr, out);
-			
-			//scaling not necessary
-			//for (int i = 0; i < nyquist; ++i) {
-			//	out[i][0] = out[i][0] / C;
-			//	out[i][1] = out[i][1] / C;
-			//}
-
-			//removing the low frequencies
-			double factor;
-			for (int column = 0; column < nyquist; ++column) {
-				switch (type) {
-					case FilterType::RAMLAK:
-						factor = ramLakWindowFilter(column, nyquist);
-						break;
-					case FilterType::SHEPP_LOGAN:
-						factor = sheppLoganWindowFilter(column, nyquist);
-						break;
-					case FilterType::HANN:
-						factor = hannWindowFilter(column, nyquist);
-						break;
-					default:
-						factor = ramLakWindowFilter(column, nyquist);
-						break;
-				}
-				out[column][0] *= factor;
-				out[column][1] *= factor;
-			}
-
-			//inverse
-			fftwf_execute_dft_c2r(planInverse, out, ptr);
-		}
-
-		fftwf_destroy_plan(plan);
-		fftwf_destroy_plan(planInverse);
-		fftwf_free(out);
-	}
-
-	void CtVolume::applyFourierFilterOpenCV(cv::Mat& image, FilterType type) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
@@ -758,73 +703,6 @@ namespace ct {
 
 	double CtVolume::hannWindowFilter(double n, double N) {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
-	}
-
-	//This filter is not used, code could theoretically be removed
-	void CtVolume::applyFourierHighpassFilter2D(cv::Mat& image) {
-		CV_Assert(image.depth() == CV_32F);
-
-		//FFT
-		const int R = image.rows;
-		const int C = image.cols;
-
-		std::vector<std::vector<std::complex<double>>> result(R, std::vector<std::complex<double>>(C));
-		float *in;
-		in = (float*)fftwf_malloc(sizeof(float)* R * C);
-		int k = 0;
-		float* ptr;
-		for (int row = 0; row < R; ++row) {
-			ptr = image.ptr<float>(row);
-			for (int column = 0; column < C; ++column) {
-				in[k] = ptr[column];
-				++k;
-			}
-		}
-		fftwf_complex *out;
-		int nyquist = (C / 2) + 1;
-		out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex)* R * C);
-		fftwf_plan p;
-		p = fftwf_plan_dft_r2c_2d(R, C, in, out, FFTW_ESTIMATE);
-		fftwf_execute(p);
-		fftwf_destroy_plan(p);
-
-		k = 0;
-		for (int row = 0; row < R; ++row) {
-			for (int column = 0; column < nyquist; ++column) {
-				out[k][0] = out[k][0] / (R*C);
-				out[k][1] = out[k][1] / (R*C);
-				++k;
-			}
-		}
-
-		//removing the low frequencies
-
-		double cutoffRatio = 0.1;
-		int uCutoff = (cutoffRatio / 2.0)*C;
-		int vCutoff = (cutoffRatio / 2.0)*R;
-		for (int row = -vCutoff; row <= vCutoff; ++row) {
-			for (int column = 0; column <= uCutoff; ++column) {
-				out[fftCoordToIndex(row, R)*nyquist + column][0] = 0;
-				out[fftCoordToIndex(row, R)*nyquist + column][1] = 0;
-			}
-		}
-
-		//reverse FFT
-
-		p = fftwf_plan_dft_c2r_2d(R, C, out, in, FFTW_ESTIMATE);
-		fftwf_execute(p);
-		fftwf_destroy_plan(p);
-		k = 0;
-		for (int row = 0; row < R; ++row) {
-			ptr = image.ptr<float>(row);
-			for (int column = 0; column < C; ++column) {
-				ptr[column] = in[k];
-				++k;
-			}
-		}
-
-		fftwf_free(in);
-		fftwf_free(out);
 	}
 
 	bool CtVolume::reconstructionCore(FilterType filterType) {
