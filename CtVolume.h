@@ -16,9 +16,6 @@
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>										//image processing functionality of OpenCV (filter masks etc)
 
-//FFTW
-#include <fftw3.h>															//FFTW - provides fast fourier transform functionality	
-
 //Qt
 #include <QtCore/QtCore>
 
@@ -157,16 +154,13 @@ namespace ct {
 		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
-		static void applyFourierFilter(cv::Mat& image,							//applies a filter in the frequency domain (only in u direction)
-									   FilterType type);
-		static void applyFourierFilterOpenCV(cv::Mat& image,
+		static void applyFourierFilter(cv::Mat& image,
 											 FilterType type);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
 		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		static void applyFourierHighpassFilter2D(cv::Mat& image);				//applies a highpass filter in the frequency domain (2D) (not used)
 		bool reconstructionCore(FilterType filterType = FilterType::RAMLAK);	//does the actual reconstruction, filterType specifies the type of the highpass filter
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
