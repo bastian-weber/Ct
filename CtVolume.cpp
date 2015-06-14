@@ -333,8 +333,6 @@ namespace ct {
 			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
 			//mesure time
 			clock_t start = clock();
-			//precompute filter weights
-			precomputeFilterWeights(filterType);
 			//fill the volume
 			if (reconstructionCore()) {
 				//now fill the corners around the cylinder with the lowest density value
@@ -620,62 +618,23 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	void CtVolume::precomputeFilterWeights(FilterType filterType) {
-		//fourier weights
-		_precomputedFourierWeights = cv::Mat(_imageHeight, _imageWidth, CV_32FC2, cv::Scalar::all(1));
-		unsigned int nyquist = (_precomputedFourierWeights.cols / 2) + 1;
-		cv::Vec2f* ptr;
-#pragma omp parallel for private(ptr)
-		for (int row = 0; row < _precomputedFourierWeights.rows; ++row) {
-			ptr = _precomputedFourierWeights.ptr<cv::Vec2f>(row);
-			for (int column = 0; column < nyquist; ++column) {
-				float weight;
-				switch (filterType) {
-					case FilterType::RAMLAK:
-						weight = ramLakWindowFilter(column, nyquist);
-						ptr[column] = cv::Vec2f(weight, weight);
-						break;
-					case FilterType::SHEPP_LOGAN:
-						weight = sheppLoganWindowFilter(column, nyquist);
-						ptr[column] = cv::Vec2f(weight, weight);
-						break;
-					case FilterType::HANN:
-						weight = hannWindowFilter(column, nyquist);
-						ptr[column] = cv::Vec2f(weight, weight);
-						break;
-				}
-			}
-		}
-
-		//feldkamp weights
-		_precomputedFeldkampWeights = cv::Mat::ones(_imageHeight, _imageWidth, CV_32F);
-		float* ptr2;
-#pragma omp parallel for private(ptr2)
-		for (int row = 0; row < _precomputedFeldkampWeights.rows; ++row) {
-			ptr2 = _precomputedFeldkampWeights.ptr<float>(row);
-			for (int column = 0; column < _precomputedFeldkampWeights.cols; ++column) {
-				ptr2[column] = W(_SD, matToImageU(column), matToImageV(row));
-			}
-		}
-	}
-
-	cv::Mat CtVolume::prepareProjection(size_t index) const {
+	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
 		cv::Mat image = _sinogram[index].getImage();
-		//hb::Timer timer;
 		if (image.data) {
 			convertTo32bit(image);
-			preprocessImage(image);
+			preprocessImage(image, filterType);
 		}
-		//timer.stop();
 		return image;
 	}
 
-	void CtVolume::preprocessImage(cv::Mat& image) const {
+	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
 		applyLogScaling(image);
-		applyFourierFilter(image);
+		applyFourierFilter(image, filterType);
 		applyFeldkampWeight(image);
 	}
 
+	//converts an image to 32 bit float
+	//only unsigned types are allowed as input
 	void CtVolume::convertTo32bit(cv::Mat& img) {
 		CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
 		if (img.depth() == CV_8U) {
@@ -689,13 +648,36 @@ namespace ct {
 		CV_Assert(image.channels() == 1);
 		CV_Assert(image.depth() == CV_32F);
 
-		image = image.mul(_precomputedFeldkampWeights);
+		float* ptr;
+		for (int r = 0; r < image.rows; ++r) {
+			ptr = image.ptr<float>(r);
+			for (int c = 0; c < image.cols; ++c) {
+				ptr[c] = ptr[c] * W(_SD, matToImageU(c), matToImageV(r));
+			}
+		}
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image) const {
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
-		freq = freq.mul(_precomputedFourierWeights);
+		unsigned int nyquist = (freq.cols / 2) + 1;
+		cv::Vec2f* ptr;
+		for (int row = 0; row < freq.rows; ++row) {
+			ptr = freq.ptr<cv::Vec2f>(row);
+			for (int column = 0; column < nyquist; ++column) {
+				switch (type) {
+					case FilterType::RAMLAK:
+						ptr[column] *= ramLakWindowFilter(column, nyquist);
+						break;
+					case FilterType::SHEPP_LOGAN:
+						ptr[column] *= sheppLoganWindowFilter(column, nyquist);
+						break;
+					case FilterType::HANN:
+						ptr[column] *= hannWindowFilter(column, nyquist);
+						break;
+				}
+			}
+		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
 	}
 
@@ -723,7 +705,7 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	bool CtVolume::reconstructionCore() {
+	bool CtVolume::reconstructionCore(FilterType filterType) {
 		double imageLowerBoundU = matToImageU(0);
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
 		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
@@ -757,12 +739,12 @@ namespace ct {
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
-				image = prepareProjection(projection);
+				image = prepareProjection(projection, filterType);
 			} else {
 				image = future.get();
 			}
 			if (projection + 1 != _sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1);
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
 			}
 			//check if the image is good
 			if (!image.data) {

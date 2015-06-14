@@ -19,7 +19,8 @@
 //Qt
 #include <QtCore/QtCore>
 
-#include "Timer.h"
+//for std::numeric_limits<std::streamsize>::max()
+#undef max
 
 namespace ct {
 
@@ -130,8 +131,6 @@ namespace ct {
 		double _pixelSize;
 		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
-		cv::Mat _precomputedFourierWeights;
-		cv::Mat _precomputedFeldkampWeights;
 		//some precomputed values for the coordinate conversion functions for faster execution
 		double _worldToVolumeXPrecomputed;
 		double _worldToVolumeYPrecomputed;
@@ -151,18 +150,18 @@ namespace ct {
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		void precomputeFilterWeights(FilterType filterType);					//computes matrices containing the feldkamp weights and the fourier weights
-		cv::Mat prepareProjection(size_t index) const;	//returns the image of the projection at position index preprocessed and converted
-		void preprocessImage(cv::Mat& image) const;
+		cv::Mat prepareProjection(size_t index, FilterType filterType) const;							//returns the image of the projection at position index preprocessed and converted
+		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
-		void applyFourierFilter(cv::Mat& image) const;
+		static void applyFourierFilter(cv::Mat& image,
+											 FilterType type);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
 		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		bool reconstructionCore();	//does the actual reconstruction, filterType specifies the type of the highpass filter
+		bool reconstructionCore(FilterType filterType = FilterType::RAMLAK);	//does the actual reconstruction, filterType specifies the type of the highpass filter
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 									double v,
 									float u0v0,
