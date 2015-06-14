@@ -45,6 +45,7 @@ namespace ct {
 		Projection _currentProjection;
 		bool _crossSectionDisplayActive;
 		bool _reconstructionActive;
+		bool _controlsDisabled;
 		bool _runAll;
 		QString _savingPath;
 		size_t _currentIndex;
