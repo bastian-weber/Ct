@@ -10,8 +10,6 @@
 
 #if defined WINDOWS
 #include <Windows.h>
-#undef max
-#undef min
 #endif
 
 namespace hb {
