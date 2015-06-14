@@ -633,8 +633,6 @@ namespace ct {
 		applyFeldkampWeight(image);
 	}
 
-	//converts an image to 32 bit float
-	//only unsigned types are allowed as input
 	void CtVolume::convertTo32bit(cv::Mat& img) {
 		CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
 		if (img.depth() == CV_8U) {

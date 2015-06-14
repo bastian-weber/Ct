@@ -2,7 +2,7 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _reconstructionActive(false), _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _controlsDisabled(false), _reconstructionActive(false), _runAll(false) {
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -248,7 +248,7 @@ namespace ct {
 	}
 
 	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
-		if (e->mimeData()->hasUrls()) {
+		if (e->mimeData()->hasUrls() && !_controlsDisabled) {
 			if (!e->mimeData()->urls().isEmpty()) {
 				e->acceptProposedAction();
 			}
@@ -256,7 +256,7 @@ namespace ct {
 	}
 
 	void MainInterface::dropEvent(QDropEvent* e) {
-		if (!e->mimeData()->urls().isEmpty()) {
+		if (!e->mimeData()->urls().isEmpty() && !_controlsDisabled) {
 			QString path = e->mimeData()->urls().first().toLocalFile();
 			_inputFileEdit->setText(path);
 			_inputFileEdit->setReadOnly(false);
@@ -341,6 +341,7 @@ namespace ct {
 		_boundsGroupBox->setEnabled(false);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
+		_controlsDisabled = true;
 		_imageView->setRenderRectangle(false);
 		_stopButton->setEnabled(true);
 	}
@@ -357,6 +358,7 @@ namespace ct {
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
+		_controlsDisabled = false;
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		resetInfo();
@@ -375,6 +377,7 @@ namespace ct {
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
+		_controlsDisabled = false;
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
@@ -394,6 +397,7 @@ namespace ct {
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
 		_crossSectionDisplayActive = false;
+		_controlsDisabled = false;
 		_imageView->setRenderRectangle(true);
 		_stopButton->setEnabled(false);
 	}
@@ -410,6 +414,7 @@ namespace ct {
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = true;
+		_controlsDisabled = false;
 		_imageView->setRenderRectangle(false);
 		_stopButton->setEnabled(false);
 	}
