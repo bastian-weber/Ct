@@ -130,8 +130,8 @@ namespace ct {
 		double _pixelSize;
 		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
-		cv::Mat _precomputedFourierWeights;
-		cv::Mat _precomputedFeldkampWeights;
+		cv::UMat _precomputedFourierWeights;
+		cv::UMat _precomputedFeldkampWeights;
 		//some precomputed values for the coordinate conversion functions for faster execution
 		double _worldToVolumeXPrecomputed;
 		double _worldToVolumeYPrecomputed;
@@ -155,9 +155,9 @@ namespace ct {
 		cv::Mat prepareProjection(size_t index) const;	//returns the image of the projection at position index preprocessed and converted
 		void preprocessImage(cv::Mat& image) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
-		void applyFeldkampWeight(cv::Mat& image) const;
-		void applyFourierFilter(cv::Mat& image) const;
-		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
+		void applyFeldkampWeight(cv::UMat& image) const;
+		void applyFourierFilter(cv::UMat& image) const;
+		static void applyLogScaling(cv::UMat& image);							//applies a logarithmic scaling to an image
 		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);

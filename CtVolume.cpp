@@ -622,12 +622,12 @@ namespace ct {
 
 	void CtVolume::precomputeFilterWeights(FilterType filterType) {
 		//fourier weights
-		_precomputedFourierWeights = cv::Mat(_imageHeight, _imageWidth, CV_32FC2, cv::Scalar::all(1));
-		unsigned int nyquist = (_precomputedFourierWeights.cols / 2) + 1;
+		cv::Mat precomputedFourierWeights(_imageHeight, _imageWidth, CV_32FC2, cv::Scalar::all(1));
+		unsigned int nyquist = (precomputedFourierWeights.cols / 2) + 1;
 		cv::Vec2f* ptr;
 #pragma omp parallel for private(ptr)
-		for (int row = 0; row < _precomputedFourierWeights.rows; ++row) {
-			ptr = _precomputedFourierWeights.ptr<cv::Vec2f>(row);
+		for (int row = 0; row < precomputedFourierWeights.rows; ++row) {
+			ptr = precomputedFourierWeights.ptr<cv::Vec2f>(row);
 			for (int column = 0; column < nyquist; ++column) {
 				float weight;
 				switch (filterType) {
@@ -646,34 +646,39 @@ namespace ct {
 				}
 			}
 		}
+		precomputedFourierWeights.copyTo(_precomputedFourierWeights);
 
 		//feldkamp weights
-		_precomputedFeldkampWeights = cv::Mat::ones(_imageHeight, _imageWidth, CV_32F);
+		cv::Mat precomputedFeldkampWeights = cv::Mat::ones(_imageHeight, _imageWidth, CV_32F);
 		float* ptr2;
 #pragma omp parallel for private(ptr2)
-		for (int row = 0; row < _precomputedFeldkampWeights.rows; ++row) {
-			ptr2 = _precomputedFeldkampWeights.ptr<float>(row);
-			for (int column = 0; column < _precomputedFeldkampWeights.cols; ++column) {
+		for (int row = 0; row < precomputedFeldkampWeights.rows; ++row) {
+			ptr2 = precomputedFeldkampWeights.ptr<float>(row);
+			for (int column = 0; column < precomputedFeldkampWeights.cols; ++column) {
 				ptr2[column] = W(_SD, matToImageU(column), matToImageV(row));
 			}
 		}
+		precomputedFeldkampWeights.copyTo(_precomputedFeldkampWeights);
 	}
 
 	cv::Mat CtVolume::prepareProjection(size_t index) const {
 		cv::Mat image = _sinogram[index].getImage();
-		//hb::Timer timer;
+		hb::Timer timer;
 		if (image.data) {
 			convertTo32bit(image);
 			preprocessImage(image);
 		}
-		//timer.stop();
+		timer.stop();
 		return image;
 	}
 
 	void CtVolume::preprocessImage(cv::Mat& image) const {
-		applyLogScaling(image);
-		applyFourierFilter(image);
-		applyFeldkampWeight(image);
+		cv::UMat uImage;
+		image.copyTo(uImage);
+		applyLogScaling(uImage);
+		applyFourierFilter(uImage);
+		applyFeldkampWeight(uImage);
+		uImage.copyTo(image);
 	}
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
@@ -685,24 +690,25 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFeldkampWeight(cv::Mat& image) const {
+	void CtVolume::applyFeldkampWeight(cv::UMat& image) const {
 		CV_Assert(image.channels() == 1);
 		CV_Assert(image.depth() == CV_32F);
 
 		image = image.mul(_precomputedFeldkampWeights);
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image) const {
+	void CtVolume::applyFourierFilter(cv::UMat& image) const {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		freq = freq.mul(_precomputedFourierWeights);
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
 	}
 
-	void CtVolume::applyLogScaling(cv::Mat& image) {
+	void CtVolume::applyLogScaling(cv::UMat& image) {
 		// -ln(x)
 		cv::log(image, image);
-		image *= -1;
+		image.convertTo(image, image.type(), -1);
+		//image = image* (-1);
 	}
 
 	double CtVolume::ramLakWindowFilter(double n, double N) {
