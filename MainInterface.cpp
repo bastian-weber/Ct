@@ -165,6 +165,7 @@ namespace ct {
 		_rightLayout->addStretch(1);
 
 		_imageView = new hb::ImageView;
+		_imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
 
 		_subLayout = new QHBoxLayout;
 		_subLayout->addLayout(_leftLayout, 0);
@@ -245,6 +246,10 @@ namespace ct {
 
 	QSize MainInterface::sizeHint() const {
 		return QSize(1000, 570);
+	}
+
+	void MainInterface::infoPaintFunction(QPainter& canvas) {
+		std::cout << "Called" << std::endl;
 	}
 
 	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
