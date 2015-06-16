@@ -38,7 +38,8 @@ namespace hb{
 		  _polylinePointGrabTolerance(10),
 		  _polylineLastAddedPoint(0),
 		  _spanningSelectionRectangle(false),
-		  _polylineColor(60, 60, 60) {
+		  _polylineColor(60, 60, 60),
+		  _externalPostPaintFunctionAssigned(false) {
 		setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
 		setFocusPolicy(Qt::FocusPolicy::StrongFocus);
 		setMouseTracking(true);
@@ -350,6 +351,24 @@ namespace hb{
 	void ImageView::setPolylineColor(QColor color) {
 		_polylineColor = color;
 		update();
+	}
+
+	///Registers any callable target so it will be called at the end of the \c paintEvent method.
+	/**
+	* This method can be used to register any \c std::function as post-paint function.
+	* Also function pointers or lambdas can be passed. They then will be implicitly converted.
+	* The corresponding function will be called at the end of the \c paintEvent method.
+	* To that function the current widget is passed as a \c QPainter object which enables custom
+	* drawing on top of the widget, e.g. to display additional information.
+	*/
+	void ImageView::setExternalPostPaintFunction(std::function<void(QPainter&)> const& function) {
+		_externalPostPaint = function;
+		_externalPostPaintFunctionAssigned = true;
+	}
+
+	//Removes any assigned post-paint function, which then is no longer invoked.
+	void ImageView::removeExternalPostPaintFunction() {
+		_externalPostPaintFunctionAssigned = false;
 	}
 
 	//========================================================================= Public Slots =========================================================================\\
@@ -864,6 +883,9 @@ namespace hb{
 		canvas.setPen(QPen(strokeColour, 1));
 		canvas.setBrush(Qt::NoBrush);
 		canvas.drawRect(0, 0, width() - 1, height() - 1);
+
+		//call external post paint function
+		if (_externalPostPaintFunctionAssigned) _externalPostPaint(canvas);
 	}
 
 	void ImageView::keyPressEvent(QKeyEvent * e) {

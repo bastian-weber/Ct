@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cmath>
 #include <set>
+#include <functional>
 
 namespace hb{
 
@@ -71,6 +72,22 @@ namespace hb{
 		void setPolylineEditingActive(bool value);
 		const std::vector<QPointF>& getPolyline() const;
 		void setPolylineColor(QColor color);
+
+		///Registers a member function \p function of an \p object that will be called at the end of the \c paintEvent method.
+		/**
+		* This method can be used to register the member function of an object as post-paint function.
+		* The corresponding function will be called at the end of the \c paintEvent method.
+		* To that function the current widget is passed as a \c QPainter object which enables custom
+		* drawing on top of the widget, e.g. to display additional information.
+		*/
+		//template function, thus implemented in header
+		template <typename T>
+		void setExternalPostPaintFunction(T* object, void(T::*function)(QPainter&)) {
+			_externalPostPaint = std::bind(function, object, std::placeholders::_1);
+			_externalPostPaintFunctionAssigned = true;
+		}
+		void setExternalPostPaintFunction(std::function<void(QPainter&)> const& function);
+		void removeExternalPostPaintFunction();
 	public slots:
 		void zoomInKey();
 		void zoomOutKey();
@@ -179,6 +196,9 @@ namespace hb{
 		std::set<int> _selectionRectanglePoints;
 		bool _spanningSelectionRectangle;
 		QColor _polylineColor;
+		//related to external post paint function
+		std::function<void(QPainter&)> _externalPostPaint;
+		bool _externalPostPaintFunctionAssigned;
 	signals:
 		///Emitted when a point is moved, emitted live during interaction (not just on mouse release).
 		void pointModified();

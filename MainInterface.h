@@ -18,6 +18,7 @@ namespace ct {
 		MainInterface(QWidget *parent = 0);
 		~MainInterface();
 		QSize sizeHint() const;
+		void infoPaintFunction(QPainter& canvas);
 	protected:
 		void dragEnterEvent(QDragEnterEvent* e);
 		void dropEvent(QDropEvent* e);
