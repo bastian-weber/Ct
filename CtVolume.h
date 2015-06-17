@@ -109,12 +109,13 @@ namespace ct {
 		};
 
 		//variables		
+		std::vector<Projection> _sinogram;										//here the images are stored
+		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
+		std::mutex _exclusiveFunctionsMutex;
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis;
 		mutable std::atomic<bool> _stop;
-		std::vector<Projection> _sinogram;										//here the images are stored
-		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
 		size_t _xSize, _ySize, _zSize;											//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t _imageWidth, _imageHeight;;										//stores the height and width of the images in the sinogram
