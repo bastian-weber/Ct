@@ -229,6 +229,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
+		if (_volume.size() == 0) return cv::Mat();
 		//copy to local variable because member variable might change during execution
 		Axis axis = _crossSectionAxis;
 		if (index >= 0 && (axis == Axis::X && index < _xMax) || (axis == Axis::Y && index < _yMax) || (axis == Axis::Z && index < _zMax)) {
@@ -317,6 +318,7 @@ namespace ct {
 	}
 
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
+		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_xFrom_float = std::max(0.0, std::min(1.0, xFrom));
 		_xTo_float = std::max(_xFrom_float, std::min(1.0, xTo));
 		_yFrom_float = std::max(0.0, std::min(1.0, yFrom));
@@ -327,8 +329,17 @@ namespace ct {
 	}
 
 	void CtVolume::reconstructVolume(FilterType filterType) {
+		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_stop = false;
 		if (_sinogram.size() > 0) {
+			//make sure the cross section index is valid
+			if (_crossSectionAxis == Axis::X && _crossSectionIndex >= _xMax) {
+				_crossSectionIndex = _xMax / 2;
+			} else if (_crossSectionAxis == Axis::Y && _crossSectionIndex >= _yMax) {
+				_crossSectionIndex = _yMax / 2;
+			} else if (_crossSectionAxis == Axis::Z && _crossSectionIndex >= _zMax) {
+				_crossSectionIndex = _zMax / 2;
+			}
 			//resize the volume to the correct size
 			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
 			//mesure time
@@ -756,7 +767,6 @@ namespace ct {
 			double uOffset = _uOffset;
 			double SD = _SD;
 			double radiusSquared = std::pow((_xSize / 2.0) - 3, 2);
-
 #pragma omp parallel for schedule(dynamic)
 			for (int xIndex = 0; xIndex < _xMax; ++xIndex) {
 				double x = volumeToWorldX(xIndex);

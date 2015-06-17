@@ -249,7 +249,39 @@ namespace ct {
 	}
 
 	void MainInterface::infoPaintFunction(QPainter& canvas) {
-		std::cout << "Called" << std::endl;
+		QPalette palette = qApp->palette();
+		QPen textPen(palette.buttonText().color());
+		canvas.setPen(textPen);
+		canvas.setBrush(Qt::NoBrush);
+		QFont font;
+		font.setPointSize(10);
+		canvas.setFont(font);
+		QColor base = palette.base().color();
+		base.setAlpha(200);
+		canvas.setBackground(base);
+		canvas.setBackgroundMode(Qt::OpaqueMode);
+		if (_sinogramDisplayActive) {
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %1/%2").arg(_currentIndex).arg(_volume.getSinogramSize()));
+		} else if (_crossSectionDisplayActive || _reconstructionActive) {
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %1/%2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
+			ct::Axis axis = _volume.getCrossSectionAxis();
+			QString axisStr;
+			switch (axis) {
+				case ct::Axis::X:
+					axisStr = "X";
+					break;
+				case ct::Axis::Y:
+					axisStr = "Y";
+					break;
+				case ct::Axis::Z:
+					axisStr = "Z";
+					break;
+			}
+			QString message = QString("%1-Axis").arg(axisStr);
+			QFontMetrics metrics(font);
+			int textWidth = metrics.width(message);
+			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
+		}
 	}
 
 	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
@@ -548,12 +580,12 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBoundsChange(double value) {
-		if(_xFrom != QObject::sender()) _xFrom->setMaximum(_xTo->value());
-		if (_xTo != QObject::sender()) _xTo->setMinimum(_xFrom->value());
-		if (_yFrom != QObject::sender()) _yFrom->setMaximum(_yTo->value());
-		if (_yTo != QObject::sender()) _yTo->setMinimum(_yFrom->value());
-		if (_zFrom != QObject::sender()) _zFrom->setMaximum(_zTo->value());
-		if (_zTo != QObject::sender()) _zTo->setMinimum(_zFrom->value());
+		_xFrom->setMaximum(_xTo->value());
+		_xTo->setMinimum(_xFrom->value());
+		_yFrom->setMaximum(_yTo->value());
+		_yTo->setMinimum(_yFrom->value());
+		_zFrom->setMaximum(_zTo->value());
+		_zTo->setMinimum(_zFrom->value());
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
 		if (_volume.getSinogramSize() > 0) {
 			setInfo();

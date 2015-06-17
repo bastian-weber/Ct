@@ -885,7 +885,10 @@ namespace hb{
 		canvas.drawRect(0, 0, width() - 1, height() - 1);
 
 		//call external post paint function
-		if (_externalPostPaintFunctionAssigned) _externalPostPaint(canvas);
+		if (_externalPostPaintFunctionAssigned) {
+			canvas.resetTransform();
+			_externalPostPaint(canvas);
+		}
 	}
 
 	void ImageView::keyPressEvent(QKeyEvent * e) {
