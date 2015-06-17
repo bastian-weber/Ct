@@ -245,7 +245,7 @@ namespace ct {
 	}
 
 	QSize MainInterface::sizeHint() const {
-		return QSize(1000, 570);
+		return QSize(1053, 570);
 	}
 
 	void MainInterface::infoPaintFunction(QPainter& canvas) {
