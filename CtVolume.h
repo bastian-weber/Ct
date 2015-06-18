@@ -81,20 +81,21 @@ namespace ct {
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
-		//control functions
-		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
+		//setters
+		void setCrossSectionIndex(size_t index);
+		void setCrossSectionAxis(Axis axis);
+		void setEmitSignals(bool value);
 		void setVolumeBounds(double xFrom, 
 							 double xTo, 
 							 double yFrom, 
 							 double yTo,
 							 double zFrom, 
 							 double zTo);
+		//control functions
+		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
 		void reconstructVolume(FilterType filterType = FilterType::RAMLAK);		//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
-		void setCrossSectionIndex(size_t index);
-		void setCrossSectionAxis(Axis axis);
-		void setEmitSignals(bool value);
 	private:
 
 		//struct for storing one projection internally
@@ -111,7 +112,7 @@ namespace ct {
 		//variables		
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
-		std::mutex _exclusiveFunctionsMutex;
+		mutable std::mutex _exclusiveFunctionsMutex;
 		bool _emitSignals;														//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis;

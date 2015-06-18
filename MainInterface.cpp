@@ -580,12 +580,12 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBoundsChange(double value) {
-		_xFrom->setMaximum(_xTo->value());
-		_xTo->setMinimum(_xFrom->value());
-		_yFrom->setMaximum(_yTo->value());
-		_yTo->setMinimum(_yFrom->value());
-		_zFrom->setMaximum(_zTo->value());
-		_zTo->setMinimum(_zFrom->value());
+		if (_xFrom != QObject::sender()) _xFrom->setMaximum(_xTo->value());
+		if (_xTo != QObject::sender()) _xTo->setMinimum(_xFrom->value());
+		if (_yFrom != QObject::sender()) _yFrom->setMaximum(_yTo->value());
+		if (_yTo != QObject::sender()) _yTo->setMinimum(_yFrom->value());
+		if (_zFrom != QObject::sender()) _zFrom->setMaximum(_zTo->value());
+		if (_zTo != QObject::sender()) _zTo->setMinimum(_zFrom->value());
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
 		if (_volume.getSinogramSize() > 0) {
 			setInfo();
