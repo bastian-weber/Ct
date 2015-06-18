@@ -95,6 +95,7 @@ namespace ct {
 	}
 
 	void CtVolume::sinogramFromImages(std::string csvFile) {
+		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_stop = false;
 		_volume.clear();
 		//delete the contents of the sinogram
@@ -332,14 +333,6 @@ namespace ct {
 		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_stop = false;
 		if (_sinogram.size() > 0) {
-			//make sure the cross section index is valid
-			if (_crossSectionAxis == Axis::X && _crossSectionIndex >= _xMax) {
-				_crossSectionIndex = _xMax / 2;
-			} else if (_crossSectionAxis == Axis::Y && _crossSectionIndex >= _yMax) {
-				_crossSectionIndex = _yMax / 2;
-			} else if (_crossSectionAxis == Axis::Z && _crossSectionIndex >= _zMax) {
-				_crossSectionIndex = _zMax / 2;
-			}
 			//resize the volume to the correct size
 			_volume = std::vector<std::vector<std::vector<float>>>(_xMax, std::vector<std::vector<float>>(_yMax, std::vector<float>(_zMax, 0)));
 			//mesure time
@@ -385,6 +378,7 @@ namespace ct {
 	}
 
 	void CtVolume::saveVolumeToBinaryFile(std::string filename) const {
+		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_stop = false;
 		if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
 
@@ -837,6 +831,15 @@ namespace ct {
 		_xMax = _xTo - _xFrom;
 		_yMax = _yTo - _yFrom;
 		_zMax = _zTo - _zFrom;
+		//make sure the cross section index is valid
+		if (_crossSectionAxis == Axis::X && _crossSectionIndex >= _xMax) {
+			_crossSectionIndex = _xMax / 2;
+		} else if (_crossSectionAxis == Axis::Y && _crossSectionIndex >= _yMax) {
+			_crossSectionIndex = _yMax / 2;
+		} else if (_crossSectionAxis == Axis::Z && _crossSectionIndex >= _zMax) {
+			_crossSectionIndex = _zMax / 2;
+		}
+		//precompute some values for faster processing
 		_worldToVolumeXPrecomputed = (double(_xSize) / 2.0) - double(_xFrom);
 		_worldToVolumeYPrecomputed = (double(_ySize) / 2.0) - double(_yFrom);
 		_worldToVolumeZPrecomputed = (double(_zSize) / 2.0) - double(_zFrom);
