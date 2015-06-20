@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_core" "opencv_imgcodecs" "opencv_highgui" "opencv_imgproc")
+set(OPENCV_MODULES_CV "opencv_world")
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 
 #=======================================================================#
@@ -41,7 +41,7 @@ if(NOT UNIX)
 	include(AskForOpenCVPath)
 endif(NOT UNIX)
 if(OPENCV_ROOT_FOUND OR UNIX)
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${OPENCV_ROOT_DIR})
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_OPENCV_ROOT})
 	find_package(OpenCV 3.0 REQUIRED)
 endif(OPENCV_ROOT_FOUND OR UNIX)
 
@@ -51,7 +51,7 @@ list(APPEND QT_MODULES_ALL ${QT_MODULES_CV})
 list(REMOVE_DUPLICATES QT_MODULES_ALL)
 include(AskForQtPath)
 if(QT_ROOT_FOUND)
-	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT_ROOT_DIR})
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_QT_ROOT})
 	foreach(module ${QT_MODULES_ALL})
 		string(REGEX REPLACE "::" "" MODULE_NAME ${module})
 		find_package(${MODULE_NAME} 5.4.1 REQUIRED)
@@ -94,15 +94,15 @@ IF(DEFINED QT_ROOT_FOUND)
 
 		copydlls("${QT_MODULES_ALL}")	
 
-		file(COPY ${QT_ROOT_DIR}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${QT_ROOT_DIR}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${QT_ROOT_DIR}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${QT_ROOT_DIR}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${PATH_QT_ROOT}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${PATH_QT_ROOT}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${PATH_QT_ROOT}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		file(COPY ${PATH_QT_ROOT}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
 
-		file(COPY ${QT_ROOT_DIR}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${QT_ROOT_DIR}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${QT_ROOT_DIR}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${QT_ROOT_DIR}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${PATH_QT_ROOT}/bin/icudt53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${PATH_QT_ROOT}/bin/icuin53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${PATH_QT_ROOT}/bin/icuuc53.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		file(COPY ${PATH_QT_ROOT}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
 
 	ENDIF(MSVC)
 

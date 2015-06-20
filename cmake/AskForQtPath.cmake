@@ -1,22 +1,22 @@
-if (NOT DEFINED QT_ROOT_DIR)
+if (NOT DEFINED PATH_QT_ROOT)
 
 	if(WIN32)
-		SET(QT_ROOT_DIR CACHE PATH "OpenCV root directory")
+		SET(PATH_QT_ROOT CACHE PATH "OpenCV root directory")
 	elseif(UNIX)
-		SET(QT_ROOT_DIR "~/Qt/5.4/gcc_64" CACHE PATH "Qt root directory")
+		SET(PATH_QT_ROOT "~/Qt/5.4/gcc_64" CACHE PATH "Qt root directory")
 	endif(WIN32)
 
-endif(NOT DEFINED QT_ROOT_DIR)
+endif(NOT DEFINED PATH_QT_ROOT)
 
-if("${QT_ROOT_DIR}" STREQUAL "")
+if("${PATH_QT_ROOT}" STREQUAL "")
 
-	message("Please specify the Qt root directory (QT_ROOT_DIR).")
+	message("Please specify the Qt root directory (PATH_QT_ROOT).")
 
-else("${QT_ROOT_DIR}" STREQUAL "")
+else("${PATH_QT_ROOT}" STREQUAL "")
 
 	FIND_PATH(QT_TMP 
 	NAMES "lib/cmake/Qt5/Qt5Config.cmake"
-	HINTS ${QT_ROOT_DIR} "${QT_ROOT_DIR}/../../.." "${QT_ROOT_DIR}/../.." "${QT_ROOT_DIR}/..")	
+	HINTS ${PATH_QT_ROOT} "${PATH_QT_ROOT}/../../.." "${PATH_QT_ROOT}/../.." "${PATH_QT_ROOT}/..")	
 
 	MARK_AS_ADVANCED(QT_TMP)
 
@@ -26,9 +26,9 @@ else("${QT_ROOT_DIR}" STREQUAL "")
 
 	else(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
 
-		set(QT_ROOT_DIR ${QT_TMP})
+		set(PATH_QT_ROOT ${QT_TMP})
 		set(QT_ROOT_FOUND ON)
 
 	endif(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
 
-endif("${QT_ROOT_DIR}" STREQUAL "")
+endif("${PATH_QT_ROOT}" STREQUAL "")
