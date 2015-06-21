@@ -742,6 +742,7 @@ namespace hb{
 			QRectF imageArea(QPointF(0, 0), _image.size());
 			imageArea = transform.mapRect(imageArea);
 			QPainter p(&rect);
+			p.setRenderHint(QPainter::Antialiasing, true);
 			p.setPen(Qt::NoPen);
 			p.setBrush(QColor(0, 0, 0, 100));
 			p.drawRect(imageArea);
