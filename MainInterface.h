@@ -12,7 +12,7 @@
 
 namespace ct {
 
-	class MainInterface : public QWidget{
+	class MainInterface : public QMainWindow{
 		Q_OBJECT
 	public:
 		MainInterface(QWidget *parent = 0);
@@ -53,6 +53,13 @@ namespace ct {
 		hb::Timer _timer;
 
 		//interface widgets
+		QWidget* _centralWidget;
+		QDockWidget* _pipelineDockWidget;
+		QWidget* _pipelineWidget;
+		QDockWidget* _advancedDockWidget;
+		QWidget* _advancedWidget;
+		QDockWidget* _infoDockWidget;
+		QWidget* _infoWidget;
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
@@ -63,7 +70,6 @@ namespace ct {
 		QHBoxLayout* _xLayout;
 		QHBoxLayout* _yLayout;
 		QHBoxLayout* _zLayout;
-		QVBoxLayout* _rightLayout;
 		QVBoxLayout* _loadLayout;
 		QVBoxLayout* _reconstructLayout;
 		QVBoxLayout* _saveLayout;
@@ -72,8 +78,6 @@ namespace ct {
 		QGroupBox* _loadGroupBox;
 		QGroupBox* _reconstructGroupBox;
 		QGroupBox* _saveGroupBox;
-		QGroupBox* _advancedGroupBox;
-		QGroupBox* _infoGroupBox;
 		QGroupBox* _filterGroupBox;
 		QRadioButton* _ramlakRadioButton;
 		QRadioButton* _shepploganRadioButton;
