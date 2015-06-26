@@ -2,7 +2,7 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _controlsDisabled(false), _reconstructionActive(false), _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent) : QMainWindow(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _controlsDisabled(false), _reconstructionActive(false), _runAll(false) {
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -134,16 +134,14 @@ namespace ct {
 		_cmdButton = new QPushButton(tr("Save as &Batch File"));
 		QObject::connect(_cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
 		_advancedLayout = new QVBoxLayout;
+		_advancedLayout->addStrut(250);
 		_advancedLayout->addWidget(_runAllButton);
 		_advancedLayout->addWidget(_cmdButton);
-		_advancedGroupBox = new QGroupBox(tr("Advanced"));
-		_advancedGroupBox->setLayout(_advancedLayout);
 
 		_informationLabel = new QLabel;
 		_infoLayout = new QVBoxLayout;
+		_infoLayout->addStrut(250);
 		_infoLayout->addWidget(_informationLabel);
-		_infoGroupBox = new QGroupBox(tr("Information"));
-		_infoGroupBox->setLayout(_infoLayout);
 
 		_statusLabel = new QLabel(tr("Load a configuration file"));
 
@@ -154,23 +152,13 @@ namespace ct {
 		_leftLayout->addWidget(_reconstructGroupBox);
 		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_saveGroupBox);
-		_leftLayout->addStretch(1);
 		_leftLayout->addWidget(_statusLabel);
-
-		_rightLayout = new QVBoxLayout;
-		_rightLayout->addStrut(250);
-		_rightLayout->addWidget(_advancedGroupBox);
-		_rightLayout->addSpacing(20);
-		_rightLayout->addWidget(_infoGroupBox);
-		_rightLayout->addStretch(1);
 
 		_imageView = new hb::ImageView;
 		_imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
 
 		_subLayout = new QHBoxLayout;
-		_subLayout->addLayout(_leftLayout, 0);
 		_subLayout->addWidget(_imageView, 1);
-		_subLayout->addLayout(_rightLayout, 0);
 
 		_progressBar = new QProgressBar;
 		_progressBar->setAlignment(Qt::AlignCenter);
@@ -185,12 +173,44 @@ namespace ct {
 		_mainLayout->addLayout(_subLayout);
 		_mainLayout->addLayout(_progressLayout);
 
-		setLayout(_mainLayout);
+		_centralWidget = new QWidget;
+		_centralWidget->setLayout(_mainLayout);
+		setCentralWidget(_centralWidget);
+
+		_pipelineWidget = new QWidget;
+		_pipelineWidget->setLayout(_leftLayout);
+		_pipelineWidget->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+		_pipelineDockWidget = new QDockWidget(this);
+		_pipelineDockWidget->setWidget(_pipelineWidget);
+		_pipelineDockWidget->setWindowTitle("Pipeline");
+		addDockWidget(Qt::LeftDockWidgetArea, _pipelineDockWidget);
+
+		_advancedWidget = new QWidget;
+		_advancedWidget->setLayout(_advancedLayout);
+		_advancedWidget->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+		_advancedDockWidget = new QDockWidget(this);
+		_advancedDockWidget->setWidget(_advancedWidget);
+		_advancedDockWidget->setWindowTitle("Advanced");
+		addDockWidget(Qt::RightDockWidgetArea, _advancedDockWidget);
+
+		_infoWidget = new QWidget;
+		_infoWidget->setLayout(_infoLayout);
+		_infoWidget->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
+		_infoDockWidget = new QDockWidget(this);
+		_infoDockWidget->setWidget(_infoWidget);
+		_infoDockWidget->setWindowTitle("Information");
+		addDockWidget(Qt::RightDockWidgetArea, _infoDockWidget);
 
 		startupState();
 	}
 
 	MainInterface::~MainInterface() {
+		delete _centralWidget;
+		delete _pipelineDockWidget;
+		delete _pipelineWidget;
+		delete _advancedDockWidget;
+		delete _infoDockWidget;
+		delete _infoWidget;
 		delete _mainLayout;
 		delete _subLayout;
 		delete _leftLayout;
@@ -201,7 +221,6 @@ namespace ct {
 		delete _xLayout;
 		delete _yLayout;
 		delete _zLayout;
-		delete _rightLayout;
 		delete _loadLayout;
 		delete _reconstructLayout;
 		delete _saveLayout;
@@ -210,8 +229,6 @@ namespace ct {
 		delete _loadGroupBox;
 		delete _reconstructGroupBox;
 		delete _saveGroupBox;
-		delete _advancedGroupBox;
-		delete _infoGroupBox;
 		delete _filterGroupBox;
 		delete _ramlakRadioButton;
 		delete _shepploganRadioButton;
