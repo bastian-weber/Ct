@@ -260,8 +260,13 @@ namespace ct {
 		base.setAlpha(200);
 		canvas.setBackground(base);
 		canvas.setBackgroundMode(Qt::OpaqueMode);
+		QFontMetrics metrics(font);
 		if (_sinogramDisplayActive) {
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %1/%2").arg(_currentIndex).arg(_volume.getSinogramSize()));
+			int digits = std::ceil(std::log10(_volume.getSinogramSize()));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %1/%2").arg(_currentIndex, digits, 10, QChar('0')).arg(_volume.getSinogramSize(), digits, 10, QChar('0')));
+			QString message = QString("%1 = %2%3").arg(QChar(0x03B2)).arg(_currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
+			int textWidth = metrics.width(message);
+			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 		} else if (_crossSectionDisplayActive || _reconstructionActive) {
 			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %1/%2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
 			ct::Axis axis = _volume.getCrossSectionAxis();
@@ -278,7 +283,6 @@ namespace ct {
 					break;
 			}
 			QString message = QString("%1-Axis").arg(axisStr);
-			QFontMetrics metrics(font);
 			int textWidth = metrics.width(message);
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 		}
