@@ -2,15 +2,7 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent)
-		: QWidget(parent), 
-		  _sinogramDisplayActive(false), 
-		  _crossSectionDisplayActive(false), 
-		  _controlsDisabled(false), 
-		  _reconstructionActive(false), 
-		  _savingActive(false), 
-		  _quitOnSaveCompletion(false),
-		  _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent) : QWidget(parent) {
 
 		setAcceptDrops(true);
 

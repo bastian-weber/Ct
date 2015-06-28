@@ -28,69 +28,7 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume()
-		:_currentlyDisplayedImage(0),
-		_emitSignals(false),
-		_crossSectionIndex(0),
-		_crossSectionAxis(Axis::Z),
-		_stop(false),
-		_xSize(0),
-		_ySize(0),
-		_zSize(0),
-		_imageWidth(0),
-		_imageHeight(0),
-		_uOffset(0),
-		_vOffset(0),
-		_pixelSize(0),
-		_SO(0),
-		_SD(0),
-		_xFrom(0),
-		_xTo(0),
-		_yFrom(0),
-		_yTo(0),
-		_zFrom(0),
-		_zTo(0),
-		_xMax(0),
-		_yMax(0),
-		_zMax(0),
-		_xFrom_float(0),
-		_xTo_float(1),
-		_yFrom_float(0),
-		_yTo_float(1),
-		_zFrom_float(0),
-		_zTo_float(1) { }
-
-	CtVolume::CtVolume(std::string csvFile)
-		: _currentlyDisplayedImage(0),
-		_crossSectionIndex(0),
-		_crossSectionAxis(Axis::Z),
-		_stop(false),
-		_emitSignals(false),
-		_xSize(0),
-		_ySize(0),
-		_zSize(0),
-		_imageWidth(0),
-		_imageHeight(0),
-		_uOffset(0),
-		_vOffset(0),
-		_pixelSize(0),
-		_SO(0),
-		_SD(0),
-		_xFrom(0),
-		_xTo(0),
-		_yFrom(0),
-		_yTo(0),
-		_zFrom(0),
-		_zTo(0),
-		_xMax(0),
-		_yMax(0),
-		_zMax(0),
-		_xFrom_float(0),
-		_xTo_float(1),
-		_yFrom_float(0),
-		_yTo_float(1),
-		_zFrom_float(0),
-		_zTo_float(1) {
+	CtVolume::CtVolume(std::string csvFile) {
 		sinogramFromImages(csvFile);
 	}
 
@@ -728,7 +666,7 @@ namespace ct {
 
 		for (int projection = 0; projection < _sinogram.size(); ++projection) {
 			if (_stop) {
-				std::cout << "User interrupted. Stopping." << std::endl;
+				std::cout << std::endl << "User interrupted. Stopping." << std::endl;
 				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
 				return false;
 			}
@@ -752,7 +690,7 @@ namespace ct {
 			//check if the image is good
 			if (!image.data) {
 				std::string msg = "The image " + _sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
-				std::cout << msg << std::endl;
+				std::cout << std::endl << msg << std::endl;
 				if (_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(msg.c_str())));
 				return false;
 			}
