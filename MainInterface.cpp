@@ -174,6 +174,8 @@ namespace ct {
 
 		_progressBar = new QProgressBar;
 		_progressBar->setAlignment(Qt::AlignCenter);
+		_taskbarButton = new QWinTaskbarButton(this);
+		_taskbarProgress = _taskbarButton->progress();
 		_stopButton = new QPushButton(tr("Stop"));
 		QObject::connect(_stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
@@ -239,6 +241,8 @@ namespace ct {
 		delete _cmdButton;
 		delete _stopButton;
 		delete _progressBar;
+		delete _taskbarButton;
+		delete _taskbarProgress;
 		delete _imageView;
 		delete _informationLabel;
 		delete _statusLabel;
@@ -368,6 +372,10 @@ namespace ct {
 		} else {
 			e->ignore();
 		}
+	}
+
+	void MainInterface::showEvent(QShowEvent *e) {
+		_taskbarButton->setWindow(this->windowHandle());
 	}
 
 	void MainInterface::disableAllControls() {
@@ -600,6 +608,7 @@ namespace ct {
 	void MainInterface::reactToLoadButtonClick() {
 		disableAllControls();
 		setStatus(tr("Loading file and analysing images..."));
+		_taskbarProgress->show();
 		_timer.reset();
 		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();	
 	}
@@ -608,6 +617,7 @@ namespace ct {
 		disableAllControls();
 		_imageView->resetImage();
 		setStatus(tr("Backprojecting..."));
+		_taskbarProgress->show();
 		_timer.reset();
 		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
 		FilterType type = FilterType::RAMLAK;
@@ -631,6 +641,7 @@ namespace ct {
 
 		if (!path.isEmpty()) {
 			disableAllControls();
+			_taskbarProgress->show();
 			setStatus(tr("Writing volume to disk..."));
 			_timer.reset();
 			std::thread(&CtVolume::saveVolumeToBinaryFile, &_volume, path.toStdString()).detach();
@@ -727,10 +738,13 @@ namespace ct {
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
 		_progressBar->setValue(percentage);
+		_taskbarProgress->setValue(percentage);
 	}
 
 	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
 		_progressBar->reset();
+		_taskbarProgress->hide();
+		_taskbarProgress->reset();
 		if (status.successful) {
 			double time = _timer.getTime();
 			setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
@@ -757,6 +771,7 @@ namespace ct {
 
 	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		_progressBar->setValue(percentage);
+		_taskbarProgress->setValue(percentage);
 		if (percentage > 1.0) {
 			double remaining = _timer.getTime() * ((100.0 - percentage) / percentage);
 			int mins = std::floor(remaining / 60.0);
@@ -770,7 +785,9 @@ namespace ct {
 
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
 		_reconstructionActive = false;
-		_progressBar->reset();		
+		_progressBar->reset();
+		_taskbarProgress->hide();
+		_taskbarProgress->reset();	
 		if (status.successful) {
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
@@ -799,10 +816,13 @@ namespace ct {
 
 	void MainInterface::reactToSaveProgressUpdate(double percentage) {
 		_progressBar->setValue(percentage);
+		_taskbarProgress->setValue(percentage);
 	}
 
 	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
 		_progressBar->reset();
+		_taskbarProgress->hide();
+		_taskbarProgress->reset();
 		if (status.successful) {
 			double time = _timer.getTime();
 			setStatus(tr("Saving finished (") + QString::number(time, 'f', 1) + "s).");
