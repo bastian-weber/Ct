@@ -26,7 +26,8 @@ namespace ct {
 		void dropEvent(QDropEvent* e);
 		void keyPressEvent(QKeyEvent* e);
 		void wheelEvent(QWheelEvent* e);
-		void showEvent(QShowEvent *e);
+		void showEvent(QShowEvent* e);
+		void closeEvent(QCloseEvent* e);
 	private:
 		void disableAllControls();
 		void startupState();
@@ -45,12 +46,14 @@ namespace ct {
 		void resetInfo();
 
 		CtVolume _volume;
-		bool _sinogramDisplayActive;
+		std::atomic<bool> _sinogramDisplayActive;
 		Projection _currentProjection;
-		bool _crossSectionDisplayActive;
-		bool _reconstructionActive;
-		bool _controlsDisabled;
-		bool _runAll;
+		std::atomic<bool> _crossSectionDisplayActive;
+		std::atomic<bool> _reconstructionActive;
+		std::atomic<bool> _savingActive;
+		std::atomic<bool> _quitOnSaveCompletion;
+		std::atomic<bool> _controlsDisabled;
+		std::atomic<bool> _runAll;
 		QString _savingPath;
 		size_t _currentIndex;
 		hb::Timer _timer;
@@ -125,6 +128,7 @@ namespace ct {
 		void reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status);
 		void reactToSaveProgressUpdate(double percentage);
 		void reactToSaveCompletion(CtVolume::CompletionStatus status);
+		void askForDeletionOfIncompleteFile();
 	};
 
 }
