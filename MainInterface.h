@@ -5,6 +5,8 @@
 
 //Qt
 #include <QtWidgets/QtWidgets>
+#include <QtWinExtras/QWinTaskbarProgress>
+#include <QtWinExtras/QWinTaskbarButton>
 
 #include "ImageView.h"
 #include "CtVolume.h"
@@ -24,6 +26,7 @@ namespace ct {
 		void dropEvent(QDropEvent* e);
 		void keyPressEvent(QKeyEvent* e);
 		void wheelEvent(QWheelEvent* e);
+		void showEvent(QShowEvent *e);
 	private:
 		void disableAllControls();
 		void startupState();
@@ -101,6 +104,8 @@ namespace ct {
 		QPushButton* _cmdButton;
 		QPushButton* _stopButton;
 		QProgressBar* _progressBar;
+		QWinTaskbarButton* _taskbarButton;
+		QWinTaskbarProgress* _taskbarProgress;
 		hb::ImageView* _imageView;
 		QLabel* _informationLabel;
 		QLabel* _statusLabel;
