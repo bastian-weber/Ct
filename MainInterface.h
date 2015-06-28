@@ -46,14 +46,14 @@ namespace ct {
 		void resetInfo();
 
 		CtVolume _volume;
-		std::atomic<bool> _sinogramDisplayActive;
+		std::atomic<bool> _sinogramDisplayActive = false;
 		Projection _currentProjection;
-		std::atomic<bool> _crossSectionDisplayActive;
-		std::atomic<bool> _reconstructionActive;
-		std::atomic<bool> _savingActive;
+		std::atomic<bool> _crossSectionDisplayActive = false;
+		std::atomic<bool> _reconstructionActive = false;
+		std::atomic<bool> _savingActive = false;
 		std::atomic<bool> _quitOnSaveCompletion;
-		std::atomic<bool> _controlsDisabled;
-		std::atomic<bool> _runAll;
+		std::atomic<bool> _controlsDisabled = false;
+		std::atomic<bool> _runAll = false;
 		QString _savingPath;
 		size_t _currentIndex;
 		hb::Timer _timer;

@@ -62,7 +62,7 @@ namespace ct {
 
 		//functions		
 		//constructor
-		CtVolume();																
+		CtVolume() = default;																
 		CtVolume(std::string csvFile);
 		//getters
 		ct::Projection getProjectionAt(size_t index) const;
@@ -113,25 +113,24 @@ namespace ct {
 		std::vector<Projection> _sinogram;										//here the images are stored
 		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
 		mutable std::mutex _exclusiveFunctionsMutex;
-		bool _emitSignals;														//if true the object emits qt signals in certain functions
-		size_t _crossSectionIndex;												//index for the crossection that is returned in qt signals
-		Axis _crossSectionAxis;
-		mutable std::atomic<bool> _stop;
-		mutable int _currentlyDisplayedImage;									//holds the index of the image that is currently being displayed								
-		size_t _xSize, _ySize, _zSize;											//the size of the volume in x, y and z direction, is calculated when sinogram is created
-		size_t _imageWidth, _imageHeight;;										//stores the height and width of the images in the sinogram
+		bool _emitSignals = false;												//if true the object emits qt signals in certain functions
+		size_t _crossSectionIndex = 0;											//index for the crossection that is returned in qt signals
+		Axis _crossSectionAxis = Axis::Z;
+		mutable std::atomic<bool> _stop = false;							
+		size_t _xSize = 0, _ySize = 0, _zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
+		size_t _imageWidth = 0, _imageHeight = 0;								//stores the height and width of the images in the sinogram
 		//bounds of what will be reconstructed
-		double _xFrom_float, _xTo_float;
-		double _yFrom_float, _yTo_float;
-		double _zFrom_float, _zTo_float;
-		size_t _xFrom, _xTo;
-		size_t _yFrom, _yTo;
-		size_t _zFrom, _zTo;
-		size_t _xMax, _yMax, _zMax;
-		double _SD;																//the distance of the source to the detector in pixel
-		double _SO;																//the distance of the source to the object in pixel
-		double _pixelSize;
-		double _uOffset, _vOffset;												//the offset of the rotation axis in u direction
+		double _xFrom_float = 0, _xTo_float = 1;
+		double _yFrom_float = 0, _yTo_float = 1;
+		double _zFrom_float = 0, _zTo_float = 1;
+		size_t _xFrom = 0, _xTo = 0;
+		size_t _yFrom = 0, _yTo = 0;
+		size_t _zFrom = 0, _zTo = 0;
+		size_t _xMax = 0, _yMax = 0, _zMax = 0;
+		double _SD = 0;															//the distance of the source to the detector in pixel
+		double _SO = 0;															//the distance of the source to the object in pixel
+		double _pixelSize = 0;
+		double _uOffset = 0, _vOffset = 0;										//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> _minMaxValues;
 		//some precomputed values for the coordinate conversion functions for faster execution
 		double _worldToVolumeXPrecomputed;
