@@ -2,7 +2,16 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent), _sinogramDisplayActive(false), _crossSectionDisplayActive(false), _controlsDisabled(false), _reconstructionActive(false), _runAll(false) {
+	MainInterface::MainInterface(QWidget *parent)
+		: QWidget(parent), 
+		  _sinogramDisplayActive(false), 
+		  _crossSectionDisplayActive(false), 
+		  _controlsDisabled(false), 
+		  _reconstructionActive(false), 
+		  _savingActive(false), 
+		  _quitOnSaveCompletion(false),
+		  _runAll(false) {
+
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -114,14 +123,14 @@ namespace ct {
 
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
-		
+
 		_reconstructLayout = new QVBoxLayout;
 		_reconstructLayout->addWidget(_filterGroupBox);
 		_reconstructLayout->addWidget(_boundsGroupBox);
 		_reconstructLayout->addWidget(_reconstructButton);
 		_reconstructGroupBox = new QGroupBox(tr("(2) Reconstruct"));
 		_reconstructGroupBox->setLayout(_reconstructLayout);
-		
+
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
 		_saveLayout = new QVBoxLayout;
@@ -330,7 +339,7 @@ namespace ct {
 			} else if (e->key() == Qt::Key_Y) {
 				_volume.setCrossSectionAxis(Axis::Y);
 				setSlice(_volume.getCrossSectionIndex());
-			} else if (e->key() == Qt::Key_Z){
+			} else if (e->key() == Qt::Key_Z) {
 				_volume.setCrossSectionAxis(Axis::Z);
 				setSlice(_volume.getCrossSectionIndex());
 			} else {
@@ -374,8 +383,32 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::showEvent(QShowEvent *e) {
+	void MainInterface::showEvent(QShowEvent* e) {
 		_taskbarButton->setWindow(this->windowHandle());
+	}
+
+	void MainInterface::closeEvent(QCloseEvent* e) {
+		if (_savingActive) {
+			QMessageBox msgBox;
+			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+			msgBox.setWindowTitle(tr("Saving in progress"));
+			msgBox.setText(tr("The application is still writing to the disk. Do you want to quit now or after saving finsihed?"));
+			msgBox.setButtonText(QMessageBox::Yes, tr("Quit after saving"));
+			msgBox.setButtonText(QMessageBox::No, tr("Quit now"));
+			if (QMessageBox::Yes == msgBox.exec()) {
+				//check if maybe now the saving is done
+				if (!_savingActive) {
+					e->accept();
+				} else {
+					_quitOnSaveCompletion = true;
+					e->ignore();
+				}
+			} else {
+				e->accept();
+			}
+			return;
+		}
+		e->accept();
 	}
 
 	void MainInterface::disableAllControls() {
@@ -525,7 +558,7 @@ namespace ct {
 		double angleRad = (_currentProjection.angle / 180.0) * M_PI;
 		double sine = sin(angleRad);
 		double cosine = cos(angleRad);
-		double xFrom = width*_xFrom->value() - width/2.0;
+		double xFrom = width*_xFrom->value() - width / 2.0;
 		double xTo = width*_xTo->value() - width / 2.0;
 		double yFrom = width*_yFrom->value() - width / 2.0;
 		double yTo = width*_yTo->value() - width / 2.0;
@@ -550,7 +583,7 @@ namespace ct {
 		size_t zSize = _volume.getZSize();
 		size_t width = _volume.getImageWidth();
 		size_t height = _volume.getImageHeight();
-		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + 2*width*height) / 268435456.0, 'f', 2) + " Gb</p>"
+		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + 2 * width*height) / 268435456.0, 'f', 2) + " Gb</p>"
 								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
 								   "<p>" + tr("Projections: ") + QString::number(_volume.getSinogramSize()));
 	}
@@ -610,7 +643,7 @@ namespace ct {
 		setStatus(tr("Loading file and analysing images..."));
 		_taskbarProgress->show();
 		_timer.reset();
-		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();	
+		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
@@ -638,9 +671,9 @@ namespace ct {
 		} else {
 			path = _savingPath;
 		}
-
 		if (!path.isEmpty()) {
 			disableAllControls();
+			_savingActive = true;
 			_taskbarProgress->show();
 			setStatus(tr("Writing volume to disk..."));
 			_timer.reset();
@@ -787,7 +820,7 @@ namespace ct {
 		_reconstructionActive = false;
 		_progressBar->reset();
 		_taskbarProgress->hide();
-		_taskbarProgress->reset();	
+		_taskbarProgress->reset();
 		if (status.successful) {
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
@@ -820,6 +853,7 @@ namespace ct {
 	}
 
 	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
+		_savingActive = false;
 		_progressBar->reset();
 		_taskbarProgress->hide();
 		_taskbarProgress->reset();
@@ -834,16 +868,21 @@ namespace ct {
 				setStatus(tr("Saving failed."));
 			} else {
 				setStatus(tr("Saving stopped."));
-				QMessageBox msgBox;
-				msgBox.setText(tr("The saving process was stopped. The file is probably unusable. Shall it be deleted?"));
-				msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-				if (QMessageBox::Yes == msgBox.exec()) {
-					QFile::remove(_savingPath);
-				}
+				askForDeletionOfIncompleteFile();
 			}
 		}
 		_runAll = false;
 		reconstructedState();
+		if (_quitOnSaveCompletion) close();
+	}
+
+	void MainInterface::askForDeletionOfIncompleteFile() {
+		QMessageBox msgBox;
+		msgBox.setText(tr("The saving process was stopped. The file is probably unusable. Shall it be deleted?"));
+		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+		if (QMessageBox::Yes == msgBox.exec()) {
+			QFile::remove(_savingPath);
+		}
 	}
 
 }
