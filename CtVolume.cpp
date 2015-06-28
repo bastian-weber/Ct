@@ -762,7 +762,7 @@ namespace ct {
 			double SD = _SD;
 			double radiusSquared = std::pow((_xSize / 2.0) - 3, 2);
 #pragma omp parallel for schedule(dynamic)
-			for (int xIndex = 0; xIndex < _xMax; ++xIndex) {
+			for (long xIndex = 0; xIndex < _xMax; ++xIndex) {
 				double x = volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
 					if ((x*x + y*y) < radiusSquared) {
@@ -797,7 +797,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								_volume[worldToVolumeX(x)][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								_volume[xIndex][worldToVolumeY(y)][worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
