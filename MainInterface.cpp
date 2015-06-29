@@ -268,12 +268,12 @@ namespace ct {
 		QFontMetrics metrics(font);
 		if (_sinogramDisplayActive) {
 			int digits = std::ceil(std::log10(_volume.getSinogramSize()));
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %1/%2").arg(_currentIndex, digits, 10, QChar('0')).arg(_volume.getSinogramSize(), digits, 10, QChar('0')));
-			QString message = QString("%1 = %2%3").arg(QChar(0x03B2)).arg(_currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %L1/%L2").arg(_currentIndex, digits, 10, QChar('0')).arg(_volume.getSinogramSize(), digits, 10, QChar('0')));
+			QString message = QString("%1 = %L2%3").arg(QChar(0x03B2)).arg(_currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
 			int textWidth = metrics.width(message);
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 		} else if (_crossSectionDisplayActive || _reconstructionActive) {
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %1/%2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
 			ct::Axis axis = _volume.getCrossSectionAxis();
 			QString axisStr;
 			switch (axis) {
@@ -575,9 +575,12 @@ namespace ct {
 		size_t zSize = _volume.getZSize();
 		size_t width = _volume.getImageWidth();
 		size_t height = _volume.getImageHeight();
-		_informationLabel->setText("<p>" + tr("Memory required: ") + QString::number(double(xSize*ySize*zSize + 2 * width*height) / 268435456.0, 'f', 2) + " Gb</p>"
-								   "<p>" + tr("Volume dimensions: ") + QString::number(xSize) + "x" + QString::number(ySize) + "x" + QString::number(zSize) + "</p>"
-								   "<p>" + tr("Projections: ") + QString::number(_volume.getSinogramSize()));
+		double memory = double(xSize*ySize*zSize + 2 * width*height) / 268435456.0;
+		QString infoText = tr("<p>Memory required: %L1Gb</p>"
+							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
+							  "<p>Projections: %L5</p>");
+		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(_volume.getSinogramSize());
+		_informationLabel->setText(infoText);
 	}
 
 	void MainInterface::resetInfo() {
