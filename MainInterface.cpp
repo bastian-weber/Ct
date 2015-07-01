@@ -796,7 +796,7 @@ namespace ct {
 			fileSelectedState();
 		}
 	}
-	//Test comment
+
 	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		_progressBar->setValue(percentage);
 		_taskbarProgress->setValue(percentage);
