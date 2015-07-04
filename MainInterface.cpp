@@ -254,6 +254,7 @@ namespace ct {
 	}
 
 	void MainInterface::infoPaintFunction(QPainter& canvas) {
+		canvas.setRenderHint(QPainter::Antialiasing, true);
 		QPalette palette = qApp->palette();
 		QPen textPen(palette.buttonText().color());
 		canvas.setPen(textPen);
@@ -267,13 +268,44 @@ namespace ct {
 		canvas.setBackgroundMode(Qt::OpaqueMode);
 		QFontMetrics metrics(font);
 		if (_sinogramDisplayActive) {
+			//draw projection number
 			int digits = std::ceil(std::log10(_volume.getSinogramSize()));
 			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %L1/%L2").arg(_currentIndex, digits, 10, QChar('0')).arg(_volume.getSinogramSize(), digits, 10, QChar('0')));
+			//draw angle
 			QString message = QString("%1 = %L2%3").arg(QChar(0x03B2)).arg(_currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
 			int textWidth = metrics.width(message);
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
+			//draw axes
+			canvas.setBackgroundMode(Qt::TransparentMode);
+			QPointF center(60, 60);
+			double textOffsetFactor = 1.7;
+			double angleRad = _currentProjection.angle*M_PI / 180.0;
+			double textHeight = metrics.ascent()/2.0;
+			canvas.setPen(QPen(Qt::red, 2));			
+			QPointF xDelta(-20 * std::sin(angleRad), 10 * std::cos(angleRad));
+			canvas.drawLine(center, center + xDelta);
+			QString xText("X");
+			double xWidth = metrics.width(xText) / 2.0;
+			canvas.drawText(center + textOffsetFactor * xDelta - QPointF(xWidth, -textHeight), xText);
+			QPointF yDelta(20 * std::cos(angleRad), 10 * std::sin(angleRad));
+			canvas.setPen(QPen(Qt::green, 2));
+			canvas.drawLine(center, center + yDelta);
+			QString yText("Y");
+			double yWidth = metrics.width(yText) / 2.0;
+			canvas.drawText(center + textOffsetFactor * yDelta - QPointF(yWidth, -textHeight), yText);
+			canvas.setPen(QPen(Qt::blue, 2));
+			QPointF zDelta(0, -20);
+			canvas.drawLine(center, center + zDelta);
+			QString zText("Z");
+			double zWidth = metrics.width(zText) / 2.0;
+			canvas.drawText(center + textOffsetFactor * zDelta - QPointF(zWidth, -textHeight), zText);
+			canvas.setPen(Qt::NoPen);
+			canvas.setBrush(Qt::darkGray);
+			canvas.drawEllipse(center, 3, 3);
 		} else if (_crossSectionDisplayActive || _reconstructionActive) {
+			//draw slice number
 			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
+			//draw axis name
 			ct::Axis axis = _volume.getCrossSectionAxis();
 			QString axisStr;
 			switch (axis) {

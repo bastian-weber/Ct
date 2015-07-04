@@ -2,6 +2,7 @@
 #define CT_MAININTERFACE
 
 #include <future>
+#include <cmath>
 
 //Qt
 #include <QtWidgets/QtWidgets>
