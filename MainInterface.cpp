@@ -50,6 +50,7 @@ namespace ct {
 		_filterGroupBox->setLayout(_filterLayout);
 
 		_xLabel = new QLabel("x:");
+		_xLabel->setStyleSheet("QLabel { color: red; }");
 		_to1 = new QLabel("to");
 		_xFrom = new QDoubleSpinBox;
 		_xFrom->setRange(0, 1);
@@ -69,6 +70,7 @@ namespace ct {
 		_xLayout->addWidget(_to1, 0);
 		_xLayout->addWidget(_xTo, 1);
 		_yLabel = new QLabel("y:");
+		_yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
 		_to2 = new QLabel("to");
 		_yFrom = new QDoubleSpinBox;
 		_yFrom->setRange(0, 1);
@@ -88,6 +90,7 @@ namespace ct {
 		_yLayout->addWidget(_to2, 0);
 		_yLayout->addWidget(_yTo, 1);
 		_zLabel = new QLabel("z:");
+		_zLabel->setStyleSheet("QLabel { color: blue; }");
 		_to3 = new QLabel("to");
 		_zFrom = new QDoubleSpinBox;
 		_zFrom->setRange(0, 1);
@@ -277,28 +280,17 @@ namespace ct {
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 			//draw axes
 			canvas.setBackgroundMode(Qt::TransparentMode);
-			QPointF center(60, 60);
-			double textOffsetFactor = 1.7;
+			QPointF center(30, 30);
 			double angleRad = _currentProjection.angle*M_PI / 180.0;
-			double textHeight = metrics.ascent()/2.0;
 			canvas.setPen(QPen(Qt::red, 2));			
 			QPointF xDelta(-20 * std::sin(angleRad), 10 * std::cos(angleRad));
 			canvas.drawLine(center, center + xDelta);
-			QString xText("X");
-			double xWidth = metrics.width(xText) / 2.0;
-			canvas.drawText(center + textOffsetFactor * xDelta - QPointF(xWidth, -textHeight), xText);
+			canvas.setPen(QPen(QColor(0, 160, 0), 2));
 			QPointF yDelta(20 * std::cos(angleRad), 10 * std::sin(angleRad));
-			canvas.setPen(QPen(Qt::green, 2));
 			canvas.drawLine(center, center + yDelta);
-			QString yText("Y");
-			double yWidth = metrics.width(yText) / 2.0;
-			canvas.drawText(center + textOffsetFactor * yDelta - QPointF(yWidth, -textHeight), yText);
 			canvas.setPen(QPen(Qt::blue, 2));
 			QPointF zDelta(0, -20);
 			canvas.drawLine(center, center + zDelta);
-			QString zText("Z");
-			double zWidth = metrics.width(zText) / 2.0;
-			canvas.drawText(center + textOffsetFactor * zDelta - QPointF(zWidth, -textHeight), zText);
 			canvas.setPen(Qt::NoPen);
 			canvas.setBrush(Qt::darkGray);
 			canvas.drawEllipse(center, 3, 3);
