@@ -294,9 +294,10 @@ namespace ct {
 			canvas.setPen(Qt::NoPen);
 			canvas.setBrush(Qt::darkGray);
 			canvas.drawEllipse(center, 3, 3);
-		} else if (_crossSectionDisplayActive || _reconstructionActive) {
+		} else if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
 			//draw slice number
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(_volume.getCrossSectionIndex()).arg(_volume.getCrossSectionSize()));
+			int digits = std::ceil(std::log10(_volume.getCrossSectionSize()));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(_volume.getCrossSectionIndex(), digits, 10, QChar('0')).arg(_volume.getCrossSectionSize(), digits, 10, QChar('0')));
 			//draw axis name
 			ct::Axis axis = _volume.getCrossSectionAxis();
 			QString axisStr;
@@ -344,7 +345,7 @@ namespace ct {
 				e->ignore();
 				return;
 			}
-		} else if (_crossSectionDisplayActive || _reconstructionActive) {
+		} else if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
 			if (e->key() == Qt::Key_Up) {
 				setNextSlice();
 			} else if (e->key() == Qt::Key_Down) {
@@ -366,7 +367,7 @@ namespace ct {
 	}
 
 	void MainInterface::wheelEvent(QWheelEvent* e) {
-		if (_crossSectionDisplayActive || _reconstructionActive) {
+		if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
 			if (e->modifiers() & Qt::ControlModifier) {
 				int signum = 1;
 				if (e->delta() < 0) {
