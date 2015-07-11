@@ -276,7 +276,7 @@ namespace ct {
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
-			if (reconstructionCore()) {
+			if (reconstructionCore(filterType)) {
 				//now fill the corners around the cylinder with the lowest density value
 				if (_xMax > 0 && _yMax > 0 && _zMax > 0) {
 					double smallestValue;
