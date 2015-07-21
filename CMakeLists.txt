@@ -93,7 +93,7 @@ endif()
 
 IF(DEFINED QT_ROOT_FOUND)
 
-	target_link_libraries(Ct ${QT_MODULES_CV})
+	target_link_libraries(Ct ${QT_MODULES_ALL})
 
 	#copy the dlls
 	IF(MSVC)
