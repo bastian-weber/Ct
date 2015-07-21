@@ -25,7 +25,7 @@
 namespace ct {
 
 	//struct for returning projections
-	struct Projection{
+	struct Projection {
 		Projection();
 		Projection(cv::Mat image, double angle, double heightOffset);
 		cv::Mat image;
@@ -33,23 +33,23 @@ namespace ct {
 		double heightOffset;													//for random trajectory
 	};
 
-	enum class FilterType{ 
-		RAMLAK, 
-		SHEPP_LOGAN, 
+	enum class FilterType {
+		RAMLAK,
+		SHEPP_LOGAN,
 		HANN
 	};
 
-	enum class Axis{
+	enum class Axis {
 		X,
 		Y,
 		Z
 	};
 
 	//The actual reconstruction class
-	class CtVolume : public QObject{
+	class CtVolume : public QObject {
 		Q_OBJECT
 	public:
-		struct CompletionStatus{
+		struct CompletionStatus {
 			CompletionStatus() : successful(true), userInterrupted(false) { };
 			CompletionStatus(bool successful, bool userInterrupted, QString const& errorMessage = QString()) : successful(successful), userInterrupted(userInterrupted), errorMessage(errorMessage) { }
 			static CompletionStatus success() { return CompletionStatus(true, false); }
@@ -62,7 +62,7 @@ namespace ct {
 
 		//functions		
 		//constructor
-		CtVolume() = default;																
+		CtVolume() = default;
 		CtVolume(std::string csvFile);
 		//getters
 		ct::Projection getProjectionAt(size_t index) const;
@@ -85,11 +85,11 @@ namespace ct {
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
-		void setVolumeBounds(double xFrom, 
-							 double xTo, 
-							 double yFrom, 
+		void setVolumeBounds(double xFrom,
+							 double xTo,
+							 double yFrom,
 							 double yTo,
-							 double zFrom, 
+							 double zFrom,
 							 double zTo);
 		//control functions
 		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
@@ -99,7 +99,7 @@ namespace ct {
 	private:
 
 		//struct for storing one projection internally
-		struct Projection{
+		struct Projection {
 			Projection();
 			Projection(std::string imagePath, double angle, double heightOffset);	//Constructor
 			cv::Mat getImage() const;
@@ -116,7 +116,7 @@ namespace ct {
 		bool _emitSignals = false;												//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex = 0;											//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis = Axis::Z;
-		mutable std::atomic<bool> _stop = false;							
+		mutable std::atomic<bool> _stop = false;
 		size_t _xSize = 0, _ySize = 0, _zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t _imageWidth = 0, _imageHeight = 0;								//stores the height and width of the images in the sinogram
 		//bounds of what will be reconstructed
@@ -140,10 +140,10 @@ namespace ct {
 		double _imageToMatUPrecomputed;
 		double _imageToMatVPrecomputed;
 		//functions			
-		void readParameters(std::ifstream& stream, 
-								   std::string& path, 
-								   std::string& rotationDirection);
-		std::string glueRelativePath(std::string const& basePath, 
+		void readParameters(std::ifstream& stream,
+							std::string& path,
+							std::string& rotationDirection);
+		std::string glueRelativePath(std::string const& basePath,
 									 std::string const& potentialRelativePath);
 		bool readImages(std::ifstream& csvStream, std::string path, int imgCnt);
 		void makeHeightOffsetRelative();
@@ -156,7 +156,7 @@ namespace ct {
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
 		static void applyFourierFilter(cv::Mat& image,
-											 FilterType type);
+									   FilterType type);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
 		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
@@ -164,11 +164,11 @@ namespace ct {
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
-									double v,
-									float u0v0,
-									float u1v0,
-									float u0v1,
-									float u1v1);
+										   double v,
+										   float u0v0,
+										   float u1v0,
+										   float u0v1,
+										   float u1v1);
 		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume
 		//coordinate transformation functions
 		void updateBoundaries();
@@ -183,7 +183,7 @@ namespace ct {
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
 		static int fftCoordToIndex(int coord, int size);							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
-	signals:	
+	signals:
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
 		void reconstructionProgress(double percentage, cv::Mat crossSection) const;

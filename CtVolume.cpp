@@ -53,13 +53,13 @@ namespace ct {
 			std::cout << "CSV file does not contain any images." << std::endl;
 			if (_emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
 			return;
-		}else{
+		} else {
 			//resize the sinogram to the correct size
 			_sinogram.reserve(imgCnt);
 
 			//go back to the beginning of the file
 			stream.seekg(std::ios::beg);
-			
+
 			//read the parameter section of the csv file
 			std::string path;
 			std::string rotationDirection;
@@ -189,7 +189,7 @@ namespace ct {
 				cv::Mat result(vSize, uSize, CV_32FC1);
 				float* ptr;
 				if (axis == Axis::X) {
-#pragma omp parallel for private(ptr)
+				#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -197,7 +197,7 @@ namespace ct {
 						}
 					}
 				} else if (axis == Axis::Y) {
-#pragma omp parallel for private(ptr)
+				#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -205,7 +205,7 @@ namespace ct {
 						}
 					}
 				} else {
-#pragma omp parallel for private(ptr)
+				#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -699,7 +699,7 @@ namespace ct {
 			double uOffset = _uOffset;
 			double SD = _SD;
 			double radiusSquared = std::pow((_xSize / 2.0) - 3, 2);
-#pragma omp parallel for schedule(dynamic)
+		#pragma omp parallel for schedule(dynamic)
 			for (long xIndex = 0; xIndex < _xMax; ++xIndex) {
 				double x = volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
@@ -716,7 +716,7 @@ namespace ct {
 
 							//check if it's inside the image (before the coordinate transformation)
 							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
-								
+
 								u = imageToMatU(u);
 								v = imageToMatV(v);
 
