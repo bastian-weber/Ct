@@ -4,7 +4,10 @@ cmake_minimum_required (VERSION 3.0.2)
 
 #Opencv modules
 set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs")
-set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets" "Qt5::WinExtras")
+#Qt modules
+set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
+#these modules will only be linked on windows
+set(QT_MODULES_CV_WIN "Qt5::WinExtras")
 
 #=======================================================================#
 
@@ -48,6 +51,9 @@ endif(OPENCV_ROOT_FOUND OR UNIX)
 #Qt
 set(QT_MODULES_ALL)
 list(APPEND QT_MODULES_ALL ${QT_MODULES_CV})
+if(WIN32)
+	list(APPEND QT_MODULES_ALL ${QT_MODULES_CV_WIN})
+endif()
 list(REMOVE_DUPLICATES QT_MODULES_ALL)
 include(AskForQtPath)
 if(QT_ROOT_FOUND)
