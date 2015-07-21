@@ -3,7 +3,7 @@ if (NOT DEFINED PATH_QT_ROOT)
 	if(WIN32)
 		SET(PATH_QT_ROOT CACHE PATH "OpenCV root directory")
 	elseif(UNIX)
-		SET(PATH_QT_ROOT "~/Qt/5.4/gcc_64" CACHE PATH "Qt root directory")
+		SET(PATH_QT_ROOT "~/Qt5.5.0/5.5/gcc_64" CACHE PATH "Qt root directory")
 	endif(WIN32)
 
 endif(NOT DEFINED PATH_QT_ROOT)
