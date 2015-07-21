@@ -246,13 +246,13 @@ namespace ct {
 		delete _runAllButton;
 		delete _cmdButton;
 		delete _stopButton;
-		delete _taskbarProgress;
+		delete _progressBar;
 		delete _imageView;
 		delete _informationLabel;
 		delete _statusLabel;
 	#ifdef Q_OS_WIN
-		delete _progressBar;
 		delete _taskbarButton;
+		delete _taskbarProgress;
 	#endif
 	}
 
