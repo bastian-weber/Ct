@@ -6,8 +6,10 @@
 
 //Qt
 #include <QtWidgets/QtWidgets>
+#ifdef Q_OS_WIN
 #include <QtWinExtras/QWinTaskbarProgress>
 #include <QtWinExtras/QWinTaskbarButton>
+#endif
 
 #include "ImageView.h"
 #include "CtVolume.h"
@@ -15,7 +17,7 @@
 
 namespace ct {
 
-	class MainInterface : public QWidget{
+	class MainInterface : public QWidget {
 		Q_OBJECT
 	public:
 		MainInterface(QWidget *parent = 0);
@@ -108,12 +110,15 @@ namespace ct {
 		QPushButton* _cmdButton;
 		QPushButton* _stopButton;
 		QProgressBar* _progressBar;
-		QWinTaskbarButton* _taskbarButton;
-		QWinTaskbarProgress* _taskbarProgress;
 		hb::ImageView* _imageView;
 		QLabel* _informationLabel;
 		QLabel* _statusLabel;
-	private slots:
+		//For the windows taskbar progress display
+	#ifdef Q_OS_WIN
+		QWinTaskbarButton* _taskbarButton;
+		QWinTaskbarProgress* _taskbarProgress;
+	#endif
+		private slots:
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
 		void reactToBoundsChange(double value);

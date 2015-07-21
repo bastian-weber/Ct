@@ -15,19 +15,19 @@
 namespace hb {
 
 	///A timer that delivers precise time measurements under Windows and Linux.
-	class Timer{
+	class Timer {
 	public:
 		Timer();
 		void reset();
 		void stop();
 		long double getTime();
 	private:
-#if defined WINDOWS
+	#if defined WINDOWS
 		LARGE_INTEGER _startingTime;
 		long double _frequency;
-#else
+	#else
 		std::chrono::high_resolution_clock::time_point _start;
-#endif
+	#endif
 
 	};
 
