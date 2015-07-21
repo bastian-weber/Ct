@@ -116,7 +116,7 @@ namespace ct {
 		bool _emitSignals = false;												//if true the object emits qt signals in certain functions
 		size_t _crossSectionIndex = 0;											//index for the crossection that is returned in qt signals
 		Axis _crossSectionAxis = Axis::Z;
-		mutable std::atomic<bool> _stop = false;
+		mutable std::atomic<bool> _stop{ false };
 		size_t _xSize = 0, _ySize = 0, _zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t _imageWidth = 0, _imageHeight = 0;								//stores the height and width of the images in the sinogram
 		//bounds of what will be reconstructed
