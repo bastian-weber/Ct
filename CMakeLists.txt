@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_world")
+set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs")
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets" "Qt5::WinExtras")
 
 #=======================================================================#
