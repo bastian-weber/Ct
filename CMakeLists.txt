@@ -21,7 +21,13 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
 
+if(WIN32)
+	#add application icon ressource
+	list(APPEND SOURCEFILES "${CMAKE_CURRENT_SOURCE_DIR}/ct.rc")
+endif()
+
 add_executable(Ct ${SOURCEFILES})
+
 
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)

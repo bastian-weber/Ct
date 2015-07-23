@@ -17,8 +17,25 @@
 int init(int argc, char* argv[]) {
 	QApplication app(argc, argv);
 
+	QPixmap splashImage("./sourcefiles/data/splash.png");
+	QSplashScreen splash(splashImage);
+	splash.show();
+	app.processEvents();
+
+	QIcon icon;
+	icon.addFile("./sourcefiles/data/icon_16.png");
+	icon.addFile("./sourcefiles/data/icon_32.png");
+	icon.addFile("./sourcefiles/data/icon_48.png");
+	icon.addFile("./sourcefiles/data/icon_64.png");
+	icon.addFile("./sourcefiles/data/icon_96.png");
+	icon.addFile("./sourcefiles/data/icon_128.png");
+	icon.addFile("./sourcefiles/data/icon_192.png");
+	icon.addFile("./sourcefiles/data/icon_256.png");
+	app.setWindowIcon(icon);
+
 	ct::MainInterface* mainInterface = new ct::MainInterface();
 	mainInterface->show();
+	splash.finish(mainInterface);
 
 	//QMainWindow window;
 	//window.setCentralWidget(mainInterface);
