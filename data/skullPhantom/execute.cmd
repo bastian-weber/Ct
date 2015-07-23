@@ -1,1 +1,0 @@
-"G:\Documents\C++ Projects\cv\Release\Cv.exe" -i "G:\Documents\C++ Projects\cv\sourcefiles\data\SkullPhantom\angles.csv" -o G:/Desktop/volume.raw

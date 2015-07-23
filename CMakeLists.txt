@@ -28,7 +28,6 @@ endif()
 
 add_executable(Ct ${SOURCEFILES})
 
-
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)
 	set_target_properties(Ct PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
@@ -77,6 +76,10 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 
+#add custom target for copying ressources
+add_custom_target(COPY_RESSOURCES)
+add_custom_command(TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/data ${PROJECT_BINARY_DIR}/data)
+add_dependencies(Ct COPY_RESSOURCES)
 
 #add lib files and copy dlls
 include(Macros)
