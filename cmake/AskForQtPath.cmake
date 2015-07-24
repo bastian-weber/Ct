@@ -20,7 +20,6 @@ else("${PATH_QT_ROOT}" STREQUAL "")
 	NAMES "lib/cmake/Qt5/Qt5Config.cmake"
 	HINTS ${PATH_QT_ROOT} "${PATH_QT_ROOT}/../../.." "${PATH_QT_ROOT}/../.." "${PATH_QT_ROOT}/..")	
 
-	#set(QT_TMP ${QT_TMP} CACHE INTERNAL "hidden" FORCE)
 	hide_from_gui(QT_TMP)
 
 	if(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
