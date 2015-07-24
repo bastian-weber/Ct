@@ -47,3 +47,7 @@ macro(copydlls MODULELIST)
 
 	endforeach()
 endmacro()
+
+macro(hide_from_gui VARIABLE)
+	set(${VARIABLE} ${${VARIABLE}} CACHE INTERNAL "hidden" FORCE)
+endmacro()
