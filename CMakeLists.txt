@@ -13,6 +13,7 @@ set(QT_MODULES_CV_WIN "Qt5::WinExtras")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(Macros)
 
 project(Ct)
 
@@ -82,7 +83,6 @@ add_custom_command(TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E
 add_dependencies(Ct COPY_RESSOURCES)
 
 #add lib files and copy dlls
-include(Macros)
 
 ########################################### OpenCV Libs ###########################################
 

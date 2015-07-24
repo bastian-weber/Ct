@@ -1,9 +1,9 @@
 if (NOT DEFINED PATH_QT_ROOT)
 
 	if(WIN32)
-		SET(PATH_QT_ROOT CACHE PATH "OpenCV root directory")
+		set(PATH_QT_ROOT CACHE PATH "Qt root directory")
 	elseif(UNIX)
-		SET(PATH_QT_ROOT "~/Qt5.5.0/5.5/gcc_64" CACHE PATH "Qt root directory")
+		set(PATH_QT_ROOT "~/Qt5.5.0/5.5/gcc_64" CACHE PATH "Qt root directory")
 	endif(WIN32)
 
 endif(NOT DEFINED PATH_QT_ROOT)
@@ -14,11 +14,14 @@ if("${PATH_QT_ROOT}" STREQUAL "")
 
 else("${PATH_QT_ROOT}" STREQUAL "")
 
-	FIND_PATH(QT_TMP 
+	unset(QT_TMP CACHE)
+
+	find_path(QT_TMP 
 	NAMES "lib/cmake/Qt5/Qt5Config.cmake"
 	HINTS ${PATH_QT_ROOT} "${PATH_QT_ROOT}/../../.." "${PATH_QT_ROOT}/../.." "${PATH_QT_ROOT}/..")	
 
-	MARK_AS_ADVANCED(QT_TMP)
+	#set(QT_TMP ${QT_TMP} CACHE INTERNAL "hidden" FORCE)
+	hide_from_gui(QT_TMP)
 
 	if(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
 
@@ -26,8 +29,9 @@ else("${PATH_QT_ROOT}" STREQUAL "")
 
 	else(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
 
-		set(PATH_QT_ROOT ${QT_TMP})
+		set(PATH_QT_ROOT ${QT_TMP} CACHE PATH "Qt root directory" FORCE)
 		set(QT_ROOT_FOUND ON)
+		hide_from_gui(QT_ROOT_FOUND)
 
 	endif(${QT_TMP} STREQUAL "QT_TMP-NOTFOUND")
 
