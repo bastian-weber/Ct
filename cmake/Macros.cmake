@@ -1,7 +1,7 @@
 ########################################### Copy DLLS for passed modules ###########################################
 
 macro(copydlls MODULELIST)
-	foreach(ELEMENT ${MODULELIST})
+	foreach(ELEMENT ${${MODULELIST}})
 		get_target_property(LOC_R ${ELEMENT} LOCATION_RELEASE)
 		get_target_property(LOC_D ${ELEMENT} LOCATION_DEBUG)
 		file(COPY ${LOC_R} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)

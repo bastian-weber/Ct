@@ -98,7 +98,7 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
-		copydlls("${OPENCV_MODULES_ALL}")
+		copydlls(OPENCV_MODULES_ALL)
 	endif(MSVC)
 endif()
 
@@ -111,7 +111,7 @@ IF(DEFINED QT_ROOT_FOUND)
 	#copy the dlls
 	IF(MSVC)
 
-		copydlls("${QT_MODULES_ALL}")	
+		copydlls(QT_MODULES_ALL)	
 
 		file(COPY ${PATH_QT_ROOT}/bin/icudt54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
 		file(COPY ${PATH_QT_ROOT}/bin/icuin54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
