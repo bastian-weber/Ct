@@ -13,6 +13,7 @@ set(QT_MODULES_CV_WIN "Qt5::WinExtras")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(Macros)
 
 project(Ct)
 
@@ -46,7 +47,9 @@ set(OPENCV_MODULES_ALL)
 list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CV})
 list(REMOVE_DUPLICATES OPENCV_MODULES_ALL)
 if(NOT UNIX)
-	include(AskForOpenCVPath)
+	set(OPENCV_FILES "OpenCVConfig.cmake")
+	set(OPENCV_PATH_HINTS "${PATH_OPENCV_ROOT}" "${PATH_OPENCV_ROOT}/build" "${PATH_OPENCV_ROOT}/.." "${PATH_OPENCV_ROOT}/../.." "${PATH_OPENCV_ROOT}/../../..")
+	ask_for_path("OpenCV" "" "" OPENCV_FILES OPENCV_PATH_HINTS)
 endif(NOT UNIX)
 if(OPENCV_ROOT_FOUND OR UNIX)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_OPENCV_ROOT})
@@ -60,7 +63,9 @@ if(WIN32)
 	list(APPEND QT_MODULES_ALL ${QT_MODULES_CV_WIN})
 endif()
 list(REMOVE_DUPLICATES QT_MODULES_ALL)
-include(AskForQtPath)
+set(QT_FILES "lib/cmake/Qt5/Qt5Config.cmake")
+set(QT_PATH_HINTS "${PATH_QT_ROOT}" "${PATH_QT_ROOT}/../../.." "${PATH_QT_ROOT}/../.." "${PATH_QT_ROOT}/..")
+ask_for_path("Qt" "" "~/Qt5.5.0/5.5/gcc_64" QT_FILES QT_PATH_HINTS)
 if(QT_ROOT_FOUND)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_QT_ROOT})
 	foreach(module ${QT_MODULES_ALL})
@@ -82,7 +87,6 @@ add_custom_command(TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E
 add_dependencies(Ct COPY_RESSOURCES)
 
 #add lib files and copy dlls
-include(Macros)
 
 ########################################### OpenCV Libs ###########################################
 
@@ -94,7 +98,7 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
-		copydlls("${OPENCV_MODULES_ALL}")
+		copydlls(OPENCV_MODULES_ALL)
 	endif(MSVC)
 endif()
 
@@ -107,7 +111,7 @@ IF(DEFINED QT_ROOT_FOUND)
 	#copy the dlls
 	IF(MSVC)
 
-		copydlls("${QT_MODULES_ALL}")	
+		copydlls(QT_MODULES_ALL)	
 
 		file(COPY ${PATH_QT_ROOT}/bin/icudt54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
 		file(COPY ${PATH_QT_ROOT}/bin/icuin54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
