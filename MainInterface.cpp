@@ -449,6 +449,7 @@ namespace ct {
 		_controlsDisabled = true;
 		_imageView->setRenderRectangle(false);
 		_stopButton->setEnabled(true);
+		_imageView->setFocus();
 	}
 
 	void MainInterface::startupState() {
@@ -459,6 +460,10 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(false);
 		_cmdButton->setEnabled(false);
+		_browseButton->setDefault(true);
+		_loadButton->setDefault(false);
+		_reconstructButton->setDefault(false);
+		_saveButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -468,16 +473,22 @@ namespace ct {
 		_imageView->resetImage();
 		resetInfo();
 		_stopButton->setEnabled(false);
+		_browseButton->setFocus();
 	}
 
 	void MainInterface::fileSelectedState() {
 		_inputFileEdit->setEnabled(true);
 		_browseButton->setEnabled(true);
 		_loadButton->setEnabled(true);
+		_loadButton->setDefault(true);
 		_reconstructButton->setEnabled(false);
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
 		_cmdButton->setEnabled(true);
+		_browseButton->setDefault(false);
+		_loadButton->setDefault(true);
+		_reconstructButton->setDefault(false);
+		_saveButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -488,6 +499,7 @@ namespace ct {
 		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
 		resetInfo();
 		_stopButton->setEnabled(false);
+		_loadButton->setFocus();
 	}
 
 	void MainInterface::preprocessedState() {
@@ -498,6 +510,10 @@ namespace ct {
 		_saveButton->setEnabled(false);
 		_runAllButton->setEnabled(true);
 		_cmdButton->setEnabled(true);
+		_browseButton->setDefault(false);
+		_loadButton->setDefault(false);
+		_reconstructButton->setDefault(true);
+		_saveButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
@@ -505,6 +521,7 @@ namespace ct {
 		_controlsDisabled = false;
 		_imageView->setRenderRectangle(true);
 		_stopButton->setEnabled(false);
+		_reconstructButton->setFocus();
 	}
 
 	void MainInterface::reconstructedState() {
@@ -515,6 +532,10 @@ namespace ct {
 		_saveButton->setEnabled(true);
 		_runAllButton->setEnabled(true);
 		_cmdButton->setEnabled(true);
+		_browseButton->setDefault(false);
+		_loadButton->setDefault(false);
+		_reconstructButton->setDefault(false);
+		_saveButton->setDefault(true);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -522,6 +543,7 @@ namespace ct {
 		_controlsDisabled = false;
 		_imageView->setRenderRectangle(false);
 		_stopButton->setEnabled(false);
+		_saveButton->setFocus();
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
