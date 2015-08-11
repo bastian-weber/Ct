@@ -29,6 +29,7 @@ namespace hb{
 		  _showPointDeletionWarning(false),
 		  _overlayMaskSet(false),
 		  _renderOverlayMask(false),
+		  _renderRectangle(false),
 		  _polylineAssigned(false),
 		  _renderPolyline(false),
 		  _useSmoothTransform(true),
