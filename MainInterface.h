@@ -60,6 +60,7 @@ namespace ct {
 		QString _savingPath;
 		size_t _currentIndex;
 		hb::Timer _timer;
+		QSettings _settings;
 
 		//interface widgets
 		QVBoxLayout* _mainLayout;
