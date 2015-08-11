@@ -27,20 +27,6 @@ if(WIN32)
 	list(APPEND SOURCEFILES "${CMAKE_CURRENT_SOURCE_DIR}/ct.rc")
 endif()
 
-add_executable(Ct ${SOURCEFILES})
-
-#set entry point in case windows subsystem is used and enable whole program optimization
-if(MSVC)
-	set_target_properties(Ct PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
-	set_target_properties(Ct PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
-	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
-endif(MSVC)
-
-#gcc flags (C++11 and some Qt flag)
-if(CMAKE_COMPILER_IS_GNUCC)
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
-endif(CMAKE_COMPILER_IS_GNUCC)
-
 #OpenCV
 set(OpenCV_STATIC OFF)
 set(OPENCV_MODULES_ALL)
@@ -78,6 +64,22 @@ if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
+
+################################################ Configuration ################################################
+
+add_executable(Ct ${SOURCEFILES})
+
+#set entry point in case windows subsystem is used and enable whole program optimization
+if(MSVC)
+	set_target_properties(Ct PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
+	set_target_properties(Ct PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
+	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
+endif(MSVC)
+
+#gcc flags (C++11 and some Qt flag)
+if(CMAKE_COMPILER_IS_GNUCC)
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
+endif(CMAKE_COMPILER_IS_GNUCC)
 
 #add custom target for copying ressources
 add_custom_target(COPY_RESSOURCES)

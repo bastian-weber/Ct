@@ -2,7 +2,9 @@
 
 namespace ct {
 
-	MainInterface::MainInterface(QWidget *parent) : QWidget(parent) {
+	MainInterface::MainInterface(QWidget *parent)
+		: QWidget(parent),
+		_settings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat) {
 
 		setAcceptDrops(true);
 
@@ -196,6 +198,16 @@ namespace ct {
 		setLayout(_mainLayout);
 
 		startupState();
+		_inputFileEdit->setText(_settings.value("last_path", "").toString());
+		QSize lastSize = _settings.value("size", QSize(-1, -1)).toSize();
+		QPoint lastPos = _settings.value("pos", QPoint(-1, -1)).toPoint();
+		bool maximized = _settings.value("maximized", false).toBool();
+		if (maximized) {
+			setWindowState(Qt::WindowMaximized);
+		} else {
+		if (lastSize != QSize(-1, -1)) resize(lastSize);
+		if (lastPos != QPoint(-1, -1)) move(lastPos);
+		}
 	}
 
 	MainInterface::~MainInterface() {
@@ -431,6 +443,9 @@ namespace ct {
 			}
 			return;
 		}
+		_settings.setValue("size", size());
+		_settings.setValue("pos", pos());
+		_settings.setValue("maximized", isMaximized());
 		e->accept();
 	}
 
@@ -646,6 +661,7 @@ namespace ct {
 		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
 			fileSelectedState();
 			_inputFileEdit->setPalette(QPalette());
+			_settings.setValue("last_path", text);
 		} else {
 			startupState();
 			if (text != "") {
@@ -665,7 +681,10 @@ namespace ct {
 		//dialog.setWindowTitle("Open Config File");
 		//dialog.setFilter(QDir::AllDirs);
 		//dialog.exec();
-		QString path = QFileDialog::getOpenFileName(this, tr("Open Config File"), QDir::rootPath(), "Text Files (*.txt *.csv *.*);;");
+		QFileInfo dir(_inputFileEdit->text());
+		QString defaultPath;
+		dir.exists() ? (dir.isDir() ? defaultPath = dir.filePath() : defaultPath = dir.path()) : QDir::rootPath();
+		QString path = QFileDialog::getOpenFileName(this, tr("Open Config File"), defaultPath, "Text Files (*.txt *.csv *.*);;");
 
 		if (!path.isEmpty()) {
 			_inputFileEdit->setText(path);
