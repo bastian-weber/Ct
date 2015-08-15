@@ -65,7 +65,6 @@ namespace ct {
 		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
-		QHBoxLayout* _loadButtonLayout;
 		QVBoxLayout* _filterLayout;
 		QVBoxLayout* _boundsLayout;
 		QHBoxLayout* _progressLayout;
@@ -74,13 +73,9 @@ namespace ct {
 		QHBoxLayout* _zLayout;
 		QVBoxLayout* _rightLayout;
 		QVBoxLayout* _loadLayout;
-		QVBoxLayout* _reconstructLayout;
-		QVBoxLayout* _saveLayout;
 		QVBoxLayout* _advancedLayout;
 		QVBoxLayout* _infoLayout;
 		QGroupBox* _loadGroupBox;
-		QGroupBox* _reconstructGroupBox;
-		QGroupBox* _saveGroupBox;
 		QGroupBox* _advancedGroupBox;
 		QGroupBox* _infoGroupBox;
 		QGroupBox* _filterGroupBox;
