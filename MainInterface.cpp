@@ -3,7 +3,6 @@
 namespace ct {
 
 	MainInterface::MainInterface(QWidget *parent) : QWidget(parent) {
-
 		setAcceptDrops(true);
 
 		_volume.setEmitSignals(true);
@@ -25,17 +24,11 @@ namespace ct {
 		QDirModel* model = new QDirModel(_completer);
 		_completer->setModel(model);
 		_inputFileEdit->setCompleter(_completer);
-		_loadButton = new QPushButton(tr("&Load Config File"));
-		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
-		_loadButtonLayout = new QHBoxLayout;
-		_loadButtonLayout->addWidget(_browseButton, 0);
-		_loadButtonLayout->addSpacing(20);
-		_loadButtonLayout->addWidget(_loadButton, 1);
 
 		_loadLayout = new QVBoxLayout;
 		_loadLayout->addWidget(_inputFileEdit);
-		_loadLayout->addLayout(_loadButtonLayout);
-		_loadGroupBox = new QGroupBox(tr("(1) Load config file"));
+		_loadLayout->addWidget(_browseButton, 1, Qt::AlignLeft);
+		_loadGroupBox = new QGroupBox(tr("Configuration File"));
 		_loadGroupBox->setLayout(_loadLayout);
 
 		_ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
@@ -113,25 +106,15 @@ namespace ct {
 		_boundsLayout->addLayout(_xLayout);
 		_boundsLayout->addLayout(_yLayout);
 		_boundsLayout->addLayout(_zLayout);
-		_boundsGroupBox = new QGroupBox(tr("Reconstruction bounds"));
+		_boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
+		_loadButton = new QPushButton(tr("&Load Config File"));
+		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
-
-		_reconstructLayout = new QVBoxLayout;
-		_reconstructLayout->addWidget(_filterGroupBox);
-		_reconstructLayout->addWidget(_boundsGroupBox);
-		_reconstructLayout->addWidget(_reconstructButton);
-		_reconstructGroupBox = new QGroupBox(tr("(2) Reconstruct"));
-		_reconstructGroupBox->setLayout(_reconstructLayout);
-
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
-		_saveLayout = new QVBoxLayout;
-		_saveLayout->addWidget(_saveButton);
-		_saveGroupBox = new QGroupBox(tr("(3) Save"));
-		_saveGroupBox->setLayout(_saveLayout);
 
 		_runAllButton = new QPushButton(tr("R&un All and Save"));
 		QObject::connect(_runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
@@ -151,14 +134,32 @@ namespace ct {
 
 		_statusLabel = new QLabel(tr("Load a configuration file"));
 
+		_progressBar = new QProgressBar;
+		_progressBar->setAlignment(Qt::AlignCenter);
+#ifdef Q_OS_WIN
+		_taskbarButton = new QWinTaskbarButton(this);
+		_taskbarProgress = _taskbarButton->progress();
+#endif
+		_stopButton = new QPushButton(tr("Stop"));
+		QObject::connect(_stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
+
+		_progressLayout = new QHBoxLayout;
+		_progressLayout->addWidget(_progressBar, 1);
+		_progressLayout->addWidget(_stopButton, 0);
+
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
 		_leftLayout->addWidget(_loadGroupBox);
 		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_reconstructGroupBox);
+		_leftLayout->addWidget(_filterGroupBox);
 		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_saveGroupBox);
+		_leftLayout->addWidget(_boundsGroupBox);
+		_leftLayout->addSpacing(20);
+		_leftLayout->addWidget(_loadButton);
+		_leftLayout->addWidget(_reconstructButton);
+		_leftLayout->addWidget(_saveButton);
 		_leftLayout->addStretch(1);
+		_leftLayout->addLayout(_progressLayout);
 		_leftLayout->addWidget(_statusLabel);
 
 		_rightLayout = new QVBoxLayout;
@@ -176,33 +177,22 @@ namespace ct {
 		_subLayout->addWidget(_imageView, 1);
 		_subLayout->addLayout(_rightLayout, 0);
 
-		_progressBar = new QProgressBar;
-		_progressBar->setAlignment(Qt::AlignCenter);
-	#ifdef Q_OS_WIN
-		_taskbarButton = new QWinTaskbarButton(this);
-		_taskbarProgress = _taskbarButton->progress();
-	#endif
-		_stopButton = new QPushButton(tr("Stop"));
-		QObject::connect(_stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
-
-		_progressLayout = new QHBoxLayout;
-		_progressLayout->addWidget(_progressBar, 1);
-		_progressLayout->addWidget(_stopButton, 0);
-
 		_mainLayout = new QVBoxLayout;
 		_mainLayout->addLayout(_subLayout);
-		_mainLayout->addLayout(_progressLayout);
 
 		setLayout(_mainLayout);
 
 		startupState();
+		//QPalette p(palette());
+		//p.setColor(QPalette::Background, Qt::white);
+		//setAutoFillBackground(true);
+		//setPalette(p);
 	}
 
 	MainInterface::~MainInterface() {
 		delete _mainLayout;
 		delete _subLayout;
 		delete _leftLayout;
-		delete _loadButtonLayout;
 		delete _filterLayout;
 		delete _boundsLayout;
 		delete _progressLayout;
@@ -211,13 +201,9 @@ namespace ct {
 		delete _zLayout;
 		delete _rightLayout;
 		delete _loadLayout;
-		delete _reconstructLayout;
-		delete _saveLayout;
 		delete _advancedLayout;
 		delete _infoLayout;
 		delete _loadGroupBox;
-		delete _reconstructGroupBox;
-		delete _saveGroupBox;
 		delete _advancedGroupBox;
 		delete _infoGroupBox;
 		delete _filterGroupBox;
