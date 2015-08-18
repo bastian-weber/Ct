@@ -115,7 +115,7 @@ namespace ct {
 		_line->setFrameShape(QFrame::HLine);
 		_line->setLineWidth(1);
 		QPalette palette = _line->palette();
-		palette.setColor(QPalette::Foreground, QColor(226, 226, 226));
+		palette.setColor(QPalette::Foreground, QColor(220, 220, 220));
 		_line->setPalette(palette);
 
 		_loadButton = new QPushButton(tr("&Load Config File"));
