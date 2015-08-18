@@ -111,6 +111,13 @@ namespace ct {
 		_boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
+		_line = new QFrame(this);
+		_line->setFrameShape(QFrame::HLine);
+		_line->setLineWidth(1);
+		QPalette palette = _line->palette();
+		palette.setColor(QPalette::Foreground, QColor(226, 226, 226));
+		_line->setPalette(palette);
+
 		_loadButton = new QPushButton(tr("&Load Config File"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
@@ -152,11 +159,10 @@ namespace ct {
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
 		_leftLayout->addWidget(_loadGroupBox);
-		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_filterGroupBox);
-		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addSpacing(20);
+		_leftLayout->addSpacing(30);
+		_leftLayout->addWidget(_line);
 		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
 		_leftLayout->addWidget(_saveButton);
@@ -237,6 +243,7 @@ namespace ct {
 		delete _to3;
 		delete _inputFileEdit;
 		delete _completer;
+		delete _line;
 		delete _browseButton;
 		delete _loadButton;
 		delete _reconstructButton;
@@ -445,10 +452,17 @@ namespace ct {
 		_cmdButton->setEnabled(false);
 		_filterGroupBox->setEnabled(false);
 		_boundsGroupBox->setEnabled(false);
+		_browseButton->setDefault(false);
+		_loadButton->setDefault(true);
+		_reconstructButton->setDefault(false);
+		_saveButton->setDefault(false);
+		_stopButton->setDefault(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = false;
 		_controlsDisabled = true;
 		_imageView->setRenderRectangle(false);
+		_progressBar->setVisible(true);
+		_stopButton->setVisible(true);
 		_stopButton->setEnabled(true);
 		_imageView->setFocus();
 	}
@@ -465,6 +479,7 @@ namespace ct {
 		_loadButton->setDefault(false);
 		_reconstructButton->setDefault(false);
 		_saveButton->setDefault(false);
+		_stopButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -473,7 +488,8 @@ namespace ct {
 		_imageView->setRenderRectangle(false);
 		_imageView->resetImage();
 		resetInfo();
-		_stopButton->setEnabled(false);
+		_progressBar->setVisible(false);
+		_progressBar->setVisible(false);
 		_browseButton->setFocus();
 	}
 
@@ -490,6 +506,7 @@ namespace ct {
 		_loadButton->setDefault(true);
 		_reconstructButton->setDefault(false);
 		_saveButton->setDefault(false);
+		_stopButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
@@ -499,7 +516,8 @@ namespace ct {
 		_imageView->resetImage();
 		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
 		resetInfo();
-		_stopButton->setEnabled(false);
+		_progressBar->setVisible(false);
+		_stopButton->setVisible(false);
 		_loadButton->setFocus();
 	}
 
@@ -515,13 +533,15 @@ namespace ct {
 		_loadButton->setDefault(false);
 		_reconstructButton->setDefault(true);
 		_saveButton->setDefault(false);
+		_stopButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = true;
 		_crossSectionDisplayActive = false;
 		_controlsDisabled = false;
 		_imageView->setRenderRectangle(true);
-		_stopButton->setEnabled(false);
+		_progressBar->setVisible(false);
+		_stopButton->setVisible(false);
 		_reconstructButton->setFocus();
 	}
 
@@ -537,13 +557,15 @@ namespace ct {
 		_loadButton->setDefault(false);
 		_reconstructButton->setDefault(false);
 		_saveButton->setDefault(true);
+		_stopButton->setDefault(false);
 		_filterGroupBox->setEnabled(true);
 		_boundsGroupBox->setEnabled(true);
 		_sinogramDisplayActive = false;
 		_crossSectionDisplayActive = true;
 		_controlsDisabled = false;
 		_imageView->setRenderRectangle(false);
-		_stopButton->setEnabled(false);
+		_progressBar->setVisible(false);
+		_stopButton->setVisible(false);
 		_saveButton->setFocus();
 	}
 
@@ -650,6 +672,7 @@ namespace ct {
 			_settings.setValue("last_path", text);
 		} else {
 			startupState();
+			_inputFileEdit->setFocus();
 			if (text != "") {
 				QPalette palette;
 				palette.setColor(QPalette::Text, Qt::red);
