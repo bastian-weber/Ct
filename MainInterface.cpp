@@ -161,8 +161,9 @@ namespace ct {
 		_leftLayout->addWidget(_loadGroupBox);
 		_leftLayout->addWidget(_filterGroupBox);
 		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addSpacing(30);
+		_leftLayout->addSpacing(15);
 		_leftLayout->addWidget(_line);
+		_leftLayout->addSpacing(10);
 		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
 		_leftLayout->addWidget(_saveButton);
@@ -542,7 +543,7 @@ namespace ct {
 		_imageView->setRenderRectangle(true);
 		_progressBar->setVisible(false);
 		_stopButton->setVisible(false);
-		_reconstructButton->setFocus();
+		_imageView->setFocus();
 	}
 
 	void MainInterface::reconstructedState() {
@@ -566,7 +567,7 @@ namespace ct {
 		_imageView->setRenderRectangle(false);
 		_progressBar->setVisible(false);
 		_stopButton->setVisible(false);
-		_saveButton->setFocus();
+		_imageView->setFocus();
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
