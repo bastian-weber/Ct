@@ -111,13 +111,6 @@ namespace ct {
 		_boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
-		_line = new QFrame(this);
-		_line->setFrameShape(QFrame::HLine);
-		_line->setLineWidth(1);
-		QPalette palette = _line->palette();
-		palette.setColor(QPalette::Foreground, QColor(220, 220, 220));
-		_line->setPalette(palette);
-
 		_loadButton = new QPushButton(tr("&Load Config File"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
@@ -159,11 +152,11 @@ namespace ct {
 		_leftLayout = new QVBoxLayout;
 		_leftLayout->addStrut(250);
 		_leftLayout->addWidget(_loadGroupBox);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_filterGroupBox);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addSpacing(15);
-		_leftLayout->addWidget(_line);
-		_leftLayout->addSpacing(10);
+		_leftLayout->addSpacing(20);
 		_leftLayout->addWidget(_loadButton);
 		_leftLayout->addWidget(_reconstructButton);
 		_leftLayout->addWidget(_saveButton);
@@ -186,16 +179,14 @@ namespace ct {
 		_subLayout->addWidget(_imageView, 1);
 		_subLayout->addLayout(_rightLayout, 0);
 
-		_mainLayout = new QVBoxLayout;
-		_mainLayout->addLayout(_subLayout);
-
-		setLayout(_mainLayout);
+		setLayout(_subLayout);
 
 		startupState();
 		_inputFileEdit->setText(_settings.value("last_path", "").toString());
 		QSize lastSize = _settings.value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = _settings.value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = _settings.value("maximized", false).toBool();
+
 		//QPalette p(palette());
 		//p.setColor(QPalette::Background, Qt::white);
 		//setAutoFillBackground(true);
@@ -209,7 +200,6 @@ namespace ct {
 	}
 
 	MainInterface::~MainInterface() {
-		delete _mainLayout;
 		delete _subLayout;
 		delete _leftLayout;
 		delete _filterLayout;
@@ -244,7 +234,6 @@ namespace ct {
 		delete _to3;
 		delete _inputFileEdit;
 		delete _completer;
-		delete _line;
 		delete _browseButton;
 		delete _loadButton;
 		delete _reconstructButton;
