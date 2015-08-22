@@ -63,7 +63,6 @@ namespace ct {
 		QSettings _settings;
 
 		//interface widgets
-		QVBoxLayout* _mainLayout;
 		QHBoxLayout* _subLayout;
 		QVBoxLayout* _leftLayout;
 		QVBoxLayout* _filterLayout;
@@ -98,7 +97,6 @@ namespace ct {
 		QLabel* _to3;
 		QLineEdit* _inputFileEdit;
 		QCompleter* _completer;
-		QFrame* _line;
 		QPushButton* _browseButton;
 		QPushButton* _loadButton;
 		QPushButton* _reconstructButton;
