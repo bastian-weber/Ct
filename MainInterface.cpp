@@ -111,16 +111,16 @@ namespace ct {
 		_boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		_boundsGroupBox->setLayout(_boundsLayout);
 
-		_loadButton = new QPushButton(tr("&Load Config File"));
+		_loadButton = new QPushButton(tr("&Load Configuration File"));
 		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
 		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
 		_saveButton = new QPushButton(tr("&Save Volume"));
 		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
 
-		_runAllButton = new QPushButton(tr("R&un All and Save"));
+		_runAllButton = new QPushButton(tr("R&un All Steps and Save"));
 		QObject::connect(_runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
-		_cmdButton = new QPushButton(tr("Save as &Batch File"));
+		_cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"));
 		QObject::connect(_cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
 		_advancedLayout = new QVBoxLayout;
 		_advancedLayout->addWidget(_runAllButton);
