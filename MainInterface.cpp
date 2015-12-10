@@ -479,7 +479,7 @@ namespace ct {
 		_imageView->resetImage();
 		resetInfo();
 		_progressBar->setVisible(false);
-		_progressBar->setVisible(false);
+		_stopButton->setVisible(false);
 		_browseButton->setFocus();
 	}
 
