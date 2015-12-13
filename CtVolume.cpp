@@ -319,31 +319,48 @@ namespace ct {
 		std::lock_guard<std::mutex> lock(_exclusiveFunctionsMutex);
 		_stop = false;
 		if (_volume.size() > 0 && _volume[0].size() > 0 && _volume[0][0].size() > 0) {
-
-			QFile file(filename.c_str());
-			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-				std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-				if (_emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
-				return;
-			}
-			QDataStream out(&file);
-			out.setFloatingPointPrecision(QDataStream::SinglePrecision);
-			out.setByteOrder(QDataStream::LittleEndian);
-			//iterate through the volume
-			for (int x = 0; x < _xMax; ++x) {
-				if (_stop) break;
-				if (_emitSignals) {
-					double percentage = floor(double(x) / double(_volume.size()) * 100 + 0.5);
-					emit(savingProgress(percentage));
+			{
+				//write binary file
+				QFile file(filename.c_str());
+				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
+					if (_emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+					return;
 				}
-				for (int y = 0; y < _yMax; ++y) {
-					for (int z = 0; z < _zMax; ++z) {
-						//save one float of data
-						out << _volume[x][y][z];
+				QDataStream out(&file);
+				out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+				out.setByteOrder(QDataStream::LittleEndian);
+				//iterate through the volume
+				for (int x = 0; x < _xMax; ++x) {
+					if (_stop) break;
+					if (_emitSignals) {
+						double percentage = floor(double(x) / double(_volume.size()) * 100 + 0.5);
+						emit(savingProgress(percentage));
+					}
+					for (int y = 0; y < _yMax; ++y) {
+						for (int z = 0; z < _zMax; ++z) {
+							//save one float of data
+							out << _volume[x][y][z];
+						}
 					}
 				}
+				file.close();
 			}
-			file.close();
+			{
+				//write information file
+				QFileInfo fileInfo(filename.c_str());
+				QFile file(QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt")));
+				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+					std::cout << "Could not write the info file." << std::endl;
+					if (_emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
+					return;
+				}
+				QTextStream out(&file);
+				out << "X Size:\t" << getXSize() << endl;
+				out << "Y Size:\t" << getYSize() << endl;
+				out << "Z Size:\t" << getZSize() << endl;
+				file.close();
+			}
 			if (_stop) {
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (_emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
