@@ -158,7 +158,6 @@ namespace ct {
 		static void applyFourierFilter(cv::Mat& image,
 									   FilterType type);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
-		static double logFunction(double x);									//the actual log function used by applyLogScaling
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
