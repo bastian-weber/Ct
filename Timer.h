@@ -23,8 +23,8 @@ namespace hb {
 		long double getTime();
 	private:
 	#if defined WINDOWS
-		LARGE_INTEGER _startingTime;
-		long double _frequency;
+		LARGE_INTEGER startingTime;
+		long double frequency;
 	#else
 		std::chrono::high_resolution_clock::time_point _start;
 	#endif
