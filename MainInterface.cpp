@@ -4,188 +4,188 @@ namespace ct {
 
 	MainInterface::MainInterface(QWidget *parent)
 		: QWidget(parent),
-		_settings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat) {
+		settings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat) {
 		setAcceptDrops(true);
 
-		_volume.setEmitSignals(true);
+		this->volume.setEmitSignals(true);
 		qRegisterMetaType<CtVolume::CompletionStatus>("CtVolume::CompletionStatus");
-		QObject::connect(&_volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
-		QObject::connect(&_volume, SIGNAL(loadingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToLoadCompletion(CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
+		QObject::connect(&this->volume, SIGNAL(loadingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToLoadCompletion(CtVolume::CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");
-		QObject::connect(&_volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
-		QObject::connect(&_volume, SIGNAL(reconstructionFinished(cv::Mat, CtVolume::CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CtVolume::CompletionStatus)));
-		QObject::connect(&_volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
-		QObject::connect(&_volume, SIGNAL(savingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToSaveCompletion(CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
+		QObject::connect(&this->volume, SIGNAL(reconstructionFinished(cv::Mat, CtVolume::CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
+		QObject::connect(&this->volume, SIGNAL(savingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToSaveCompletion(CtVolume::CompletionStatus)));
 
-		_inputFileEdit = new QLineEdit;
-		_inputFileEdit->setPlaceholderText("Configuration File");
-		QObject::connect(_inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
-		_browseButton = new QPushButton(tr("&Browse"));
-		QObject::connect(_browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
-		_completer = new QCompleter;
-		QDirModel* model = new QDirModel(_completer);
-		_completer->setModel(model);
-		_inputFileEdit->setCompleter(_completer);
+		this->inputFileEdit = new QLineEdit;
+		this->inputFileEdit->setPlaceholderText("Configuration File");
+		QObject::connect(this->inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
+		this->browseButton = new QPushButton(tr("&Browse"));
+		QObject::connect(this->browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
+		this->completer = new QCompleter;
+		QDirModel* model = new QDirModel(this->completer);
+		this->completer->setModel(model);
+		this->inputFileEdit->setCompleter(this->completer);
 
-		_loadLayout = new QVBoxLayout;
-		_loadLayout->addWidget(_inputFileEdit);
-		_loadLayout->addWidget(_browseButton, 1, Qt::AlignLeft);
-		_loadGroupBox = new QGroupBox(tr("Configuration File"));
-		_loadGroupBox->setLayout(_loadLayout);
+		this->loadLayout = new QVBoxLayout;
+		this->loadLayout->addWidget(this->inputFileEdit);
+		this->loadLayout->addWidget(this->browseButton, 1, Qt::AlignLeft);
+		this->loadGroupBox = new QGroupBox(tr("Configuration File"));
+		this->loadGroupBox->setLayout(this->loadLayout);
 
-		_ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
-		_ramlakRadioButton->setChecked(true);
-		_shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
-		_hannRadioButton = new QRadioButton(tr("&Hann"));
-		_filterLayout = new QVBoxLayout;
-		_filterLayout->addWidget(_ramlakRadioButton);
-		_filterLayout->addWidget(_shepploganRadioButton);
-		_filterLayout->addWidget(_hannRadioButton);
-		_filterGroupBox = new QGroupBox(tr("Filter Type"));
-		_filterGroupBox->setLayout(_filterLayout);
+		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
+		this->ramlakRadioButton->setChecked(true);
+		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
+		this->hannRadioButton = new QRadioButton(tr("&Hann"));
+		this->filterLayout = new QVBoxLayout;
+		this->filterLayout->addWidget(this->ramlakRadioButton);
+		this->filterLayout->addWidget(this->shepploganRadioButton);
+		this->filterLayout->addWidget(this->hannRadioButton);
+		this->filterGroupBox = new QGroupBox(tr("Filter Type"));
+		this->filterGroupBox->setLayout(this->filterLayout);
 
-		_xLabel = new QLabel("x:");
-		_xLabel->setStyleSheet("QLabel { color: red; }");
-		_to1 = new QLabel("to");
-		_xFrom = new QDoubleSpinBox;
-		_xFrom->setRange(0, 1);
-		_xFrom->setValue(0);
-		_xFrom->setDecimals(3);
-		_xFrom->setSingleStep(0.01);
-		QObject::connect(_xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_xTo = new QDoubleSpinBox;
-		_xTo->setRange(0, 1);
-		_xTo->setValue(1);
-		_xTo->setDecimals(3);
-		_xTo->setSingleStep(0.01);
-		QObject::connect(_xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_xLayout = new QHBoxLayout;
-		_xLayout->addWidget(_xLabel, 0);
-		_xLayout->addWidget(_xFrom, 1);
-		_xLayout->addWidget(_to1, 0);
-		_xLayout->addWidget(_xTo, 1);
-		_yLabel = new QLabel("y:");
-		_yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
-		_to2 = new QLabel("to");
-		_yFrom = new QDoubleSpinBox;
-		_yFrom->setRange(0, 1);
-		_yFrom->setValue(0);
-		_yFrom->setDecimals(3);
-		_yFrom->setSingleStep(0.01);
-		QObject::connect(_yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_yTo = new QDoubleSpinBox;
-		_yTo->setRange(0, 1);
-		_yTo->setValue(1);
-		_yTo->setDecimals(3);
-		_yTo->setSingleStep(0.01);
-		QObject::connect(_yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_yLayout = new QHBoxLayout;
-		_yLayout->addWidget(_yLabel, 0);
-		_yLayout->addWidget(_yFrom, 1);
-		_yLayout->addWidget(_to2, 0);
-		_yLayout->addWidget(_yTo, 1);
-		_zLabel = new QLabel("z:");
-		_zLabel->setStyleSheet("QLabel { color: blue; }");
-		_to3 = new QLabel("to");
-		_zFrom = new QDoubleSpinBox;
-		_zFrom->setRange(0, 1);
-		_zFrom->setValue(0);
-		_zFrom->setDecimals(3);
-		_zFrom->setSingleStep(0.01);
-		QObject::connect(_zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_zTo = new QDoubleSpinBox;
-		_zTo->setRange(0, 1);
-		_zTo->setValue(1);
-		_zTo->setDecimals(3);
-		_zTo->setSingleStep(0.01);
-		QObject::connect(_zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
-		_zLayout = new QHBoxLayout;
-		_zLayout->addWidget(_zLabel, 0);
-		_zLayout->addWidget(_zFrom, 1);
-		_zLayout->addWidget(_to3, 0);
-		_zLayout->addWidget(_zTo, 1);
-		_boundsLayout = new QVBoxLayout;
-		_boundsLayout->addLayout(_xLayout);
-		_boundsLayout->addLayout(_yLayout);
-		_boundsLayout->addLayout(_zLayout);
-		_boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
-		_boundsGroupBox->setLayout(_boundsLayout);
+		this->xLabel = new QLabel("x:");
+		this->xLabel->setStyleSheet("QLabel { color: red; }");
+		this->to1 = new QLabel("to");
+		this->xFrom = new QDoubleSpinBox;
+		this->xFrom->setRange(0, 1);
+		this->xFrom->setValue(0);
+		this->xFrom->setDecimals(3);
+		this->xFrom->setSingleStep(0.01);
+		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->xTo = new QDoubleSpinBox;
+		this->xTo->setRange(0, 1);
+		this->xTo->setValue(1);
+		this->xTo->setDecimals(3);
+		this->xTo->setSingleStep(0.01);
+		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->xLayout = new QHBoxLayout;
+		this->xLayout->addWidget(this->xLabel, 0);
+		this->xLayout->addWidget(this->xFrom, 1);
+		this->xLayout->addWidget(this->to1, 0);
+		this->xLayout->addWidget(this->xTo, 1);
+		this->yLabel = new QLabel("y:");
+		this->yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
+		this->to2 = new QLabel("to");
+		this->yFrom = new QDoubleSpinBox;
+		this->yFrom->setRange(0, 1);
+		this->yFrom->setValue(0);
+		this->yFrom->setDecimals(3);
+		this->yFrom->setSingleStep(0.01);
+		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->yTo = new QDoubleSpinBox;
+		this->yTo->setRange(0, 1);
+		this->yTo->setValue(1);
+		this->yTo->setDecimals(3);
+		this->yTo->setSingleStep(0.01);
+		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->yLayout = new QHBoxLayout;
+		this->yLayout->addWidget(this->yLabel, 0);
+		this->yLayout->addWidget(this->yFrom, 1);
+		this->yLayout->addWidget(this->to2, 0);
+		this->yLayout->addWidget(this->yTo, 1);
+		this->zLabel = new QLabel("z:");
+		this->zLabel->setStyleSheet("QLabel { color: blue; }");
+		this->to3 = new QLabel("to");
+		this->zFrom = new QDoubleSpinBox;
+		this->zFrom->setRange(0, 1);
+		this->zFrom->setValue(0);
+		this->zFrom->setDecimals(3);
+		this->zFrom->setSingleStep(0.01);
+		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->zTo = new QDoubleSpinBox;
+		this->zTo->setRange(0, 1);
+		this->zTo->setValue(1);
+		this->zTo->setDecimals(3);
+		this->zTo->setSingleStep(0.01);
+		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->zLayout = new QHBoxLayout;
+		this->zLayout->addWidget(this->zLabel, 0);
+		this->zLayout->addWidget(this->zFrom, 1);
+		this->zLayout->addWidget(this->to3, 0);
+		this->zLayout->addWidget(this->zTo, 1);
+		this->boundsLayout = new QVBoxLayout;
+		this->boundsLayout->addLayout(this->xLayout);
+		this->boundsLayout->addLayout(this->yLayout);
+		this->boundsLayout->addLayout(this->zLayout);
+		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
+		this->boundsGroupBox->setLayout(this->boundsLayout);
 
-		_loadButton = new QPushButton(tr("&Load Configuration File"));
-		QObject::connect(_loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
-		_reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
-		QObject::connect(_reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
-		_saveButton = new QPushButton(tr("&Save Volume"));
-		QObject::connect(_saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
+		this->loadButton = new QPushButton(tr("&Load Configuration File"));
+		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
+		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
+		QObject::connect(this->reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
+		this->saveButton = new QPushButton(tr("&Save Volume"));
+		QObject::connect(this->saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
 
-		_runAllButton = new QPushButton(tr("R&un All Steps and Save"));
-		QObject::connect(_runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
-		_cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"));
-		QObject::connect(_cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
-		_advancedLayout = new QVBoxLayout;
-		_advancedLayout->addWidget(_runAllButton);
-		_advancedLayout->addWidget(_cmdButton);
-		_advancedGroupBox = new QGroupBox(tr("Advanced"));
-		_advancedGroupBox->setLayout(_advancedLayout);
+		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"));
+		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
+		this->cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"));
+		QObject::connect(this->cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
+		this->advancedLayout = new QVBoxLayout;
+		this->advancedLayout->addWidget(this->runAllButton);
+		this->advancedLayout->addWidget(this->cmdButton);
+		this->advancedGroupBox = new QGroupBox(tr("Advanced"));
+		this->advancedGroupBox->setLayout(this->advancedLayout);
 
-		_informationLabel = new QLabel;
-		_infoLayout = new QVBoxLayout;
-		_infoLayout->addWidget(_informationLabel);
-		_infoGroupBox = new QGroupBox(tr("Information"));
-		_infoGroupBox->setLayout(_infoLayout);
+		this->informationLabel = new QLabel;
+		this->infoLayout = new QVBoxLayout;
+		this->infoLayout->addWidget(this->informationLabel);
+		this->infoGroupBox = new QGroupBox(tr("Information"));
+		this->infoGroupBox->setLayout(this->infoLayout);
 
-		_statusLabel = new QLabel(tr("Load a configuration file"));
+		this->statusLabel = new QLabel(tr("Load a configuration file"));
 
-		_progressBar = new QProgressBar;
-		_progressBar->setAlignment(Qt::AlignCenter);
+		this->progressBar = new QProgressBar;
+		this->progressBar->setAlignment(Qt::AlignCenter);
 #ifdef Q_OS_WIN
-		_taskbarButton = new QWinTaskbarButton(this);
-		_taskbarProgress = _taskbarButton->progress();
+		this->taskbarButton = new QWinTaskbarButton(this);
+		this->taskbarProgress = this->taskbarButton->progress();
 #endif
-		_stopButton = new QPushButton(tr("Stop"));
-		QObject::connect(_stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
+		this->stopButton = new QPushButton(tr("Stop"));
+		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
-		_progressLayout = new QHBoxLayout;
-		_progressLayout->addWidget(_progressBar, 1);
-		_progressLayout->addWidget(_stopButton, 0);
+		this->progressLayout = new QHBoxLayout;
+		this->progressLayout->addWidget(this->progressBar, 1);
+		this->progressLayout->addWidget(this->stopButton, 0);
 
-		_leftLayout = new QVBoxLayout;
-		_leftLayout->addStrut(250);
-		_leftLayout->addWidget(_loadGroupBox);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_filterGroupBox);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_boundsGroupBox);
-		_leftLayout->addSpacing(20);
-		_leftLayout->addWidget(_loadButton);
-		_leftLayout->addWidget(_reconstructButton);
-		_leftLayout->addWidget(_saveButton);
-		_leftLayout->addStretch(1);
-		_leftLayout->addLayout(_progressLayout);
-		_leftLayout->addWidget(_statusLabel);
+		this->leftLayout = new QVBoxLayout;
+		this->leftLayout->addStrut(250);
+		this->leftLayout->addWidget(this->loadGroupBox);
+		this->leftLayout->addSpacing(20);
+		this->leftLayout->addWidget(this->filterGroupBox);
+		this->leftLayout->addSpacing(20);
+		this->leftLayout->addWidget(this->boundsGroupBox);
+		this->leftLayout->addSpacing(20);
+		this->leftLayout->addWidget(this->loadButton);
+		this->leftLayout->addWidget(this->reconstructButton);
+		this->leftLayout->addWidget(this->saveButton);
+		this->leftLayout->addStretch(1);
+		this->leftLayout->addLayout(this->progressLayout);
+		this->leftLayout->addWidget(this->statusLabel);
 
-		_rightLayout = new QVBoxLayout;
-		_rightLayout->addStrut(250);
-		_rightLayout->addWidget(_advancedGroupBox);
-		_rightLayout->addSpacing(20);
-		_rightLayout->addWidget(_infoGroupBox);
-		_rightLayout->addStretch(1);
+		this->rightLayout = new QVBoxLayout;
+		this->rightLayout->addStrut(250);
+		this->rightLayout->addWidget(this->advancedGroupBox);
+		this->rightLayout->addSpacing(20);
+		this->rightLayout->addWidget(this->infoGroupBox);
+		this->rightLayout->addStretch(1);
 
-		_imageView = new hb::ImageView;
-		_imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
+		this->imageView = new hb::ImageView;
+		this->imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
 
-		_subLayout = new QHBoxLayout;
-		_subLayout->addLayout(_leftLayout, 0);
-		_subLayout->addWidget(_imageView, 1);
-		_subLayout->addLayout(_rightLayout, 0);
+		this->subLayout = new QHBoxLayout;
+		this->subLayout->addLayout(this->leftLayout, 0);
+		this->subLayout->addWidget(this->imageView, 1);
+		this->subLayout->addLayout(this->rightLayout, 0);
 
-		setLayout(_subLayout);
+		setLayout(this->subLayout);
 
-		startupState();
-		_inputFileEdit->setText(_settings.value("last_path", "").toString());
-		QSize lastSize = _settings.value("size", QSize(-1, -1)).toSize();
-		QPoint lastPos = _settings.value("pos", QPoint(-1, -1)).toPoint();
-		bool maximized = _settings.value("maximized", false).toBool();
+		this->startupState();
+		this->inputFileEdit->setText(this->settings.value("last_path", "").toString());
+		QSize lastSize = this->settings.value("size", QSize(-1, -1)).toSize();
+		QPoint lastPos = this->settings.value("pos", QPoint(-1, -1)).toPoint();
+		bool maximized = this->settings.value("maximized", false).toBool();
 
 		//QPalette p(palette());
 		//p.setColor(QPalette::Background, Qt::white);
@@ -200,54 +200,54 @@ namespace ct {
 	}
 
 	MainInterface::~MainInterface() {
-		delete _subLayout;
-		delete _leftLayout;
-		delete _filterLayout;
-		delete _boundsLayout;
-		delete _progressLayout;
-		delete _xLayout;
-		delete _yLayout;
-		delete _zLayout;
-		delete _rightLayout;
-		delete _loadLayout;
-		delete _advancedLayout;
-		delete _infoLayout;
-		delete _loadGroupBox;
-		delete _advancedGroupBox;
-		delete _infoGroupBox;
-		delete _filterGroupBox;
-		delete _ramlakRadioButton;
-		delete _shepploganRadioButton;
-		delete _hannRadioButton;
-		delete _boundsGroupBox;
-		delete _xFrom;
-		delete _xTo;
-		delete _yFrom;
-		delete _yTo;
-		delete _zFrom;
-		delete _zTo;
-		delete _xLabel;
-		delete _yLabel;
-		delete _zLabel;
-		delete _to1;
-		delete _to2;
-		delete _to3;
-		delete _inputFileEdit;
-		delete _completer;
-		delete _browseButton;
-		delete _loadButton;
-		delete _reconstructButton;
-		delete _saveButton;
-		delete _runAllButton;
-		delete _cmdButton;
-		delete _stopButton;
-		delete _progressBar;
-		delete _imageView;
-		delete _informationLabel;
-		delete _statusLabel;
+		delete this->subLayout;
+		delete this->leftLayout;
+		delete this->filterLayout;
+		delete this->boundsLayout;
+		delete this->progressLayout;
+		delete this->xLayout;
+		delete this->yLayout;
+		delete this->zLayout;
+		delete this->rightLayout;
+		delete this->loadLayout;
+		delete this->advancedLayout;
+		delete this->infoLayout;
+		delete this->loadGroupBox;
+		delete this->advancedGroupBox;
+		delete this->infoGroupBox;
+		delete this->filterGroupBox;
+		delete this->ramlakRadioButton;
+		delete this->shepploganRadioButton;
+		delete this->hannRadioButton;
+		delete this->boundsGroupBox;
+		delete this->xFrom;
+		delete this->xTo;
+		delete this->yFrom;
+		delete this->yTo;
+		delete this->zFrom;
+		delete this->zTo;
+		delete this->xLabel;
+		delete this->yLabel;
+		delete this->zLabel;
+		delete this->to1;
+		delete this->to2;
+		delete this->to3;
+		delete this->inputFileEdit;
+		delete this->completer;
+		delete this->browseButton;
+		delete this->loadButton;
+		delete this->reconstructButton;
+		delete this->saveButton;
+		delete this->runAllButton;
+		delete this->cmdButton;
+		delete this->stopButton;
+		delete this->progressBar;
+		delete this->imageView;
+		delete this->informationLabel;
+		delete this->statusLabel;
 	#ifdef Q_OS_WIN
-		delete _taskbarButton;
-		delete _taskbarProgress;
+		delete this->taskbarButton;
+		delete this->taskbarProgress;
 	#endif
 	}
 
@@ -269,18 +269,18 @@ namespace ct {
 		canvas.setBackground(base);
 		canvas.setBackgroundMode(Qt::OpaqueMode);
 		QFontMetrics metrics(font);
-		if (_sinogramDisplayActive) {
+		if (this->sinogramDisplayActive) {
 			//draw projection number
-			int digits = std::ceil(std::log10(_volume.getSinogramSize()));
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %L1/%L2").arg(_currentIndex, digits, 10, QChar('0')).arg(_volume.getSinogramSize(), digits, 10, QChar('0')));
+			int digits = std::ceil(std::log10(this->volume.getSinogramSize()));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Projection %L1/%L2").arg(this->currentIndex, digits, 10, QChar('0')).arg(this->volume.getSinogramSize(), digits, 10, QChar('0')));
 			//draw angle
-			QString message = QString("%1 = %L2%3").arg(QChar(0x03B2)).arg(_currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
+			QString message = QString("%1 = %L2%3").arg(QChar(0x03B2)).arg(this->currentProjection.angle, 0, 'f', 2).arg(QChar(0x00B0));
 			int textWidth = metrics.width(message);
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 			//draw axes
 			canvas.setBackgroundMode(Qt::TransparentMode);
 			QPointF center(30, 30);
-			double angleRad = _currentProjection.angle*M_PI / 180.0;
+			double angleRad = this->currentProjection.angle*M_PI / 180.0;
 			canvas.setPen(QPen(Qt::red, 2));
 			QPointF xDelta(-20 * std::sin(angleRad), 10 * std::cos(angleRad));
 			canvas.drawLine(center, center + xDelta);
@@ -293,12 +293,12 @@ namespace ct {
 			canvas.setPen(Qt::NoPen);
 			canvas.setBrush(Qt::darkGray);
 			canvas.drawEllipse(center, 3, 3);
-		} else if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
+		} else if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
 			//draw slice number
-			int digits = std::ceil(std::log10(_volume.getCrossSectionSize()));
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(_volume.getCrossSectionIndex(), digits, 10, QChar('0')).arg(_volume.getCrossSectionSize(), digits, 10, QChar('0')));
+			int digits = std::ceil(std::log10(this->volume.getCrossSectionSize()));
+			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(this->volume.getCrossSectionIndex(), digits, 10, QChar('0')).arg(this->volume.getCrossSectionSize(), digits, 10, QChar('0')));
 			//draw axis name
-			ct::Axis axis = _volume.getCrossSectionAxis();
+			ct::Axis axis = this->volume.getCrossSectionAxis();
 			QString axisStr;
 			switch (axis) {
 				case ct::Axis::X:
@@ -318,7 +318,7 @@ namespace ct {
 	}
 
 	void MainInterface::dragEnterEvent(QDragEnterEvent* e) {
-		if (e->mimeData()->hasUrls() && !_controlsDisabled) {
+		if (e->mimeData()->hasUrls() && !this->controlsDisabled) {
 			if (!e->mimeData()->urls().isEmpty()) {
 				e->acceptProposedAction();
 			}
@@ -326,38 +326,38 @@ namespace ct {
 	}
 
 	void MainInterface::dropEvent(QDropEvent* e) {
-		if (!e->mimeData()->urls().isEmpty() && !_controlsDisabled) {
+		if (!e->mimeData()->urls().isEmpty() && !this->controlsDisabled) {
 			QString path = e->mimeData()->urls().first().toLocalFile();
-			_inputFileEdit->setText(path);
-			_inputFileEdit->setReadOnly(false);
-			fileSelectedState();
+			this->inputFileEdit->setText(path);
+			this->inputFileEdit->setReadOnly(false);
+			this->fileSelectedState();
 		}
 	}
 
 	void MainInterface::keyPressEvent(QKeyEvent* e) {
-		if (_sinogramDisplayActive) {
+		if (this->sinogramDisplayActive) {
 			if (e->key() == Qt::Key_Right) {
-				setNextSinogramImage();
+				this->setNextSinogramImage();
 			} else if (e->key() == Qt::Key_Left) {
-				setPreviousSinogramImage();
+				this->setPreviousSinogramImage();
 			} else {
 				e->ignore();
 				return;
 			}
-		} else if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
+		} else if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
 			if (e->key() == Qt::Key_Up) {
-				setNextSlice();
+				this->setNextSlice();
 			} else if (e->key() == Qt::Key_Down) {
-				setPreviousSlice();
+				this->setPreviousSlice();
 			} else if (e->key() == Qt::Key_X) {
-				_volume.setCrossSectionAxis(Axis::X);
-				setSlice(_volume.getCrossSectionIndex());
+				this->volume.setCrossSectionAxis(Axis::X);
+				this->setSlice(this->volume.getCrossSectionIndex());
 			} else if (e->key() == Qt::Key_Y) {
-				_volume.setCrossSectionAxis(Axis::Y);
-				setSlice(_volume.getCrossSectionIndex());
+				this->volume.setCrossSectionAxis(Axis::Y);
+				this->setSlice(this->volume.getCrossSectionIndex());
 			} else if (e->key() == Qt::Key_Z) {
-				_volume.setCrossSectionAxis(Axis::Z);
-				setSlice(_volume.getCrossSectionIndex());
+				this->volume.setCrossSectionAxis(Axis::Z);
+				this->setSlice(this->volume.getCrossSectionIndex());
 			} else {
 				e->ignore();
 				return;
@@ -366,30 +366,30 @@ namespace ct {
 	}
 
 	void MainInterface::wheelEvent(QWheelEvent* e) {
-		if (_crossSectionDisplayActive || _reconstructionActive || _savingActive) {
+		if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
 			if (e->modifiers() & Qt::ControlModifier) {
 				int signum = 1;
 				if (e->delta() < 0) {
 					signum = -1;
 				}
-				long nextSlice = _volume.getCrossSectionIndex() + ((_volume.getCrossSectionSize() / 10) * signum);
+				long nextSlice = this->volume.getCrossSectionIndex() + ((this->volume.getCrossSectionSize() / 10) * signum);
 				if (nextSlice < 0) nextSlice = 0;
-				if (nextSlice >= _volume.getCrossSectionSize()) nextSlice = _volume.getCrossSectionSize() - 1;
-				setSlice(nextSlice);
+				if (nextSlice >= this->volume.getCrossSectionSize()) nextSlice = this->volume.getCrossSectionSize() - 1;
+				this->setSlice(nextSlice);
 				e->accept();
 			} else {
 				e->ignore();
 			}
-		} else if (_sinogramDisplayActive) {
+		} else if (this->sinogramDisplayActive) {
 			if (e->modifiers() & Qt::ControlModifier) {
 				int signum = 1;
 				if (e->delta() < 0) {
 					signum = -1;
 				}
-				long nextProjection = _currentIndex + ((_volume.getSinogramSize() / 12) * signum);
-				if (nextProjection < 0) nextProjection += _volume.getSinogramSize();
-				if (nextProjection >= _volume.getSinogramSize()) nextProjection -= _volume.getSinogramSize();
-				setSinogramImage(nextProjection);
+				long nextProjection = this->currentIndex + ((this->volume.getSinogramSize() / 12) * signum);
+				if (nextProjection < 0) nextProjection += this->volume.getSinogramSize();
+				if (nextProjection >= this->volume.getSinogramSize()) nextProjection -= this->volume.getSinogramSize();
+				this->setSinogramImage(nextProjection);
 				e->accept();
 			} else {
 				e->ignore();
@@ -401,12 +401,12 @@ namespace ct {
 
 	void MainInterface::showEvent(QShowEvent* e) {
 	#ifdef Q_OS_WIN
-		_taskbarButton->setWindow(this->windowHandle());
+		this->taskbarButton->setWindow(this->windowHandle());
 	#endif
 	}
 
 	void MainInterface::closeEvent(QCloseEvent* e) {
-		if (_savingActive) {
+		if (this->savingActive) {
 			QMessageBox msgBox;
 			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 			msgBox.setWindowTitle(tr("Saving in progress"));
@@ -415,10 +415,10 @@ namespace ct {
 			msgBox.setButtonText(QMessageBox::No, tr("Quit now"));
 			if (QMessageBox::Yes == msgBox.exec()) {
 				//check if maybe now the saving is done
-				if (!_savingActive) {
+				if (!this->savingActive) {
 					e->accept();
 				} else {
-					_quitOnSaveCompletion = true;
+					this->quitOnSaveCompletion = true;
 					e->ignore();
 				}
 			} else {
@@ -426,249 +426,249 @@ namespace ct {
 			}
 			return;
 		}
-		_settings.setValue("size", size());
-		_settings.setValue("pos", pos());
-		_settings.setValue("maximized", isMaximized());
+		this->settings.setValue("size", size());
+		this->settings.setValue("pos", pos());
+		this->settings.setValue("maximized", isMaximized());
 		e->accept();
 	}
 
 	void MainInterface::disableAllControls() {
-		_inputFileEdit->setEnabled(false);
-		_browseButton->setEnabled(false);
-		_loadButton->setEnabled(false);
-		_reconstructButton->setEnabled(false);
-		_saveButton->setEnabled(false);
-		_runAllButton->setEnabled(false);
-		_cmdButton->setEnabled(false);
-		_filterGroupBox->setEnabled(false);
-		_boundsGroupBox->setEnabled(false);
-		_browseButton->setDefault(false);
-		_loadButton->setDefault(true);
-		_reconstructButton->setDefault(false);
-		_saveButton->setDefault(false);
-		_stopButton->setDefault(true);
-		_sinogramDisplayActive = false;
-		_crossSectionDisplayActive = false;
-		_controlsDisabled = true;
-		_imageView->setRenderRectangle(false);
-		_progressBar->setVisible(true);
-		_stopButton->setVisible(true);
-		_stopButton->setEnabled(true);
-		_imageView->setFocus();
+		this->inputFileEdit->setEnabled(false);
+		this->browseButton->setEnabled(false);
+		this->loadButton->setEnabled(false);
+		this->reconstructButton->setEnabled(false);
+		this->saveButton->setEnabled(false);
+		this->runAllButton->setEnabled(false);
+		this->cmdButton->setEnabled(false);
+		this->filterGroupBox->setEnabled(false);
+		this->boundsGroupBox->setEnabled(false);
+		this->browseButton->setDefault(false);
+		this->loadButton->setDefault(true);
+		this->reconstructButton->setDefault(false);
+		this->saveButton->setDefault(false);
+		this->stopButton->setDefault(true);
+		this->sinogramDisplayActive = false;
+		this->crossSectionDisplayActive = false;
+		this->controlsDisabled = true;
+		this->imageView->setRenderRectangle(false);
+		this->progressBar->setVisible(true);
+		this->stopButton->setVisible(true);
+		this->stopButton->setEnabled(true);
+		this->imageView->setFocus();
 	}
 
 	void MainInterface::startupState() {
-		_inputFileEdit->setEnabled(true);
-		_browseButton->setEnabled(true);
-		_loadButton->setEnabled(false);
-		_reconstructButton->setEnabled(false);
-		_saveButton->setEnabled(false);
-		_runAllButton->setEnabled(false);
-		_cmdButton->setEnabled(false);
-		_browseButton->setDefault(true);
-		_loadButton->setDefault(false);
-		_reconstructButton->setDefault(false);
-		_saveButton->setDefault(false);
-		_stopButton->setDefault(false);
-		_filterGroupBox->setEnabled(true);
-		_boundsGroupBox->setEnabled(true);
-		_sinogramDisplayActive = false;
-		_crossSectionDisplayActive = false;
-		_controlsDisabled = false;
-		_imageView->setRenderRectangle(false);
-		_imageView->resetImage();
-		resetInfo();
-		_progressBar->setVisible(false);
-		_stopButton->setVisible(false);
-		_browseButton->setFocus();
+		this->inputFileEdit->setEnabled(true);
+		this->browseButton->setEnabled(true);
+		this->loadButton->setEnabled(false);
+		this->reconstructButton->setEnabled(false);
+		this->saveButton->setEnabled(false);
+		this->runAllButton->setEnabled(false);
+		this->cmdButton->setEnabled(false);
+		this->browseButton->setDefault(true);
+		this->loadButton->setDefault(false);
+		this->reconstructButton->setDefault(false);
+		this->saveButton->setDefault(false);
+		this->stopButton->setDefault(false);
+		this->filterGroupBox->setEnabled(true);
+		this->boundsGroupBox->setEnabled(true);
+		this->sinogramDisplayActive = false;
+		this->crossSectionDisplayActive = false;
+		this->controlsDisabled = false;
+		this->imageView->setRenderRectangle(false);
+		this->imageView->resetImage();
+		this->resetInfo();
+		this->progressBar->setVisible(false);
+		this->stopButton->setVisible(false);
+		this->browseButton->setFocus();
 	}
 
 	void MainInterface::fileSelectedState() {
-		_inputFileEdit->setEnabled(true);
-		_browseButton->setEnabled(true);
-		_loadButton->setEnabled(true);
-		_loadButton->setDefault(true);
-		_reconstructButton->setEnabled(false);
-		_saveButton->setEnabled(false);
-		_runAllButton->setEnabled(true);
-		_cmdButton->setEnabled(true);
-		_browseButton->setDefault(false);
-		_loadButton->setDefault(true);
-		_reconstructButton->setDefault(false);
-		_saveButton->setDefault(false);
-		_stopButton->setDefault(false);
-		_filterGroupBox->setEnabled(true);
-		_boundsGroupBox->setEnabled(true);
-		_sinogramDisplayActive = false;
-		_crossSectionDisplayActive = false;
-		_controlsDisabled = false;
-		_imageView->setRenderRectangle(false);
-		_imageView->resetImage();
-		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
-		resetInfo();
-		_progressBar->setVisible(false);
-		_stopButton->setVisible(false);
-		_loadButton->setFocus();
+		this->inputFileEdit->setEnabled(true);
+		this->browseButton->setEnabled(true);
+		this->loadButton->setEnabled(true);
+		this->loadButton->setDefault(true);
+		this->reconstructButton->setEnabled(false);
+		this->saveButton->setEnabled(false);
+		this->runAllButton->setEnabled(true);
+		this->cmdButton->setEnabled(true);
+		this->browseButton->setDefault(false);
+		this->loadButton->setDefault(true);
+		this->reconstructButton->setDefault(false);
+		this->saveButton->setDefault(false);
+		this->stopButton->setDefault(false);
+		this->filterGroupBox->setEnabled(true);
+		this->boundsGroupBox->setEnabled(true);
+		this->sinogramDisplayActive = false;
+		this->crossSectionDisplayActive = false;
+		this->controlsDisabled = false;
+		this->imageView->setRenderRectangle(false);
+		this->imageView->resetImage();
+		this->informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
+		this->resetInfo();
+		this->progressBar->setVisible(false);
+		this->stopButton->setVisible(false);
+		this->loadButton->setFocus();
 	}
 
 	void MainInterface::preprocessedState() {
-		_inputFileEdit->setEnabled(true);
-		_browseButton->setEnabled(true);
-		_loadButton->setEnabled(true);
-		_reconstructButton->setEnabled(true);
-		_saveButton->setEnabled(false);
-		_runAllButton->setEnabled(true);
-		_cmdButton->setEnabled(true);
-		_browseButton->setDefault(false);
-		_loadButton->setDefault(false);
-		_reconstructButton->setDefault(true);
-		_saveButton->setDefault(false);
-		_stopButton->setDefault(false);
-		_filterGroupBox->setEnabled(true);
-		_boundsGroupBox->setEnabled(true);
-		_sinogramDisplayActive = true;
-		_crossSectionDisplayActive = false;
-		_controlsDisabled = false;
-		_imageView->setRenderRectangle(true);
-		_progressBar->setVisible(false);
-		_stopButton->setVisible(false);
-		_imageView->setFocus();
+		this->inputFileEdit->setEnabled(true);
+		this->browseButton->setEnabled(true);
+		this->loadButton->setEnabled(true);
+		this->reconstructButton->setEnabled(true);
+		this->saveButton->setEnabled(false);
+		this->runAllButton->setEnabled(true);
+		this->cmdButton->setEnabled(true);
+		this->browseButton->setDefault(false);
+		this->loadButton->setDefault(false);
+		this->reconstructButton->setDefault(true);
+		this->saveButton->setDefault(false);
+		this->stopButton->setDefault(false);
+		this->filterGroupBox->setEnabled(true);
+		this->boundsGroupBox->setEnabled(true);
+		this->sinogramDisplayActive = true;
+		this->crossSectionDisplayActive = false;
+		this->controlsDisabled = false;
+		this->imageView->setRenderRectangle(true);
+		this->progressBar->setVisible(false);
+		this->stopButton->setVisible(false);
+		this->imageView->setFocus();
 	}
 
 	void MainInterface::reconstructedState() {
-		_inputFileEdit->setEnabled(true);
-		_browseButton->setEnabled(true);
-		_loadButton->setEnabled(true);
-		_reconstructButton->setEnabled(true);
-		_saveButton->setEnabled(true);
-		_runAllButton->setEnabled(true);
-		_cmdButton->setEnabled(true);
-		_browseButton->setDefault(false);
-		_loadButton->setDefault(false);
-		_reconstructButton->setDefault(false);
-		_saveButton->setDefault(true);
-		_stopButton->setDefault(false);
-		_filterGroupBox->setEnabled(true);
-		_boundsGroupBox->setEnabled(true);
-		_sinogramDisplayActive = false;
-		_crossSectionDisplayActive = true;
-		_controlsDisabled = false;
-		_imageView->setRenderRectangle(false);
-		_progressBar->setVisible(false);
-		_stopButton->setVisible(false);
-		_imageView->setFocus();
+		this->inputFileEdit->setEnabled(true);
+		this->browseButton->setEnabled(true);
+		this->loadButton->setEnabled(true);
+		this->reconstructButton->setEnabled(true);
+		this->saveButton->setEnabled(true);
+		this->runAllButton->setEnabled(true);
+		this->cmdButton->setEnabled(true);
+		this->browseButton->setDefault(false);
+		this->loadButton->setDefault(false);
+		this->reconstructButton->setDefault(false);
+		this->saveButton->setDefault(true);
+		this->stopButton->setDefault(false);
+		this->filterGroupBox->setEnabled(true);
+		this->boundsGroupBox->setEnabled(true);
+		this->sinogramDisplayActive = false;
+		this->crossSectionDisplayActive = true;
+		this->controlsDisabled = false;
+		this->imageView->setRenderRectangle(false);
+		this->progressBar->setVisible(false);
+		this->stopButton->setVisible(false);
+		this->imageView->setFocus();
 	}
 
 	void MainInterface::setSinogramImage(size_t index) {
-		if (index >= 0 && index < _volume.getSinogramSize()) {
-			_currentIndex = index;
-			_currentProjection = _volume.getProjectionAt(index);
-			_currentProjection.image.convertTo(_currentProjection.image, CV_8U, 255);
-			_imageView->setImage(_currentProjection.image);
-			updateBoundsDisplay();
+		if (index >= 0 && index < this->volume.getSinogramSize()) {
+			this->currentIndex = index;
+			this->currentProjection = this->volume.getProjectionAt(index);
+			this->currentProjection.image.convertTo(this->currentProjection.image, CV_8U, 255);
+			this->imageView->setImage(this->currentProjection.image);
+			this->updateBoundsDisplay();
 		}
 	}
 
 	void MainInterface::setNextSinogramImage() {
-		size_t nextIndex = _currentIndex + 1;
-		if (nextIndex >= _volume.getSinogramSize()) nextIndex = 0;
-		setSinogramImage(nextIndex);
+		size_t nextIndex = this->currentIndex + 1;
+		if (nextIndex >= this->volume.getSinogramSize()) nextIndex = 0;
+		this->setSinogramImage(nextIndex);
 	}
 
 	void MainInterface::setPreviousSinogramImage() {
 		size_t previousIndex;
-		if (_currentIndex == 0) {
-			previousIndex = _volume.getSinogramSize() - 1;
+		if (this->currentIndex == 0) {
+			previousIndex = this->volume.getSinogramSize() - 1;
 		} else {
-			previousIndex = _currentIndex - 1;
+			previousIndex = this->currentIndex - 1;
 		}
-		setSinogramImage(previousIndex);
+		this->setSinogramImage(previousIndex);
 	}
 
 	void MainInterface::setSlice(size_t index) {
-		if (index >= 0 && index < _volume.getCrossSectionSize()) {
-			_volume.setCrossSectionIndex(index);
-			cv::Mat crossSection = _volume.getVolumeCrossSection(index);
+		if (index >= 0 && index < this->volume.getCrossSectionSize()) {
+			this->volume.setCrossSectionIndex(index);
+			cv::Mat crossSection = this->volume.getVolumeCrossSection(index);
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-			_imageView->setImage(normalized);
+			this->imageView->setImage(normalized);
 		}
 	}
 
 	void MainInterface::setNextSlice() {
-		size_t nextSlice = _volume.getCrossSectionIndex() + 1;
-		if (nextSlice >= _volume.getCrossSectionSize()) nextSlice = _volume.getCrossSectionSize() - 1;
-		setSlice(nextSlice);
+		size_t nextSlice = this->volume.getCrossSectionIndex() + 1;
+		if (nextSlice >= this->volume.getCrossSectionSize()) nextSlice = this->volume.getCrossSectionSize() - 1;
+		this->setSlice(nextSlice);
 	}
 
 	void MainInterface::setPreviousSlice() {
 		size_t previousSlice;
-		if (_volume.getCrossSectionIndex() != 0) {
-			previousSlice = _volume.getCrossSectionIndex() - 1;
-			setSlice(previousSlice);
+		if (this->volume.getCrossSectionIndex() != 0) {
+			previousSlice = this->volume.getCrossSectionIndex() - 1;
+			this->setSlice(previousSlice);
 		}
 	}
 
 	void MainInterface::updateBoundsDisplay() {
-		double width = _volume.getImageWidth();
-		double height = _volume.getImageHeight();
-		double uOffset = _volume.getUOffset();
-		double angleRad = (_currentProjection.angle / 180.0) * M_PI;
+		double width = this->volume.getImageWidth();
+		double height = this->volume.getImageHeight();
+		double uOffset = this->volume.getUOffset();
+		double angleRad = (this->currentProjection.angle / 180.0) * M_PI;
 		double sine = sin(angleRad);
 		double cosine = cos(angleRad);
-		double xFrom = width*_xFrom->value() - width / 2.0;
-		double xTo = width*_xTo->value() - width / 2.0;
-		double yFrom = width*_yFrom->value() - width / 2.0;
-		double yTo = width*_yTo->value() - width / 2.0;
+		double xFrom = width*this->xFrom->value() - width / 2.0;
+		double xTo = width*this->xTo->value() - width / 2.0;
+		double yFrom = width*this->yFrom->value() - width / 2.0;
+		double yTo = width*this->yTo->value() - width / 2.0;
 		double t1 = (-1)*xFrom*sine + yFrom*cosine + width / 2.0 + uOffset;
 		double t2 = (-1)*xFrom*sine + yTo*cosine + width / 2.0 + uOffset;
 		double t3 = (-1)*xTo*sine + yFrom*cosine + width / 2.0 + uOffset;
 		double t4 = (-1)*xTo*sine + yTo*cosine + width / 2.0 + uOffset;
-		double zFrom = height * _zFrom->value() + _currentProjection.heightOffset;
-		double zTo = height * _zTo->value() + _currentProjection.heightOffset;
+		double zFrom = height * this->zFrom->value() + this->currentProjection.heightOffset;
+		double zTo = height * this->zTo->value() + this->currentProjection.heightOffset;
 		double left = std::min({ t1, t2, t3, t4 });
 		double right = std::max({ t1, t2, t3, t4 });
-		_imageView->setRectangle(QRectF(left, height - zTo, right - left, zTo - zFrom));
+		this->imageView->setRectangle(QRectF(left, height - zTo, right - left, zTo - zFrom));
 	}
 
 	void MainInterface::setStatus(QString text) {
-		_statusLabel->setText(text);
+		this->statusLabel->setText(text);
 	}
 
 	void MainInterface::setInfo() {
-		size_t xSize = _volume.getXSize();
-		size_t ySize = _volume.getYSize();
-		size_t zSize = _volume.getZSize();
-		size_t width = _volume.getImageWidth();
-		size_t height = _volume.getImageHeight();
+		size_t xSize = this->volume.getXSize();
+		size_t ySize = this->volume.getYSize();
+		size_t zSize = this->volume.getZSize();
+		size_t width = this->volume.getImageWidth();
+		size_t height = this->volume.getImageHeight();
 		double memory = double(xSize*ySize*zSize + 2 * width*height) / 268435456.0;
 		QString infoText = tr("<p>Memory required: %L1Gb</p>"
 							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
 							  "<p>Projections: %L5</p>");
-		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(_volume.getSinogramSize());
-		_informationLabel->setText(infoText);
+		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
+		this->informationLabel->setText(infoText);
 	}
 
 	void MainInterface::resetInfo() {
-		_informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
+		this->informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
 		QFileInfo fileInfo(text);
 		QMimeDatabase mime;
 		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
-			fileSelectedState();
-			_inputFileEdit->setPalette(QPalette());
-			_settings.setValue("last_path", text);
+			this->fileSelectedState();
+			this->inputFileEdit->setPalette(QPalette());
+			this->settings.setValue("last_path", text);
 		} else {
-			startupState();
-			_inputFileEdit->setFocus();
+			this->startupState();
+			this->inputFileEdit->setFocus();
 			if (text != "") {
 				QPalette palette;
 				palette.setColor(QPalette::Text, Qt::red);
-				_inputFileEdit->setPalette(palette);
+				this->inputFileEdit->setPalette(palette);
 			} else {
-				_inputFileEdit->setPalette(QPalette());
+				this->inputFileEdit->setPalette(QPalette());
 			}
 		}
 	}
@@ -680,91 +680,91 @@ namespace ct {
 		//dialog.setWindowTitle("Open Config File");
 		//dialog.setFilter(QDir::AllDirs);
 		//dialog.exec();
-		QFileInfo dir(_inputFileEdit->text());
+		QFileInfo dir(this->inputFileEdit->text());
 		QString defaultPath;
 		dir.exists() ? (dir.isDir() ? defaultPath = dir.filePath() : defaultPath = dir.path()) : QDir::rootPath();
 		QString path = QFileDialog::getOpenFileName(this, tr("Open Config File"), defaultPath, "Text Files (*.txt *.csv *.*);;");
 
 		if (!path.isEmpty()) {
-			_inputFileEdit->setText(path);
+			this->inputFileEdit->setText(path);
 		}
 	}
 
 	void MainInterface::reactToBoundsChange(double value) {
-		if (_xFrom != QObject::sender()) _xFrom->setMaximum(_xTo->value());
-		if (_xTo != QObject::sender()) _xTo->setMinimum(_xFrom->value());
-		if (_yFrom != QObject::sender()) _yFrom->setMaximum(_yTo->value());
-		if (_yTo != QObject::sender()) _yTo->setMinimum(_yFrom->value());
-		if (_zFrom != QObject::sender()) _zFrom->setMaximum(_zTo->value());
-		if (_zTo != QObject::sender()) _zTo->setMinimum(_zFrom->value());
-		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
-		if (_volume.getSinogramSize() > 0) {
-			setInfo();
-			updateBoundsDisplay();
+		if (this->xFrom != QObject::sender()) this->xFrom->setMaximum(this->xTo->value());
+		if (this->xTo != QObject::sender()) this->xTo->setMinimum(this->xFrom->value());
+		if (this->yFrom != QObject::sender()) this->yFrom->setMaximum(this->yTo->value());
+		if (this->yTo != QObject::sender()) this->yTo->setMinimum(this->yFrom->value());
+		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
+		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
+		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
+		if (this->volume.getSinogramSize() > 0) {
+			this->setInfo();
+			this->updateBoundsDisplay();
 		}
 	}
 
 	void MainInterface::reactToLoadButtonClick() {
-		disableAllControls();
-		setStatus(tr("Loading file and analysing images..."));
+		this->disableAllControls();
+		this->setStatus(tr("Loading file and analysing images..."));
 	#ifdef Q_OS_WIN
-		_taskbarProgress->show();
+		this->taskbarProgress->show();
 	#endif
-		_timer.reset();
-		std::thread(&CtVolume::sinogramFromImages, &_volume, _inputFileEdit->text().toStdString()).detach();
+		this->timer.reset();
+		std::thread(&CtVolume::sinogramFromImages, &this->volume, this->inputFileEdit->text().toStdString()).detach();
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
-		disableAllControls();
-		_imageView->resetImage();
-		setStatus(tr("Backprojecting..."));
+		this->disableAllControls();
+		this->imageView->resetImage();
+		this->setStatus(tr("Backprojecting..."));
 	#ifdef Q_OS_WIN
-		_taskbarProgress->show();
+		this->taskbarProgress->show();
 	#endif
-		_timer.reset();
-		_volume.setVolumeBounds(_xFrom->value(), _xTo->value(), _yFrom->value(), _yTo->value(), _zFrom->value(), _zTo->value());
+		this->timer.reset();
+		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
 		FilterType type = FilterType::RAMLAK;
-		if (_shepploganRadioButton->isChecked()) {
+		if (this->shepploganRadioButton->isChecked()) {
 			type = FilterType::SHEPP_LOGAN;
-		} else if (_hannRadioButton->isChecked()) {
+		} else if (this->hannRadioButton->isChecked()) {
 			type = FilterType::HANN;
 		}
-		_reconstructionActive = true;
-		std::thread(&CtVolume::reconstructVolume, &_volume, type).detach();
+		this->reconstructionActive = true;
+		std::thread(&CtVolume::reconstructVolume, &this->volume, type).detach();
 	}
 
 	void MainInterface::reactToSaveButtonClick() {
 		QString path;
-		if (!_runAll) {
+		if (!this->runAll) {
 			path = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
-			_savingPath = path;
+			this->savingPath = path;
 		} else {
-			path = _savingPath;
+			path = this->savingPath;
 		}
 		if (!path.isEmpty()) {
-			disableAllControls();
-			_savingActive = true;
+			this->disableAllControls();
+			this->savingActive = true;
 		#ifdef Q_OS_WIN
-			_taskbarProgress->show();
+			this->taskbarProgress->show();
 		#endif
-			setStatus(tr("Writing volume to disk..."));
-			_timer.reset();
-			std::thread(&CtVolume::saveVolumeToBinaryFile, &_volume, path.toStdString()).detach();
+			this->setStatus(tr("Writing volume to disk..."));
+			this->timer.reset();
+			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path.toStdString()).detach();
 		}
 	}
 
 	void MainInterface::reactToRunAllButtonClick() {
-		_savingPath = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
-		if (!_savingPath.isEmpty()) {
-			_runAll = true;
-			reactToLoadButtonClick();
+		this->savingPath = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
+		if (!this->savingPath.isEmpty()) {
+			this->runAll = true;
+			this->reactToLoadButtonClick();
 		}
 	}
 
 	void MainInterface::reactToStopButtonClick() {
-		_volume.stop();
-		_stopButton->setEnabled(false);
-		setStatus("Stopping...");
+		this->volume.stop();
+		this->stopButton->setEnabled(false);
+		this->setStatus("Stopping...");
 	}
 
 	void MainInterface::reactToBatchFileAction() {
@@ -805,9 +805,9 @@ namespace ct {
 			}
 			QString configPath;
 			if (!relativeConfigPath) {
-				configPath = _inputFileEdit->text();
+				configPath = this->inputFileEdit->text();
 			} else {
-				configPath = cmdDir.relativeFilePath(_inputFileEdit->text());
+				configPath = cmdDir.relativeFilePath(this->inputFileEdit->text());
 			}
 			QFile file(filepath);
 		#if defined Q_OS_UNIX
@@ -822,93 +822,93 @@ namespace ct {
 				stream << "#!/bin/sh" << ::endl;
 			#endif
 				stream << "\"" << appPath << "\" -i \"" << configPath << "\" -o volume.raw";
-				if (!_ramlakRadioButton->isChecked()) {
-					if (_shepploganRadioButton->isChecked()) {
+				if (!this->ramlakRadioButton->isChecked()) {
+					if (this->shepploganRadioButton->isChecked()) {
 						stream << " -f shepplogan";
 					} else {
 						stream << " -f hann";
 					}
 				}
-				if (_xFrom->value() != 0) stream << " --xmin " << _xFrom->value();
-				if (_xTo->value() != 1) stream << " --xmax " << _xTo->value();
-				if (_yFrom->value() != 0) stream << " --ymin " << _yFrom->value();
-				if (_yTo->value() != 1) stream << " --ymax " << _yTo->value();
-				if (_zFrom->value() != 0) stream << " --zmin " << _zFrom->value();
-				if (_zTo->value() != 1) stream << " --zmax " << _zTo->value();
+				if (this->xFrom->value() != 0) stream << " --xmin " << this->xFrom->value();
+				if (this->xTo->value() != 1) stream << " --xmax " << this->xTo->value();
+				if (this->yFrom->value() != 0) stream << " --ymin " << this->yFrom->value();
+				if (this->yTo->value() != 1) stream << " --ymax " << this->yTo->value();
+				if (this->zFrom->value() != 0) stream << " --zmin " << this->zFrom->value();
+				if (this->zTo->value() != 1) stream << " --zmax " << this->zTo->value();
 				file.close();
-				setStatus(status);
+				this->setStatus(status);
 			}
 		}
 	}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
-		_progressBar->setValue(percentage);
+		this->progressBar->setValue(percentage);
 	#ifdef Q_OS_WIN
-		_taskbarProgress->setValue(percentage);
+		this->taskbarProgress->setValue(percentage);
 	#endif
 	}
 
 	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
-		_progressBar->reset();
+		this->progressBar->reset();
 	#ifdef Q_OS_WIN
-		_taskbarProgress->hide();
-		_taskbarProgress->reset();
+		this->taskbarProgress->hide();
+		this->taskbarProgress->reset();
 	#endif
 		if (status.successful) {
-			double time = _timer.getTime();
-			setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
-			setInfo();
-			if (_runAll) {
-				reactToReconstructButtonClick();
+			double time = this->timer.getTime();
+			this->setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
+			this->setInfo();
+			if (this->runAll) {
+				this->reactToReconstructButtonClick();
 			} else {
-				setSinogramImage(0);
-				preprocessedState();
+				this->setSinogramImage(0);
+				this->preprocessedState();
 			}
 		} else {
 			if (!status.userInterrupted) {
 				QMessageBox msgBox;
 				msgBox.setText(status.errorMessage);
 				msgBox.exec();
-				setStatus(tr("Loading failed."));
+				this->setStatus(tr("Loading failed."));
 			} else {
-				setStatus(tr("Loading stopped."));
+				this->setStatus(tr("Loading stopped."));
 			}
-			if (_runAll) _runAll = false;
-			fileSelectedState();
+			if (this->runAll) this->runAll = false;
+			this->fileSelectedState();
 		}
 	}
 
 	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
-		_progressBar->setValue(percentage);
+		this->progressBar->setValue(percentage);
 	#ifdef Q_OS_WIN
-		_taskbarProgress->setValue(percentage);
+		this->taskbarProgress->setValue(percentage);
 	#endif
 		if (percentage > 1.0) {
-			double remaining = _timer.getTime() * ((100.0 - percentage) / percentage);
+			double remaining = this->timer.getTime() * ((100.0 - percentage) / percentage);
 			int mins = std::floor(remaining / 60.0);
 			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
-			setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
+			this->setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
 		}
 		cv::Mat normalized;
 		cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		_imageView->setImage(normalized);
+		this->imageView->setImage(normalized);
 	}
 
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
-		_reconstructionActive = false;
-		_progressBar->reset();
+		this->reconstructionActive = false;
+		this->progressBar->reset();
 	#ifdef Q_OS_WIN
-		_taskbarProgress->hide();
-		_taskbarProgress->reset();
+		this->taskbarProgress->hide();
+		this->taskbarProgress->reset();
 	#endif
 		if (status.successful) {
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-			_imageView->setImage(normalized);
-			double time = _timer.getTime();
-			setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
-			if (_runAll) {
-				reactToSaveButtonClick();
+			this->imageView->setImage(normalized);
+			double time = this->timer.getTime();
+			this->setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
+			if (this->runAll) {
+				this->reactToSaveButtonClick();
 			} else {
 				reconstructedState();
 			}
@@ -917,47 +917,47 @@ namespace ct {
 				QMessageBox msgBox;
 				msgBox.setText(status.errorMessage);
 				msgBox.exec();
-				setStatus(tr("Reconstruction failed."));
+				this->setStatus(tr("Reconstruction failed."));
 			} else {
-				setStatus(tr("Reconstruction stopped."));
+				this->setStatus(tr("Reconstruction stopped."));
 			}
-			if (_runAll) _runAll = false;
-			preprocessedState();
-			setSinogramImage(0);
+			if (this->runAll) this->runAll = false;
+			this->preprocessedState();
+			this->setSinogramImage(0);
 		}
 	}
 
 	void MainInterface::reactToSaveProgressUpdate(double percentage) {
-		_progressBar->setValue(percentage);
+		this->progressBar->setValue(percentage);
 	#ifdef Q_OS_WIN
-		_taskbarProgress->setValue(percentage);
+		this->taskbarProgress->setValue(percentage);
 	#endif
 	}
 
 	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
-		_savingActive = false;
-		_progressBar->reset();
+		this->savingActive = false;
+		this->progressBar->reset();
 	#ifdef Q_OS_WIN
-		_taskbarProgress->hide();
-		_taskbarProgress->reset();
+		this->taskbarProgress->hide();
+		this->taskbarProgress->reset();
 	#endif
 		if (status.successful) {
-			double time = _timer.getTime();
-			setStatus(tr("Saving finished (") + QString::number(time, 'f', 1) + "s).");
+			double time = this->timer.getTime();
+			this->setStatus(tr("Saving finished (") + QString::number(time, 'f', 1) + "s).");
 		} else {
 			if (!status.userInterrupted) {
 				QMessageBox msgBox;
 				msgBox.setText(status.errorMessage);
 				msgBox.exec();
-				setStatus(tr("Saving failed."));
+				this->setStatus(tr("Saving failed."));
 			} else {
-				setStatus(tr("Saving stopped."));
-				askForDeletionOfIncompleteFile();
+				this->setStatus(tr("Saving stopped."));
+				this->askForDeletionOfIncompleteFile();
 			}
 		}
-		_runAll = false;
+		this->runAll = false;
 		reconstructedState();
-		if (_quitOnSaveCompletion) close();
+		if (this->quitOnSaveCompletion) close();
 	}
 
 	void MainInterface::askForDeletionOfIncompleteFile() {
@@ -965,7 +965,7 @@ namespace ct {
 		msgBox.setText(tr("The saving process was stopped. The file is probably unusable. Shall it be deleted?"));
 		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 		if (QMessageBox::Yes == msgBox.exec()) {
-			QFile::remove(_savingPath);
+			QFile::remove(this->savingPath);
 		}
 	}
 
