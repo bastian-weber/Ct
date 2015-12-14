@@ -110,35 +110,35 @@ namespace ct {
 		};
 
 		//variables		
-		std::vector<Projection> _sinogram;										//here the images are stored
-		std::vector<std::vector<std::vector<float>>> _volume;					//holds the reconstructed volume
-		mutable std::mutex _exclusiveFunctionsMutex;
-		bool _emitSignals = false;												//if true the object emits qt signals in certain functions
-		size_t _crossSectionIndex = 0;											//index for the crossection that is returned in qt signals
-		Axis _crossSectionAxis = Axis::Z;
-		mutable std::atomic<bool> _stop{ false };
-		size_t _xSize = 0, _ySize = 0, _zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
-		size_t _imageWidth = 0, _imageHeight = 0;								//stores the height and width of the images in the sinogram
+		std::vector<Projection> sinogram;									//here the images are stored
+		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
+		mutable std::mutex exclusiveFunctionsMutex;
+		bool emitSignals = false;											//if true the object emits qt signals in certain functions
+		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
+		Axis crossSectionAxis = Axis::Z;
+		mutable std::atomic<bool> stopActiveProcess{ false };
+		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
+		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
 		//bounds of what will be reconstructed
-		double _xFrom_float = 0, _xTo_float = 1;
-		double _yFrom_float = 0, _yTo_float = 1;
-		double _zFrom_float = 0, _zTo_float = 1;
-		size_t _xFrom = 0, _xTo = 0;
-		size_t _yFrom = 0, _yTo = 0;
-		size_t _zFrom = 0, _zTo = 0;
-		size_t _xMax = 0, _yMax = 0, _zMax = 0;
-		double _SD = 0;															//the distance of the source to the detector in pixel
-		double _SO = 0;															//the distance of the source to the object in pixel
-		double _pixelSize = 0;
-		double _uOffset = 0, _vOffset = 0;										//the offset of the rotation axis in u direction
-		mutable std::pair<float, float> _minMaxValues;
+		double xFrom_float = 0, xTo_float = 1;
+		double yFrom_float = 0, yTo_float = 1;
+		double zFrom_float = 0, zTo_float = 1;
+		size_t xFrom = 0, xTo = 0;
+		size_t yFrom = 0, yTo = 0;
+		size_t zFrom = 0, zTo = 0;
+		size_t xMax = 0, yMax = 0, zMax = 0;
+		double SD = 0;														//the distance of the source to the detector in pixel
+		double SO = 0;														//the distance of the source to the object in pixel
+		double pixelSize = 0;
+		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction
+		mutable std::pair<float, float> minMaxValues;
 		//some precomputed values for the coordinate conversion functions for faster execution
-		double _worldToVolumeXPrecomputed;
-		double _worldToVolumeYPrecomputed;
-		double _worldToVolumeZPrecomputed;
-		double _volumeToWorldXPrecomputed;
-		double _imageToMatUPrecomputed;
-		double _imageToMatVPrecomputed;
+		double worldToVolumeXPrecomputed;
+		double worldToVolumeYPrecomputed;
+		double worldToVolumeZPrecomputed;
+		double volumeToWorldXPrecomputed;
+		double imageToMatUPrecomputed;
+		double imageToMatVPrecomputed;
 		//functions			
 		void readParameters(std::ifstream& stream,
 							std::string& path,
@@ -151,7 +151,7 @@ namespace ct {
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		cv::Mat prepareProjection(size_t index, FilterType filterType) const;							//returns the image of the projection at position index preprocessed and converted
+		cv::Mat prepareProjection(size_t index, FilterType filterType) const;	//returns the image of the projection at position index preprocessed and converted
 		void preprocessImage(cv::Mat& image, FilterType filterType) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
@@ -181,7 +181,7 @@ namespace ct {
 		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
-		static int fftCoordToIndex(int coord, int size);							//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
+		static int fftCoordToIndex(int coord, int size);						//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 	signals:
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
