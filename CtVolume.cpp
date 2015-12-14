@@ -33,16 +33,16 @@ namespace ct {
 	}
 
 	void CtVolume::sinogramFromImages(std::string csvFile) {
-		std::lock_guard<std::mutex> lock(this->_exclusiveFunctionsMutex);
-		this->_stop = false;
-		this->_volume.clear();
+		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+		this->stopActiveProcess = false;
+		this->volume.clear();
 		//delete the contents of the sinogram
-		this->_sinogram.clear();
+		this->sinogram.clear();
 		//open the csv file
 		std::ifstream stream(csvFile.c_str(), std::ios::in);
 		if (!stream.good()) {
 			std::cerr << "Could not open CSV file - terminating" << std::endl;
-			if (this->_emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the config file.")));
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the config file.")));
 			return;
 		}
 		//count the lines in the file
@@ -51,11 +51,11 @@ namespace ct {
 
 		if (imgCnt <= 0) {
 			std::cout << "CSV file does not contain any images." << std::endl;
-			if (this->_emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
 			return;
 		} else {
 			//resize the sinogram to the correct size
-			this->_sinogram.reserve(imgCnt);
+			this->sinogram.reserve(imgCnt);
 
 			//go back to the beginning of the file
 			stream.seekg(std::ios::beg);
@@ -70,120 +70,120 @@ namespace ct {
 
 			//read the images from the csv file
 			if (!this->readImages(stream, path, imgCnt)) return;
-			if (this->_stop) {
-				this->_sinogram.clear();
+			if (this->stopActiveProcess) {
+				this->sinogram.clear();
 				std::cout << "User interrupted. Stopping.";
-				if (this->_emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 				return;
 			}
 
-			if (this->_sinogram.size() > 0) {
+			if (this->sinogram.size() > 0) {
 				//make the height offset values realtive
 				this->makeHeightOffsetRelative();
 				//make sure the rotation direction is correct
 				this->correctAngleDirection(rotationDirection);
 				//Axes: breadth = x, width = y, height = z
-				this->_xSize = this->_imageWidth;
-				this->_ySize = this->_imageWidth;
-				this->_zSize = this->_imageHeight;
+				this->xSize = this->imageWidth;
+				this->ySize = this->imageWidth;
+				this->zSize = this->imageHeight;
 				this->updateBoundaries();
-				switch (this->_crossSectionAxis) {
+				switch (this->crossSectionAxis) {
 					case Axis::X:
-						this->_crossSectionIndex = this->_xMax / 2;
+						this->crossSectionIndex = this->xMax / 2;
 						break;
 					case Axis::Y:
-						this->_crossSectionIndex = this->_yMax / 2;
+						this->crossSectionIndex = this->yMax / 2;
 						break;
 					case Axis::Z:
-						this->_crossSectionIndex = this->_zMax / 2;
+						this->crossSectionIndex = this->zMax / 2;
 						break;
 				}
-				if (this->_stop) {
-					this->_sinogram.clear();
+				if (this->stopActiveProcess) {
+					this->sinogram.clear();
 					std::cout << "User interrupted. Stopping.";
-					if (this->_emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 					return;
 				}
 			}
 		}
-		if (this->_emitSignals) emit(loadingFinished());
+		if (this->emitSignals) emit(loadingFinished());
 	}
 
 	ct::Projection CtVolume::getProjectionAt(size_t index) const {
-		if (index < 0 || index >= this->_sinogram.size()) {
+		if (index < 0 || index >= this->sinogram.size()) {
 			throw std::out_of_range("Index out of bounds.");
 		} else {
-			ct::Projection projection = this->_sinogram[index].getPublicProjection();
+			ct::Projection projection = this->sinogram[index].getPublicProjection();
 			convertTo32bit(projection.image);
-			projection.image = this->normalizeImage(projection.image, this->_minMaxValues.first, this->_minMaxValues.second);
+			projection.image = this->normalizeImage(projection.image, this->minMaxValues.first, this->minMaxValues.second);
 			return projection;
 		}
 	}
 
 	size_t CtVolume::getSinogramSize() const {
-		if (this->_sinogram.size() > 0) {
-			return this->_sinogram.size();
+		if (this->sinogram.size() > 0) {
+			return this->sinogram.size();
 		}
 		return 0;
 	}
 
 	size_t CtVolume::getImageWidth() const {
-		return this->_imageWidth;
+		return this->imageWidth;
 	}
 
 	size_t CtVolume::getImageHeight() const {
-		return this->_imageHeight;
+		return this->imageHeight;
 	}
 
 	size_t CtVolume::getXSize() const {
-		return this->_xMax;
+		return this->xMax;
 	}
 
 	size_t CtVolume::getYSize() const {
-		return this->_yMax;
+		return this->yMax;
 	}
 
 	size_t CtVolume::getZSize() const {
-		return this->_zMax;
+		return this->zMax;
 	}
 
 	double CtVolume::getUOffset() const {
-		return this->_uOffset;
+		return this->uOffset;
 	}
 
 	double CtVolume::getVOffset() const {
-		return this->_vOffset;
+		return this->vOffset;
 	}
 
 	double CtVolume::getPixelSize() const {
-		return this->_pixelSize;
+		return this->pixelSize;
 	}
 
 	double CtVolume::getSO() const {
-		return this->_SO;
+		return this->SO;
 	}
 
 	double CtVolume::getSD() const {
-		return this->_SD;
+		return this->SD;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
-		if (this->_volume.size() == 0) return cv::Mat();
+		if (this->volume.size() == 0) return cv::Mat();
 		//copy to local variable because member variable might change during execution
-		Axis axis = this->_crossSectionAxis;
-		if (index >= 0 && (axis == Axis::X && index < this->_xMax) || (axis == Axis::Y && index < this->_yMax) || (axis == Axis::Z && index < this->_zMax)) {
-			if (this->_volume.size() > 0 && this->_volume[0].size() > 0 && this->_volume[0][0].size() > 0) {
+		Axis axis = this->crossSectionAxis;
+		if (index >= 0 && (axis == Axis::X && index < this->xMax) || (axis == Axis::Y && index < this->yMax) || (axis == Axis::Z && index < this->zMax)) {
+			if (this->volume.size() > 0 && this->volume[0].size() > 0 && this->volume[0][0].size() > 0) {
 				size_t uSize;
 				size_t vSize;
 				if (axis == Axis::X) {
-					uSize = this->_yMax;
-					vSize = this->_zMax;
+					uSize = this->yMax;
+					vSize = this->zMax;
 				} else if (axis == Axis::Y) {
-					uSize = this->_xMax;
-					vSize = this->_zMax;
+					uSize = this->xMax;
+					vSize = this->zMax;
 				} else {
-					uSize = this->_xMax;
-					vSize = this->_yMax;
+					uSize = this->xMax;
+					vSize = this->yMax;
 				}
 
 				cv::Mat result(vSize, uSize, CV_32FC1);
@@ -193,7 +193,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->_volume[index][column][result.rows - 1 - row];
+							ptr[column] = this->volume[index][column][result.rows - 1 - row];
 						}
 					}
 				} else if (axis == Axis::Y) {
@@ -201,7 +201,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->_volume[column][index][result.rows - 1 - row];
+							ptr[column] = this->volume[column][index][result.rows - 1 - row];
 						}
 					}
 				} else {
@@ -209,7 +209,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->_volume[column][row][index];
+							ptr[column] = this->volume[column][row][index];
 						}
 					}
 				}
@@ -222,80 +222,80 @@ namespace ct {
 	}
 
 	void CtVolume::setCrossSectionIndex(size_t index) {
-		if (index >= 0 && (this->_crossSectionAxis == Axis::X && index < this->_xMax) || (this->_crossSectionAxis == Axis::Y && index < this->_yMax) || (this->_crossSectionAxis == Axis::Z && index < this->_zMax)) {
-			this->_crossSectionIndex = index;
+		if (index >= 0 && (this->crossSectionAxis == Axis::X && index < this->xMax) || (this->crossSectionAxis == Axis::Y && index < this->yMax) || (this->crossSectionAxis == Axis::Z && index < this->zMax)) {
+			this->crossSectionIndex = index;
 		}
 	}
 
 	void CtVolume::setCrossSectionAxis(Axis axis) {
-		this->_crossSectionAxis = axis;
-		if (this->_crossSectionAxis == Axis::X) {
-			this->_crossSectionIndex = this->_xMax / 2;
-		} else if (this->_crossSectionAxis == Axis::Y) {
-			this->_crossSectionIndex = this->_yMax / 2;
+		this->crossSectionAxis = axis;
+		if (this->crossSectionAxis == Axis::X) {
+			this->crossSectionIndex = this->xMax / 2;
+		} else if (this->crossSectionAxis == Axis::Y) {
+			this->crossSectionIndex = this->yMax / 2;
 		} else {
-			this->_crossSectionIndex = this->_zMax / 2;
+			this->crossSectionIndex = this->zMax / 2;
 		}
 	}
 
 	size_t CtVolume::getCrossSectionIndex() const {
-		return this->_crossSectionIndex;
+		return this->crossSectionIndex;
 	}
 
 	size_t CtVolume::getCrossSectionSize() const {
-		if (this->_crossSectionAxis == Axis::X) {
-			return this->_xMax;
-		} else if (this->_crossSectionAxis == Axis::Y) {
-			return this->_yMax;
+		if (this->crossSectionAxis == Axis::X) {
+			return this->xMax;
+		} else if (this->crossSectionAxis == Axis::Y) {
+			return this->yMax;
 		} else {
-			return this->_zMax;
+			return this->zMax;
 		}
 	}
 
 	Axis CtVolume::getCrossSectionAxis() const {
-		return this->_crossSectionAxis;
+		return this->crossSectionAxis;
 	}
 
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
-		std::lock_guard<std::mutex> lock(this->_exclusiveFunctionsMutex);
-		this->_xFrom_float = std::max(0.0, std::min(1.0, xFrom));
-		this->_xTo_float = std::max(this->_xFrom_float, std::min(1.0, xTo));
-		this->_yFrom_float = std::max(0.0, std::min(1.0, yFrom));
-		this->_yTo_float = std::max(this->_xFrom_float, std::min(1.0, yTo));
-		this->_zFrom_float = std::max(0.0, std::min(1.0, zFrom));
-		_zTo_float = std::max(this->_xFrom_float, std::min(1.0, zTo));
-		if (this->_sinogram.size() > 0) this->updateBoundaries();
+		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
+		this->xTo_float = std::max(this->xFrom_float, std::min(1.0, xTo));
+		this->yFrom_float = std::max(0.0, std::min(1.0, yFrom));
+		this->yTo_float = std::max(this->xFrom_float, std::min(1.0, yTo));
+		this->zFrom_float = std::max(0.0, std::min(1.0, zFrom));
+		zTo_float = std::max(this->xFrom_float, std::min(1.0, zTo));
+		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
 	void CtVolume::reconstructVolume(FilterType filterType) {
-		std::lock_guard<std::mutex> lock(this->_exclusiveFunctionsMutex);
-		this->_stop = false;
-		if (this->_sinogram.size() > 0) {
+		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+		this->stopActiveProcess = false;
+		if (this->sinogram.size() > 0) {
 			//resize the volume to the correct size
-			this->_volume = std::vector<std::vector<std::vector<float>>>(this->_xMax, std::vector<std::vector<float>>(this->_yMax, std::vector<float>(this->_zMax, 0)));
+			this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
 			if (reconstructionCore(filterType)) {
 				//now fill the corners around the cylinder with the lowest density value
-				if (this->_xMax > 0 && this->_yMax > 0 && this->_zMax > 0) {
+				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
 					double smallestValue;
-					smallestValue = this->_volume[0][0][0];
-					for (int x = 0; x < this->_xMax; ++x) {
-						for (int y = 0; y < this->_yMax; ++y) {
-							for (int z = 0; z < this->_zMax; ++z) {
-								if (this->_volume[x][y][z] < smallestValue) {
-									smallestValue = this->_volume[x][y][z];
+					smallestValue = this->volume[0][0][0];
+					for (int x = 0; x < this->xMax; ++x) {
+						for (int y = 0; y < this->yMax; ++y) {
+							for (int z = 0; z < this->zMax; ++z) {
+								if (this->volume[x][y][z] < smallestValue) {
+									smallestValue = this->volume[x][y][z];
 								}
 							}
 						}
 					}
 
-					for (int x = 0; x < this->_xMax; ++x) {
-						for (int y = 0; y < this->_yMax; ++y) {
-							if (sqrt(this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y)) >= ((double)this->_xSize / 2) - 3) {
-								for (int z = 0; z < this->_zMax; ++z) {
-									this->_volume[x][y][z] = smallestValue;
+					for (int x = 0; x < this->xMax; ++x) {
+						for (int y = 0; y < this->yMax; ++y) {
+							if (sqrt(this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y)) >= ((double)this->xSize / 2) - 3) {
+								for (int z = 0; z < this->zMax; ++z) {
+									this->volume[x][y][z] = smallestValue;
 								}
 							}
 						}
@@ -305,42 +305,42 @@ namespace ct {
 				//mesure time
 				clock_t end = clock();
 				std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
-				if (this->_emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->_crossSectionIndex)));
+				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
 			} else {
-				this->_volume.clear();
+				this->volume.clear();
 			}
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
-			if (this->_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
+			if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
 		}
 	}
 
 	void CtVolume::saveVolumeToBinaryFile(std::string filename) const {
-		std::lock_guard<std::mutex> lock(this->_exclusiveFunctionsMutex);
-		this->_stop = false;
-		if (this->_volume.size() > 0 && this->_volume[0].size() > 0 && this->_volume[0][0].size() > 0) {
+		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+		this->stopActiveProcess = false;
+		if (this->volume.size() > 0 && this->volume[0].size() > 0 && this->volume[0][0].size() > 0) {
 			{
 				//write binary file
 				QFile file(filename.c_str());
 				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-					if (this->_emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+					if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
 					return;
 				}
 				QDataStream out(&file);
 				out.setFloatingPointPrecision(QDataStream::SinglePrecision);
 				out.setByteOrder(QDataStream::LittleEndian);
 				//iterate through the volume
-				for (int x = 0; x < this->_xMax; ++x) {
-					if (this->_stop) break;
-					if (this->_emitSignals) {
-						double percentage = floor(double(x) / double(this->_volume.size()) * 100 + 0.5);
+				for (int x = 0; x < this->xMax; ++x) {
+					if (this->stopActiveProcess) break;
+					if (this->emitSignals) {
+						double percentage = floor(double(x) / double(this->volume.size()) * 100 + 0.5);
 						emit(savingProgress(percentage));
 					}
-					for (int y = 0; y < this->_yMax; ++y) {
-						for (int z = 0; z < this->_zMax; ++z) {
+					for (int y = 0; y < this->yMax; ++y) {
+						for (int z = 0; z < this->zMax; ++z) {
 							//save one float of data
-							out << this->_volume[x][y][z];
+							out << this->volume[x][y][z];
 						}
 					}
 				}
@@ -352,34 +352,34 @@ namespace ct {
 				QFile file(QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt")));
 				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 					std::cout << "Could not write the info file." << std::endl;
-					if (this->_emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
+					if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
 					return;
 				}
 				QTextStream out(&file);
-				out << "X Size:\t" << this->_xMax << endl;
-				out << "Y Size:\t" << this->_yMax << endl;
-				out << "Z Size:\t" << this->_zMax << endl;
+				out << "X Size:\t" << this->xMax << endl;
+				out << "Y Size:\t" << this->yMax << endl;
+				out << "Z Size:\t" << this->zMax << endl;
 				file.close();
 			}
-			if (this->_stop) {
+			if (this->stopActiveProcess) {
 				std::cout << "User interrupted. Stopping." << std::endl;
-				if (this->_emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 				return;
 			}
 			std::cout << "Volume successfully saved." << std::endl;
-			if (this->_emitSignals) emit(savingFinished());
+			if (this->emitSignals) emit(savingFinished());
 		} else {
 			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			if (this->_emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
 		}
 	}
 
 	void CtVolume::stop() {
-		this->_stop = true;
+		this->stopActiveProcess = true;
 	}
 
 	void CtVolume::setEmitSignals(bool value) {
-		this->_emitSignals = value;
+		this->emitSignals = value;
 	}
 
 	//============================================== PRIVATE ==============================================\\
@@ -396,7 +396,7 @@ namespace ct {
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
-		lineStream >> this->_pixelSize;
+		lineStream >> this->pixelSize;
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
@@ -404,28 +404,28 @@ namespace ct {
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
-		lineStream >> this->_uOffset;
+		lineStream >> this->uOffset;
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
-		lineStream >> this->_vOffset;
+		lineStream >> this->vOffset;
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
-		lineStream >> this->_SO;
+		lineStream >> this->SO;
 		std::getline(stream, line);
 		lineStream.str(line);
 		lineStream.clear();
-		lineStream >> this->_SD;
+		lineStream >> this->SD;
 		//leave out one line
 		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
 		//convert the distance
-		this->_SD /= this->_pixelSize;
-		this->_SO /= this->_pixelSize;
+		this->SD /= this->pixelSize;
+		this->SO /= this->pixelSize;
 		//convert uOffset and vOffset
-		this->_uOffset /= this->_pixelSize;
-		this->_vOffset /= this->_pixelSize;
+		this->uOffset /= this->pixelSize;
+		this->vOffset /= this->pixelSize;
 	}
 
 	std::string CtVolume::glueRelativePath(std::string const& basePath, std::string const& potentialRelativePath) {
@@ -461,7 +461,7 @@ namespace ct {
 		size_t cols;
 		double min = std::numeric_limits<double>::quiet_NaN();
 		double max = std::numeric_limits<double>::quiet_NaN();
-		while (std::getline(csvStream, line) && !this->_stop) {
+		while (std::getline(csvStream, line) && !this->stopActiveProcess) {
 			lineStream.str(line);
 			lineStream.clear();
 			std::getline(lineStream, file, '\t');
@@ -474,22 +474,22 @@ namespace ct {
 			conversionStream.clear();
 			conversionStream >> heightOffset;
 			//load the image
-			this->_sinogram.push_back(ct::CtVolume::Projection(path + file, angle, heightOffset));
-			cv::Mat image = this->_sinogram[cnt].getImage();
+			this->sinogram.push_back(ct::CtVolume::Projection(path + file, angle, heightOffset));
+			cv::Mat image = this->sinogram[cnt].getImage();
 			//check if everything is ok
 			if (!image.data) {
 				//if there is no image data
-				this->_sinogram.clear();
+				this->sinogram.clear();
 				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist, permissions are missing or the format is not supported.";
 				std::cout << msg << std::endl;
-				if (this->_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
 			} else if (image.depth() != CV_8U && image.depth() != CV_16U && image.depth() != CV_32F) {
 				//wrong depth
-				this->_sinogram.clear();
+				this->sinogram.clear();
 				std::string msg = "Error loading the image \"" + path + file + "\". The image depth must be either 8bit, 16bit or 32bit.";
 				std::cout << msg << std::endl;
-				if (this->_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 				return false;
 			} else {
 				//make sure that all images have the same size
@@ -499,10 +499,10 @@ namespace ct {
 				} else {
 					if (image.rows != rows || image.cols != cols) {
 						//if the image has a different size than the images before stop and reverse
-						this->_sinogram.clear();
+						this->sinogram.clear();
 						std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
 						std::cout << msg << std::endl;
-						if (this->_emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
+						if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
 						return false;
 					}
 				}
@@ -519,16 +519,16 @@ namespace ct {
 				if (std::isnan(min) || lMin < min) min = lMin;
 				if (std::isnan(max) || lMax > max) max = lMax;
 				//set image width and image height
-				this->_imageWidth = cols;
-				this->_imageHeight = rows;
+				this->imageWidth = cols;
+				this->imageHeight = rows;
 				//output
 				double percentage = floor(double(cnt) / double(imgCnt) * 100 + 0.5);
 				std::cout << "\r" << "Analysing images: " << percentage << "%";
-				if (this->_emitSignals) emit(loadingProgress(percentage));
+				if (this->emitSignals) emit(loadingProgress(percentage));
 			}
 			++cnt;
 		}
-		this->_minMaxValues = std::make_pair(float(min), float(max));
+		this->minMaxValues = std::make_pair(float(min), float(max));
 		std::cout << std::endl;
 		return true;
 	}
@@ -536,25 +536,25 @@ namespace ct {
 	void CtVolume::makeHeightOffsetRelative() {
 		//convert the heightOffset to a realtive value
 		double sum = 0;
-		for (int i = 0; i < this->_sinogram.size(); ++i) {
-			sum += this->_sinogram[i].heightOffset;
+		for (int i = 0; i < this->sinogram.size(); ++i) {
+			sum += this->sinogram[i].heightOffset;
 		}
-		sum /= (double)this->_sinogram.size();
-		for (int i = 0; i < this->_sinogram.size(); ++i) {
-			this->_sinogram[i].heightOffset -= sum;			//substract average
-			this->_sinogram[i].heightOffset /= this->_pixelSize;		//convert to pixels
+		sum /= (double)this->sinogram.size();
+		for (int i = 0; i < this->sinogram.size(); ++i) {
+			this->sinogram[i].heightOffset -= sum;			//substract average
+			this->sinogram[i].heightOffset /= this->pixelSize;		//convert to pixels
 		}
 	}
 
 	void CtVolume::correctAngleDirection(std::string rotationDirection) {
 		//make sure the direction of the rotation is correct
-		if (this->_sinogram.size() > 1) {	//only possible if there are at least 2 images
-			double diff = this->_sinogram[1].angle - this->_sinogram[0].angle;
+		if (this->sinogram.size() > 1) {	//only possible if there are at least 2 images
+			double diff = this->sinogram[1].angle - this->sinogram[0].angle;
 			//clockwise rotation requires rotation in negative direction and ccw rotation requires positive direction
 			//refers to the rotatin of the "camera"
 			if ((rotationDirection == "cw" && diff > 0) || (rotationDirection == "ccw" && diff < 0)) {
-				for (int i = 0; i < this->_sinogram.size(); ++i) {
-					this->_sinogram[i].angle *= -1;
+				for (int i = 0; i < this->sinogram.size(); ++i) {
+					this->sinogram[i].angle *= -1;
 				}
 			}
 		}
@@ -579,7 +579,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
-		cv::Mat image = this->_sinogram[index].getImage();
+		cv::Mat image = this->sinogram[index].getImage();
 		if (image.data) {
 			convertTo32bit(image);
 			this->preprocessImage(image, filterType);
@@ -610,7 +610,7 @@ namespace ct {
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
-				ptr[c] = ptr[c] * W(this->_SD, this->matToImageU(c), this->matToImageV(r));
+				ptr[c] = ptr[c] * W(this->SD, this->matToImageU(c), this->matToImageV(r));
 			}
 		}
 	}
@@ -668,30 +668,30 @@ namespace ct {
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
 		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
 		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
-		double imageUpperBoundU = this->matToImageU(this->_imageWidth - 1 - 0.1);
+		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->_imageHeight - 1 - 0.1);
+		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 		double imageUpperBoundV = this->matToImageV(0);
 
 		double volumeLowerBoundY = this->volumeToWorldY(0);
-		double volumeUpperBoundY = this->volumeToWorldY(this->_yMax);
+		double volumeUpperBoundY = this->volumeToWorldY(this->yMax);
 		double volumeLowerBoundZ = this->volumeToWorldZ(0);
-		double volumeUpperBoundZ = this->volumeToWorldZ(this->_zMax);
+		double volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
 
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
 
-		for (int projection = 0; projection < this->_sinogram.size(); ++projection) {
-			if (this->_stop) {
+		for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+			if (this->stopActiveProcess) {
 				std::cout << std::endl << "User interrupted. Stopping." << std::endl;
-				if (this->_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
 				return false;
 			}
 			//output percentage
-			double percentage = floor((double)projection / (double)this->_sinogram.size() * 100 + 0.5);
+			double percentage = floor((double)projection / (double)this->sinogram.size() * 100 + 0.5);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
-			if (this->_emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->_crossSectionIndex)));
-			double beta_rad = (this->_sinogram[projection].angle / 180.0) * M_PI;
+			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionIndex)));
+			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
 			//load the projection, the projection for the next iteration is already prepared in a background thread
@@ -701,23 +701,23 @@ namespace ct {
 			} else {
 				image = future.get();
 			}
-			if (projection + 1 != this->_sinogram.size()) {
+			if (projection + 1 != this->sinogram.size()) {
 				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
 			}
 			//check if the image is good
 			if (!image.data) {
-				std::string msg = "The image " + this->_sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+				std::string msg = "The image " + this->sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				std::cout << std::endl << msg << std::endl;
-				if (this->_emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(msg.c_str())));
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(msg.c_str())));
 				return false;
 			}
 			//copy some member variables to local variables, performance is better this way
-			double heightOffset = this->_sinogram[projection].heightOffset;
-			double uOffset = this->_uOffset;
-			double SD = this->_SD;
-			double radiusSquared = std::pow((this->_xSize / 2.0) - 3, 2);
+			double heightOffset = this->sinogram[projection].heightOffset;
+			double uOffset = this->uOffset;
+			double SD = this->SD;
+			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 		#pragma omp parallel for schedule(dynamic)
-			for (long xIndex = 0; xIndex < this->_xMax; ++xIndex) {
+			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
 				double x = this->volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
 					if ((x*x + y*y) < radiusSquared) {
@@ -744,7 +744,7 @@ namespace ct {
 								int v1 = v0 + 1;
 
 								//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
-								//if (u0 < this->_imageWidth && u0 >= 0 && u1 < this->_imageWidth && u1 >= 0 && v0 < this->_imageHeight && v0 >= 0 && v1 < this->_imageHeight && v1 >= 0) {
+								//if (u0 < this->imageWidth && u0 >= 0 && u1 < this->imageWidth && u1 >= 0 && v0 < this->imageHeight && v0 >= 0 && v1 < this->imageHeight && v1 >= 0) {
 
 								float* row = image.ptr<float>(v0);
 								float u0v0 = row[u0];
@@ -752,7 +752,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								this->_volume[xIndex][this->worldToVolumeY(y)][this->worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								this->volume[xIndex][this->worldToVolumeY(y)][this->worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
@@ -777,72 +777,72 @@ namespace ct {
 
 	void CtVolume::updateBoundaries() {
 		//calcualte bounds (+0.5 for correct rouding)
-		this->_xFrom = this->_xFrom_float * this->_xSize + 0.5;
-		this->_xTo = this->_xTo_float * this->_xSize + 0.5;
-		this->_yFrom = this->_yFrom_float * this->_ySize + 0.5;
-		this->_yTo = this->_yTo_float * this->_ySize + 0.5;
-		this->_zFrom = this->_zFrom_float * this->_zSize + 0.5;
-		this->_zTo = _zTo_float * this->_zSize + 0.5;
-		this->_xMax = this->_xTo - this->_xFrom;
-		this->_yMax = this->_yTo - this->_yFrom;
-		this->_zMax = this->_zTo - this->_zFrom;
+		this->xFrom = this->xFrom_float * this->xSize + 0.5;
+		this->xTo = this->xTo_float * this->xSize + 0.5;
+		this->yFrom = this->yFrom_float * this->ySize + 0.5;
+		this->yTo = this->yTo_float * this->ySize + 0.5;
+		this->zFrom = this->zFrom_float * this->zSize + 0.5;
+		this->zTo = zTo_float * this->zSize + 0.5;
+		this->xMax = this->xTo - this->xFrom;
+		this->yMax = this->yTo - this->yFrom;
+		this->zMax = this->zTo - this->zFrom;
 		//make sure the cross section index is valid
-		if (this->_crossSectionAxis == Axis::X && this->_crossSectionIndex >= this->_xMax) {
-			this->_crossSectionIndex = this->_xMax / 2;
-		} else if (this->_crossSectionAxis == Axis::Y && this->_crossSectionIndex >= this->_yMax) {
-			this->_crossSectionIndex = this->_yMax / 2;
-		} else if (this->_crossSectionAxis == Axis::Z && this->_crossSectionIndex >= this->_zMax) {
-			this->_crossSectionIndex = this->_zMax / 2;
+		if (this->crossSectionAxis == Axis::X && this->crossSectionIndex >= this->xMax) {
+			this->crossSectionIndex = this->xMax / 2;
+		} else if (this->crossSectionAxis == Axis::Y && this->crossSectionIndex >= this->yMax) {
+			this->crossSectionIndex = this->yMax / 2;
+		} else if (this->crossSectionAxis == Axis::Z && this->crossSectionIndex >= this->zMax) {
+			this->crossSectionIndex = this->zMax / 2;
 		}
 		//precompute some values for faster processing
-		this->_worldToVolumeXPrecomputed = (double(this->_xSize) / 2.0) - double(this->_xFrom);
-		this->_worldToVolumeYPrecomputed = (double(this->_ySize) / 2.0) - double(this->_yFrom);
-		this->_worldToVolumeZPrecomputed = (double(this->_zSize) / 2.0) - double(this->_zFrom);
-		this->_volumeToWorldXPrecomputed = (double(this->_xSize) / 2.0) - double(this->_xFrom);
-		this->_imageToMatUPrecomputed = double(this->_imageWidth) / 2.0;
-		this->_imageToMatVPrecomputed = double(this->_imageHeight) / 2.0;
+		this->worldToVolumeXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
+		this->worldToVolumeYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
+		this->worldToVolumeZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
+		this->volumeToWorldXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
+		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
+		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
-		return xCoord + this->_worldToVolumeXPrecomputed;
+		return xCoord + this->worldToVolumeXPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeY(double yCoord) const {
-		return yCoord + this->_worldToVolumeYPrecomputed;
+		return yCoord + this->worldToVolumeYPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeZ(double zCoord) const {
-		return zCoord + this->_worldToVolumeZPrecomputed;
+		return zCoord + this->worldToVolumeZPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldX(double xCoord) const {
-		return xCoord - this->_volumeToWorldXPrecomputed;
+		return xCoord - this->volumeToWorldXPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - (double(this->_ySize) / 2.0) + double(this->_yFrom);
+		return yCoord - (double(this->ySize) / 2.0) + double(this->yFrom);
 	}
 
 	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - (double(this->_zSize) / 2.0) + double(this->_zFrom);
+		return zCoord - (double(this->zSize) / 2.0) + double(this->zFrom);
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
-		return uCoord + this->_imageToMatUPrecomputed;
+		return uCoord + this->imageToMatUPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*vCoord + this->_imageToMatVPrecomputed;
+		return (-1)*vCoord + this->imageToMatVPrecomputed;
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {
-		return uCoord - ((double)this->_imageWidth / 2.0);
+		return uCoord - ((double)this->imageWidth / 2.0);
 	}
 
 	inline double CtVolume::matToImageV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*(vCoord - ((double)this->_imageHeight / 2.0));
+		return (-1)*(vCoord - ((double)this->imageHeight / 2.0));
 	}
 
 	int CtVolume::fftCoordToIndex(int coord, int size) {
