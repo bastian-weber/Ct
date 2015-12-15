@@ -189,7 +189,7 @@ namespace ct {
 				cv::Mat result(vSize, uSize, CV_32FC1);
 				float* ptr;
 				if (axis == Axis::X) {
-				#pragma omp parallel for private(ptr)
+#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -197,7 +197,7 @@ namespace ct {
 						}
 					}
 				} else if (axis == Axis::Y) {
-				#pragma omp parallel for private(ptr)
+#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -205,7 +205,7 @@ namespace ct {
 						}
 					}
 				} else {
-				#pragma omp parallel for private(ptr)
+#pragma omp parallel for private(ptr)
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
@@ -349,16 +349,36 @@ namespace ct {
 			{
 				//write information file
 				QFileInfo fileInfo(filename.c_str());
-				QFile file(QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt")));
+				QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
+				//to circumvent naming conflicts with existing files
+				if (QFileInfo(infoFileName).exists()) {
+					unsigned int number = 1;
+					do {
+						infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(QString::number(number)).append(".txt"));
+					} while (QFileInfo(infoFileName).exists());
+				}
+				QFile file(infoFileName);
 				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 					std::cout << "Could not write the info file." << std::endl;
 					if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
 					return;
 				}
 				QTextStream out(&file);
-				out << "X Size:\t" << this->xMax << endl;
-				out << "Y Size:\t" << this->yMax << endl;
-				out << "Z Size:\t" << this->zMax << endl;
+				out << fileInfo.fileName() << endl << endl;
+				out << "[Image Dimensions]" << endl;
+				out << "U Resolution:\t" << this->imageWidth << endl;
+				out << "V Resolution:\t" << this->imageHeight << endl << endl;
+				out << "[Reconstruction Parameters]" << endl;
+				out << "SD:\t\t\t\t" << this->SD << endl;
+				out << "Pixel Size:\t\t" << this->pixelSize << endl;
+				out << "U Offset:\t\t" << this->uOffset << endl;
+				out << "X Range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+				out << "Y Range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+				out << "Z Range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+				out << "[Volume Dimensions]" << endl;
+				out << "X Size:\t\t\t" << this->xMax << endl;
+				out << "Y Size:\t\t\t" << this->yMax << endl;
+				out << "Z Size:\t\t\t" << this->zMax;
 				file.close();
 			}
 			if (this->stopActiveProcess) {
@@ -716,7 +736,7 @@ namespace ct {
 			double uOffset = this->uOffset;
 			double SD = this->SD;
 			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
-		#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
 			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
 				double x = this->volumeToWorldX(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
