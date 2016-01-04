@@ -26,7 +26,7 @@ namespace hb {
 		LARGE_INTEGER startingTime;
 		long double frequency;
 	#else
-		std::chrono::high_resolution_clock::time_point _start;
+		std::chrono::high_resolution_clock::time_point start;
 	#endif
 
 	};
