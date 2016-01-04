@@ -15,7 +15,7 @@ namespace hb {
 		frequency = freq.QuadPart;
 		QueryPerformanceCounter(&this->startingTime);
 	#else
-		_start = _start = std::chrono::high_resolution_clock::now();
+		this->start = std::chrono::high_resolution_clock::now();
 	#endif
 	}
 
@@ -34,7 +34,7 @@ namespace hb {
 		return ticks / this->frequency;
 	#else
 		std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-		return std::chrono::duration_cast<std::chrono::duration<long double>>(end - this->_start).count();
+		return std::chrono::duration_cast<std::chrono::duration<long double>>(end - this->start).count();
 	#endif
 
 	}
