@@ -365,20 +365,24 @@ namespace ct {
 				}
 				QTextStream out(&file);
 				out << fileInfo.fileName() << endl << endl;
-				out << "[Image Dimensions]" << endl;
-				out << "U Resolution:\t" << this->imageWidth << endl;
-				out << "V Resolution:\t" << this->imageHeight << endl << endl;
-				out << "[Reconstruction Parameters]" << endl;
+				out << "[Image dimensions]" << endl;
+				out << "U resolution:\t" << this->imageWidth << endl;
+				out << "V resolution:\t" << this->imageHeight << endl << endl;
+				out << "[Reconstruction parameters]" << endl;
 				out << "SD:\t\t\t\t" << this->SD << endl;
-				out << "Pixel Size:\t\t" << this->pixelSize << endl;
-				out << "U Offset:\t\t" << this->uOffset << endl;
-				out << "X Range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-				out << "Y Range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-				out << "Z Range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
-				out << "[Volume Dimensions]" << endl;
-				out << "X Size:\t\t\t" << this->xMax << endl;
-				out << "Y Size:\t\t\t" << this->yMax << endl;
-				out << "Z Size:\t\t\t" << this->zMax;
+				out << "Pixel size:\t\t" << this->pixelSize << endl;
+				out << "U offset:\t\t" << this->uOffset << endl;
+				out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+				out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+				out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+				out << "[Volume dimensions]" << endl;
+				out << "X size:\t\t\t" << this->xMax << endl;
+				out << "Y size:\t\t\t" << this->yMax << endl;
+				out << "Z size:\t\t\t" << this->zMax<<endl<<endl;
+				out << "[Data format]" << endl;
+				out << "Data type:\t\t32bit IEEE 754 float" << endl;
+				out << "Endianness:\t\tLittle Endian" << endl;
+				out << "Index order:\tZ fastest";
 				file.close();
 			}
 			if (this->stopActiveProcess) {
