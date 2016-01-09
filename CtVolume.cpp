@@ -271,6 +271,8 @@ namespace ct {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 		if (this->sinogram.size() > 0) {
+			//clear potential old volume
+			this->volume.clear();
 			//resize the volume to the correct size
 			this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
 			//mesure time
