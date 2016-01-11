@@ -66,11 +66,8 @@ namespace ct {
 		QHBoxLayout* subLayout;
 		QVBoxLayout* leftLayout;
 		QVBoxLayout* filterLayout;
-		QVBoxLayout* boundsLayout;
+		QGridLayout* boundsLayout;
 		QHBoxLayout* progressLayout;
-		QHBoxLayout* xLayout;
-		QHBoxLayout* yLayout;
-		QHBoxLayout* zLayout;
 		QVBoxLayout* rightLayout;
 		QVBoxLayout* loadLayout;
 		QVBoxLayout* advancedLayout;
