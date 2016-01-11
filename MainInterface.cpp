@@ -49,13 +49,13 @@ namespace ct {
 		this->to1 = new QLabel("to");
 		this->xFrom = new QDoubleSpinBox;
 		this->xFrom->setRange(0, 1);
-		this->xFrom->setValue(0);
+		this->xFrom->setValue(this->settings.value("xFrom", 0).toDouble());
 		this->xFrom->setDecimals(3);
 		this->xFrom->setSingleStep(0.01);
 		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		this->xTo = new QDoubleSpinBox;
 		this->xTo->setRange(0, 1);
-		this->xTo->setValue(1);
+		this->xTo->setValue(this->settings.value("xTo", 1).toDouble());
 		this->xTo->setDecimals(3);
 		this->xTo->setSingleStep(0.01);
 		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
@@ -69,13 +69,13 @@ namespace ct {
 		this->to2 = new QLabel("to");
 		this->yFrom = new QDoubleSpinBox;
 		this->yFrom->setRange(0, 1);
-		this->yFrom->setValue(0);
+		this->yFrom->setValue(this->settings.value("yFrom", 0).toDouble());
 		this->yFrom->setDecimals(3);
 		this->yFrom->setSingleStep(0.01);
 		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		this->yTo = new QDoubleSpinBox;
 		this->yTo->setRange(0, 1);
-		this->yTo->setValue(1);
+		this->yTo->setValue(this->settings.value("yTo", 1).toDouble());
 		this->yTo->setDecimals(3);
 		this->yTo->setSingleStep(0.01);
 		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
@@ -89,16 +89,18 @@ namespace ct {
 		this->to3 = new QLabel("to");
 		this->zFrom = new QDoubleSpinBox;
 		this->zFrom->setRange(0, 1);
-		this->zFrom->setValue(0);
+		this->zFrom->setValue(this->settings.value("zFrom", 0).toDouble());
 		this->zFrom->setDecimals(3);
 		this->zFrom->setSingleStep(0.01);
 		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
 		this->zTo = new QDoubleSpinBox;
 		this->zTo->setRange(0, 1);
-		this->zTo->setValue(1);
+		this->zTo->setValue(this->settings.value("zTo", 1).toDouble());
 		this->zTo->setDecimals(3);
 		this->zTo->setSingleStep(0.01);
 		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		this->resetButton = new QPushButton(tr("Reset All"));
+		QObject::connect(this->resetButton, SIGNAL(clicked()), this, SLOT(resetBounds()));
 		this->zLayout = new QHBoxLayout;
 		this->zLayout->addWidget(this->zLabel, 0);
 		this->zLayout->addWidget(this->zFrom, 1);
@@ -108,6 +110,7 @@ namespace ct {
 		this->boundsLayout->addLayout(this->xLayout);
 		this->boundsLayout->addLayout(this->yLayout);
 		this->boundsLayout->addLayout(this->zLayout);
+		this->boundsLayout->addWidget(this->resetButton, 1, Qt::AlignLeft);
 		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		this->boundsGroupBox->setLayout(this->boundsLayout);
 
@@ -232,6 +235,7 @@ namespace ct {
 		delete this->to1;
 		delete this->to2;
 		delete this->to3;
+		delete this->resetButton;
 		delete this->inputFileEdit;
 		delete this->completer;
 		delete this->browseButton;
@@ -697,11 +701,30 @@ namespace ct {
 		if (this->yTo != QObject::sender()) this->yTo->setMinimum(this->yFrom->value());
 		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
 		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
+		this->saveBounds();
 		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
 		if (this->volume.getSinogramSize() > 0) {
 			this->setInfo();
 			this->updateBoundsDisplay();
 		}
+	}
+
+	void MainInterface::saveBounds() {
+		this->settings.setValue("xFrom", this->xFrom->value());
+		this->settings.setValue("xTo", this->xTo->value());
+		this->settings.setValue("yFrom", this->yFrom->value());
+		this->settings.setValue("yTo", this->yTo->value());
+		this->settings.setValue("zFrom", this->zFrom->value());
+		this->settings.setValue("zTo", this->zTo->value());
+	}
+
+	void MainInterface::resetBounds() {
+		this->xFrom->setValue(0);
+		this->xTo->setValue(1);
+		this->yFrom->setValue(0);
+		this->yTo->setValue(1);		
+		this->zFrom->setValue(0);
+		this->zTo->setValue(1);
 	}
 
 	void MainInterface::reactToLoadButtonClick() {

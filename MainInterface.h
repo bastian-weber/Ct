@@ -95,6 +95,7 @@ namespace ct {
 		QLabel* to1;
 		QLabel* to2;
 		QLabel* to3;
+		QPushButton* resetButton;
 		QLineEdit* inputFileEdit;
 		QCompleter* completer;
 		QPushButton* browseButton;
@@ -117,6 +118,8 @@ namespace ct {
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
 		void reactToBoundsChange(double value);
+		void saveBounds();
+		void resetBounds();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();
