@@ -16,25 +16,33 @@
 #include <set>
 #include <functional>
 
-namespace hb{
+namespace hb {
 
 	///A class for displaying images.
 	/**
 	 * The \c ImageView can display an image and allows the user can zoom and pan.
-	 * Apart from that it supports adding and manipulation of points (e.g. reference points), 
-	 * overlay painting (e.g. a mask), overlay of a mask as well as overlay and manipulation 
+	 * Apart from that it supports adding and manipulation of points (e.g. reference points),
+	 * overlay painting (e.g. a mask), overlay of a mask as well as overlay and manipulation
 	 * of a polyline (e.g. a border).
 	 */
-	class ImageView : public QWidget{
+	class ImageView : public QWidget {
 		Q_OBJECT
 	public:
 		ImageView(QWidget *parent = 0);
 		QSize sizeHint() const;
 
+		void setShowInterfaceOutline(bool value);
+		void setInterfaceBackgroundColor(QColor const& color);
+		void setRightClickForHundredPercentView(bool value);
+		bool rightClickForHundredPercentView();
+		void setUsePanZooming(bool value);
+		bool usesPanZooming();
+
 		void rotateLeft();
 		void rotateRight();
 		void setRotation(double degrees);
 		void centerViewportOn(QPointF point);
+		void setPreventMagnificationInDefaultZoom(bool value);
 
 		void setImage(const QImage& image);
 		void setImage(QImage&& image);
@@ -45,8 +53,16 @@ namespace hb{
 
 		double getCurrentPreviewScalingFactor() const;
 		void setUseHighQualityDownscaling(bool value);
+		bool useHighQualityDownscaling();
 		void setUseSmoothTransform(bool value);
 		bool useSmoothTransform() const;
+		void setEnablePostResizeSharpening(bool value);
+		bool enablePostResizeSharpening();
+		void setPostResizeSharpeningStrength(double value);
+		double postResizeSharpeningStrength();
+		void setPostResizeSharpeningRadius(double value);
+		double postResizeSharpeningRadius();
+		void setPostResizeSharpening(bool enable, double strength, double radius);
 
 		void setPointEditing(bool enablePointAdding, bool enablePointManipulation);
 		void setRenderPoints(bool value);
@@ -73,24 +89,15 @@ namespace hb{
 		const std::vector<QPointF>& getPolyline() const;
 		void setPolylineColor(QColor color);
 
-		///Registers a member function \p function of an \p object that will be called at the end of the \c paintEvent method.
-		/**
-		* This method can be used to register the member function of an object as post-paint function.
-		* The corresponding function will be called at the end of the \c paintEvent method.
-		* To that function the current widget is passed as a \c QPainter object which enables custom
-		* drawing on top of the widget, e.g. to display additional information.
-		*/
-		//template function, thus implemented in header
 		template <typename T>
-		void setExternalPostPaintFunction(T* object, void(T::*function)(QPainter&)) {
-			_externalPostPaint = std::bind(function, object, std::placeholders::_1);
-			_externalPostPaintFunctionAssigned = true;
-		}
+		void setExternalPostPaintFunction(T* object, void(T::*function)(QPainter&));
 		void setExternalPostPaintFunction(std::function<void(QPainter&)> const& function);
 		void removeExternalPostPaintFunction();
 	public slots:
 		void zoomInKey();
 		void zoomOutKey();
+		void zoomToHundredPercent(QPointF center);
+		void resetZoom();
 		void resetMask();
 		void setBrushRadius(int value);
 		void deletePoint(int index);
@@ -101,6 +108,7 @@ namespace hb{
 		void mousePressEvent(QMouseEvent* e);
 		void mouseMoveEvent(QMouseEvent* e);
 		void mouseReleaseEvent(QMouseEvent* e);
+		void mouseDoubleClickEvent(QMouseEvent* e);
 		void wheelEvent(QWheelEvent* e);
 		void resizeEvent(QResizeEvent* e);
 		void enterEvent(QEvent* e);
@@ -116,11 +124,13 @@ namespace hb{
 		QTransform getTransformDownsampledImage() const;
 		QTransform getTransformScaleRotateOnly() const;
 		QTransform getTransformScaleOnly() const;
+		QTransform getTransformRotateOnly() const;
+		void zoomBy(double delta, QPointF const& center, Qt::KeyboardModifiers modifier = Qt::NoModifier);
 		void enforcePanConstraints();
 		void updateResizedImage();
 
 		static double distance(const QPointF& point1, const QPointF& point2);
-		struct IndexWithDistance{
+		struct IndexWithDistance {
 			IndexWithDistance(int index, double distance) : index(index), distance(distance) { };
 			int index;
 			double distance;
@@ -131,6 +141,8 @@ namespace hb{
 		double smallestDistanceToPolylineSelection(QPointF const& mousePosition) const;
 		static double distanceOfPointToLineSegment(QPointF const& lineStart, QPointF const& lineEnd, QPointF const& point);
 
+		static void sharpen(cv::Mat& image, double strength, double radius);
+
 		static void shallowCopyMatToImage(const cv::Mat& mat, QImage& destImage);
 		static void deepCopyMatToImage(const cv::Mat& mat, QImage& destImage);
 		static void shallowCopyImageToMat(const QImage& image, cv::Mat& destMat);
@@ -138,15 +150,27 @@ namespace hb{
 		static void matToImage(const cv::Mat& mat, QImage& destImage, bool deepCopy);
 		static void imageToMat(const QImage& image, cv::Mat& destMat, bool deepCopy);
 
+		//related to general interface settings
+		bool _interfaceOutline;
+		QColor _backgroundColor;
+		bool _rightClickForHundredPercentView;
+		bool _usePanZooming;
 		//the users transformations (panning, zooming)
 		double _zoomExponent;
 		const double _zoomBasis;
+		bool _preventMagnificationInDefaultZoom;
+		bool _hundredPercentZoomMode;
 		QPointF _panOffset;
 		double _viewRotation;
 		//related to general click and drag events
 		bool _dragging;
 		QPointF _lastMousePosition;
 		bool _moved;
+		//related to pan-zooming
+		bool _panZooming;
+		QPointF _initialMousePosition;
+		double _panZoomingInitialZoomExponent;
+		QPointF _panZoomingInitialPanOffset;
 		//related to setting points and rendering them
 		std::vector<QPointF> _points;
 		bool _pointEditingActive;
@@ -157,7 +181,7 @@ namespace hb{
 		bool _pointGrabbed;
 		int _grabbedPointIndex;
 		bool _showPointDeletionWarning;
-		//related to displaying and overlaying an image
+		//related to displaying the image
 		QImage _image;
 		cv::Mat _mat;
 		bool _isMat;
@@ -166,6 +190,9 @@ namespace hb{
 		bool _imageAssigned;
 		bool _useHighQualityDownscaling;
 		bool _useSmoothTransform;
+		bool _enablePostResizeSharpening;
+		double _postResizeSharpeningStrength;
+		double _postResizeSharpeningRadius;
 		//related to mask painting
 		QBitmap _mask;
 		bool _paintingActive;
@@ -216,6 +243,23 @@ namespace hb{
 		///Emitted when the polyline was modified, not emitted live during interaction but on mouse release.
 		void polylineModified();
 	};
+
+
+//=============================================================== IMPLEMENTATION OF TEMPLATE FUNCTIONS ===============================================================\\
+
+	///Registers a member function \p function of an \p object that will be called at the end of the \c paintEvent method.
+	/**
+	* This method can be used to register the member function of an object as post-paint function.
+	* The corresponding function will be called at the end of the \c paintEvent method.
+	* To that function the current widget is passed as a \c QPainter object which enables custom
+	* drawing on top of the widget, e.g. to display additional information.
+	*/
+	//template function, thus implemented in header
+	template <typename T>
+	void ImageView::setExternalPostPaintFunction(T* object, void(T::*function)(QPainter&)) {
+		_externalPostPaint = std::bind(function, object, std::placeholders::_1);
+		_externalPostPaintFunctionAssigned = true;
+	}
 
 }
 
