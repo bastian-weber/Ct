@@ -501,14 +501,14 @@ namespace hb {
 	void ImageView::zoomInKey() {
 		QPointF center = QPointF(double(width()) / 2.0, double(height()) / 2.0);
 		if (underMouse()) center = this->mapFromGlobal(QCursor::pos());
-		zoomBy(120, center);
+		zoomBy(1, center);
 	}
 
 	///Zooms the viewport out one step.
 	void ImageView::zoomOutKey() {
 		QPointF center = QPointF(double(width()) / 2.0, double(height()) / 2.0);
 		if (underMouse()) center = this->mapFromGlobal(QCursor::pos());
-		zoomBy(-120, center);
+		zoomBy(-1, center);
 	}
 
 	///Resets the mask the user is painting, does not affect the overlay mask.
@@ -736,7 +736,7 @@ namespace hb {
 		if (_panZooming) {
 			_zoomExponent = _panZoomingInitialZoomExponent;
 			_panOffset = _panZoomingInitialPanOffset;
-			double delta = (_initialMousePosition - e->pos()).y() * (-3);
+			double delta = (_initialMousePosition - e->pos()).y() * (-0.025);
 			zoomBy(delta, _initialMousePosition);
 			//doesn't work as expected
 			//QCursor::setPos(mapToGlobal(_lastMousePosition.toPoint()));
@@ -848,7 +848,16 @@ namespace hb {
 
 	void ImageView::wheelEvent(QWheelEvent* e) {
 		if (!_panZooming) {
-			zoomBy(e->delta(), e->pos(), e->modifiers());
+			double divisor = 1;
+			if (e->modifiers() & Qt::ControlModifier) {
+				divisor = 600;
+			} else if (!e->modifiers()) {
+				divisor = 120;
+			} else {
+				e->ignore();
+				return;
+			}
+			zoomBy(e->delta() / divisor, e->pos());
 		}
 		e->accept();
 	}
@@ -1224,16 +1233,10 @@ namespace hb {
 		return transform;
 	}
 
-	void ImageView::zoomBy(double delta, QPointF const& center, Qt::KeyboardModifiers modifier) {
+	void ImageView::zoomBy(double delta, QPointF const& center) {
 		if (_imageAssigned) {
 			QPointF mousePositionCoordinateBefore = getTransform().inverted().map(center);
-			if (modifier & Qt::ControlModifier) {
-				_zoomExponent += delta / 600;
-			} else if (!modifier) {
-				_zoomExponent += delta / 120;
-			} else {
-				return;
-			}
+			_zoomExponent += delta;
 			if (_zoomExponent < 0)_zoomExponent = 0;
 			QPointF mousePositionCoordinateAfter = getTransform().inverted().map(center);
 			//remove the rotation from the delta

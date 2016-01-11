@@ -366,7 +366,7 @@ namespace ct {
 
 	void MainInterface::wheelEvent(QWheelEvent* e) {
 		if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
-			if (e->modifiers() & Qt::ControlModifier) {
+			if (e->modifiers() & Qt::AltModifier) {
 				int signum = 1;
 				if (e->delta() < 0) {
 					signum = -1;
@@ -380,7 +380,7 @@ namespace ct {
 				e->ignore();
 			}
 		} else if (this->sinogramDisplayActive) {
-			if (e->modifiers() & Qt::ControlModifier) {
+			if (e->modifiers() & Qt::AltModifier) {
 				int signum = 1;
 				if (e->delta() < 0) {
 					signum = -1;
