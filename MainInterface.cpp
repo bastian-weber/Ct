@@ -195,8 +195,8 @@ namespace ct {
 		if (maximized) {
 			setWindowState(Qt::WindowMaximized);
 		} else {
-		if (lastSize != QSize(-1, -1)) resize(lastSize);
-		if (lastPos != QPoint(-1, -1)) move(lastPos);
+			if (lastSize != QSize(-1, -1)) resize(lastSize);
+			if (lastPos != QPoint(-1, -1)) move(lastPos);
 		}
 	}
 
@@ -244,10 +244,10 @@ namespace ct {
 		delete this->imageView;
 		delete this->informationLabel;
 		delete this->statusLabel;
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		delete this->taskbarButton;
 		delete this->taskbarProgress;
-	#endif
+#endif
 	}
 
 	QSize MainInterface::sizeHint() const {
@@ -278,17 +278,32 @@ namespace ct {
 			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 			//draw axes
 			canvas.setBackgroundMode(Qt::TransparentMode);
-			QPointF center(30, 30);
+			QPointF center(40, 40);
 			double angleRad = this->currentProjection.angle*M_PI / 180.0;
 			canvas.setPen(QPen(Qt::red, 2));
 			QPointF xDelta(-20 * std::sin(angleRad), 10 * std::cos(angleRad));
 			canvas.drawLine(center, center + xDelta);
+			QString xString("x");
+			QVector2D xVec(xDelta);
+			xVec += xVec.normalized()*9;
+			double xWidth = metrics.width(xString);
+			canvas.drawText(center + xVec.toPointF() + QPointF(-xWidth / 2.0, 4), xString);
 			canvas.setPen(QPen(QColor(0, 160, 0), 2));
 			QPointF yDelta(20 * std::cos(angleRad), 10 * std::sin(angleRad));
 			canvas.drawLine(center, center + yDelta);
+			QString yString("y");
+			QVector2D yVec(yDelta);
+			yVec += yVec.normalized() * 9;
+			double yWidth = metrics.width(yString);
+			canvas.drawText(center + yVec.toPointF() + QPointF(-yWidth / 2.0, 4), yString);
 			canvas.setPen(QPen(Qt::blue, 2));
 			QPointF zDelta(0, -20);
 			canvas.drawLine(center, center + zDelta);
+			QString zString("z");
+			QVector2D zVec(zDelta);
+			zVec += zVec.normalized() * 9;
+			double zWidth = metrics.width(zString);
+			canvas.drawText(center + zVec.toPointF() + QPointF(-zWidth / 2.0, 4), zString);
 			canvas.setPen(Qt::NoPen);
 			canvas.setBrush(Qt::darkGray);
 			canvas.drawEllipse(center, 3, 3);
@@ -399,9 +414,9 @@ namespace ct {
 	}
 
 	void MainInterface::showEvent(QShowEvent* e) {
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarButton->setWindow(this->windowHandle());
-	#endif
+#endif
 	}
 
 	void MainInterface::closeEvent(QCloseEvent* e) {
@@ -717,7 +732,7 @@ namespace ct {
 		this->xFrom->setValue(0);
 		this->xTo->setValue(1);
 		this->yFrom->setValue(0);
-		this->yTo->setValue(1);		
+		this->yTo->setValue(1);
 		this->zFrom->setValue(0);
 		this->zTo->setValue(1);
 	}
@@ -725,9 +740,9 @@ namespace ct {
 	void MainInterface::reactToLoadButtonClick() {
 		this->disableAllControls();
 		this->setStatus(tr("Loading file and analysing images..."));
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->show();
-	#endif
+#endif
 		this->timer.reset();
 		std::thread(&CtVolume::sinogramFromImages, &this->volume, this->inputFileEdit->text().toStdString()).detach();
 	}
@@ -736,9 +751,9 @@ namespace ct {
 		this->disableAllControls();
 		this->imageView->resetImage();
 		this->setStatus(tr("Backprojecting..."));
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->show();
-	#endif
+#endif
 		this->timer.reset();
 		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
 		FilterType type = FilterType::RAMLAK;
@@ -762,9 +777,9 @@ namespace ct {
 		if (!path.isEmpty()) {
 			this->disableAllControls();
 			this->savingActive = true;
-		#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 			this->taskbarProgress->show();
-		#endif
+#endif
 			this->setStatus(tr("Writing volume to disk..."));
 			this->timer.reset();
 			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path.toStdString()).detach();
@@ -786,21 +801,21 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBatchFileAction() {
-	#if defined Q_OS_WIN32
-		//The strings for a windows system
+#if defined Q_OS_WIN32
+	//The strings for a windows system
 		QString saveDialogCaption = tr("Create Batch File");
 		QString saveDialogFiletype = "Command Line Scripts (*.cmd);;";
 		QString promptWindowTitle = tr("Batch File Creation");
 		QString status = tr("Batch file saved.");
 		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, QDir::rootPath(), saveDialogFiletype);
-	#else
-		//The strings for a linux system
+#else
+	//The strings for a linux system
 		QString saveDialogCaption = tr("Create Shell Script");
 		QString saveDialogFiletype = "Shell Scripts (*.sh);;";
 		QString promptWindowTitle = tr("Shell Script Creation");
 		QString status = tr("Shell script saved.");
 		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, QDir::rootPath(), saveDialogFiletype);
-	#endif
+#endif
 		QDir cmdDir(QFileInfo(filepath).absoluteDir());
 		if (!filepath.isEmpty()) {
 			bool relativeExePath = false;
@@ -828,17 +843,17 @@ namespace ct {
 				configPath = cmdDir.relativeFilePath(this->inputFileEdit->text());
 			}
 			QFile file(filepath);
-		#if defined Q_OS_UNIX
-			//On linux make it executable
+#if defined Q_OS_UNIX
+	//On linux make it executable
 			if (!file.setPermissions(QFileDevice::ExeOther)) {
 				std::cout << "Could not make shell script executable." << std::endl;
 			}
-		#endif
+#endif
 			if (file.open(QIODevice::ReadWrite | QIODevice::Truncate)) {
 				QTextStream stream(&file);
-			#if defined Q_OS_UNIX
+#if defined Q_OS_UNIX
 				stream << "#!/bin/sh" << ::endl;
-			#endif
+#endif
 				stream << "\"" << appPath << "\" -i \"" << configPath << "\" -o volume.raw";
 				if (!this->ramlakRadioButton->isChecked()) {
 					if (this->shepploganRadioButton->isChecked()) {
@@ -856,22 +871,22 @@ namespace ct {
 				file.close();
 				this->setStatus(status);
 			}
-		}
-	}
+			}
+			}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
-	#endif
+#endif
 	}
 
 	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
 		this->progressBar->reset();
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
 		this->taskbarProgress->reset();
-	#endif
+#endif
 		if (status.successful) {
 			double time = this->timer.getTime();
 			this->setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
@@ -898,9 +913,9 @@ namespace ct {
 
 	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		this->progressBar->setValue(percentage);
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
-	#endif
+#endif
 		if (percentage > 1.0) {
 			double remaining = this->timer.getTime() * ((100.0 - percentage) / percentage);
 			int mins = std::floor(remaining / 60.0);
@@ -915,10 +930,10 @@ namespace ct {
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
 		this->reconstructionActive = false;
 		this->progressBar->reset();
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
 		this->taskbarProgress->reset();
-	#endif
+#endif
 		if (status.successful) {
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
@@ -947,18 +962,18 @@ namespace ct {
 
 	void MainInterface::reactToSaveProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
-	#endif
+#endif
 	}
 
 	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
 		this->savingActive = false;
 		this->progressBar->reset();
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
 		this->taskbarProgress->reset();
-	#endif
+#endif
 		if (status.successful) {
 			double time = this->timer.getTime();
 			this->setStatus(tr("Saving finished (") + QString::number(time, 'f', 1) + "s).");
@@ -987,4 +1002,4 @@ namespace ct {
 		}
 	}
 
-}
+		}
