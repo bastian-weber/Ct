@@ -11,7 +11,7 @@ Launching the program without command line parameters will open up the graphical
 -	To cycle through the projections use the left and right arrow keys.
 -	To scroll through the volume cross-sections use the up and down arrow keys. Press X, Y or Z to select the 
 	corresponding cross section axis.
--	Ctrl + scroll wheel can be used in both cases to scroll in larger steps.
+-	Alt + scroll wheel can be used in both cases to scroll in larger steps.
 
 ============================================= Use as command line tool =============================================
 
