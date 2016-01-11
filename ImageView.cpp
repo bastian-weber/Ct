@@ -160,6 +160,7 @@ namespace hb {
 		_mat = cv::Mat();
 		if (_image.size() != oldSize) {
 			resetMask();
+			_hundredPercentZoomMode = false;
 		}
 
 		_imageAssigned = true;
@@ -202,7 +203,10 @@ namespace hb {
 			QSize oldSize = _image.size();
 			_mat = image;
 			shallowCopyMatToImage(_mat, _image);
-			if (_image.size() != oldSize)resetMask();
+			if (_image.size() != oldSize) {
+				resetMask();
+				_hundredPercentZoomMode = false;
+			}
 			_downsampledMat = downscaledImage;
 			shallowCopyMatToImage(_downsampledMat, _downsampledImage);
 			_isMat = true;
