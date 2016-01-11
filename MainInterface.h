@@ -117,6 +117,7 @@ namespace ct {
 		void reactToBoundsChange(double value);
 		void saveBounds();
 		void resetBounds();
+		void saveFilterType();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();

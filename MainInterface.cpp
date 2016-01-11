@@ -34,9 +34,14 @@ namespace ct {
 		this->loadGroupBox->setLayout(this->loadLayout);
 
 		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
-		this->ramlakRadioButton->setChecked(true);
+		if (this->settings.value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
+		QObject::connect(this->ramlakRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
+		if (this->settings.value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
+		QObject::connect(this->shepploganRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->hannRadioButton = new QRadioButton(tr("&Hann"));
+		if (this->settings.value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
+		QObject::connect(this->hannRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->filterLayout = new QVBoxLayout;
 		this->filterLayout->addWidget(this->ramlakRadioButton);
 		this->filterLayout->addWidget(this->shepploganRadioButton);
@@ -735,6 +740,16 @@ namespace ct {
 		this->yTo->setValue(1);
 		this->zFrom->setValue(0);
 		this->zTo->setValue(1);
+	}
+
+	void MainInterface::saveFilterType() {
+		if (this->ramlakRadioButton->isChecked()) {
+			this->settings.setValue("filterType", "ramLak");
+		} else if(this->shepploganRadioButton->isChecked()) {
+			this->settings.setValue("filterType", "sheppLogan");
+		} else {
+			this->settings.setValue("filterType", "hann");
+		}
 	}
 
 	void MainInterface::reactToLoadButtonClick() {
