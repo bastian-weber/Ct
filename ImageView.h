@@ -125,7 +125,7 @@ namespace hb {
 		QTransform getTransformScaleRotateOnly() const;
 		QTransform getTransformScaleOnly() const;
 		QTransform getTransformRotateOnly() const;
-		void zoomBy(double delta, QPointF const& center, Qt::KeyboardModifiers modifier = Qt::NoModifier);
+		void zoomBy(double delta, QPointF const& center);
 		void enforcePanConstraints();
 		void updateResizedImage();
 
