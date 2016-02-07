@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs")
+set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
 #Qt modules
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 #these modules will only be linked on windows
@@ -106,6 +106,14 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
 		copydlls(OPENCV_MODULES_ALL)
+
+		#copy cuda dlls for opencv
+		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
+			#only 64bit dlls are copied, might not work with 32bit projects
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		endif()	
+
 	endif(MSVC)
 endif()
 
