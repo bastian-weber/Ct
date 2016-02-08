@@ -20,12 +20,15 @@ project(Ct)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
+file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp"  "*.cu")
 
 if(WIN32)
 	#add application icon ressource
 	list(APPEND SOURCEFILES "${CMAKE_CURRENT_SOURCE_DIR}/ct.rc")
 endif()
+
+#CUDA
+find_package(CUDA)
 
 #OpenCV
 set(OpenCV_STATIC OFF)
@@ -67,7 +70,7 @@ endif()
 
 ################################################ Configuration ################################################
 
-add_executable(Ct ${SOURCEFILES})
+cuda_add_executable(Ct ${SOURCEFILES})
 
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)
@@ -142,6 +145,6 @@ IF(DEFINED QT_ROOT_FOUND)
 
 ENDIF(DEFINED QT_ROOT_FOUND)
 
-IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND)
+IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
 ENDIF()
