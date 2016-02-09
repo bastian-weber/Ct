@@ -28,6 +28,8 @@ if(WIN32)
 endif()
 
 #CUDA
+#use dynamic linking
+set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 find_package(CUDA)
 
 #OpenCV
