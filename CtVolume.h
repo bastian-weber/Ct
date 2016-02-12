@@ -15,9 +15,16 @@
 #include <opencv2/core/core.hpp>											//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
 #include <opencv2/imgproc/imgproc.hpp>										//image processing functionality of OpenCV (filter masks etc)
+#include <opencv2/cudaarithm.hpp>											//OpenCV CUDA
+#include <opencv2/cudaimgproc.hpp>
+#include <opencv2/cudafilters.hpp>
+#include <opencv2/cudawarping.hpp>
 
 //Qt
 #include <QtCore/QtCore>
+
+//cuda
+#include <cuda_runtime.h>
 
 //for std::numeric_limits<std::streamsize>::max()
 #undef max
@@ -64,6 +71,7 @@ namespace ct {
 		//constructor
 		CtVolume() = default;
 		CtVolume(std::string csvFile);
+		bool cudaAvailable();
 		//getters
 		ct::Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
@@ -109,36 +117,6 @@ namespace ct {
 			double heightOffset;													//for random trajectory
 		};
 
-		//variables		
-		std::vector<Projection> sinogram;									//here the images are stored
-		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
-		mutable std::mutex exclusiveFunctionsMutex;
-		bool emitSignals = false;											//if true the object emits qt signals in certain functions
-		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
-		Axis crossSectionAxis = Axis::Z;
-		mutable std::atomic<bool> stopActiveProcess{ false };
-		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
-		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
-		//bounds of what will be reconstructed
-		double xFrom_float = 0, xTo_float = 1;
-		double yFrom_float = 0, yTo_float = 1;
-		double zFrom_float = 0, zTo_float = 1;
-		size_t xFrom = 0, xTo = 0;
-		size_t yFrom = 0, yTo = 0;
-		size_t zFrom = 0, zTo = 0;
-		size_t xMax = 0, yMax = 0, zMax = 0;
-		double SD = 0;														//the distance of the source to the detector in pixel
-		double SO = 0;														//the distance of the source to the object in pixel
-		double pixelSize = 0;
-		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction
-		mutable std::pair<float, float> minMaxValues;
-		//some precomputed values for the coordinate conversion functions for faster execution
-		double worldToVolumeXPrecomputed;
-		double worldToVolumeYPrecomputed;
-		double worldToVolumeZPrecomputed;
-		double volumeToWorldXPrecomputed;
-		double imageToMatUPrecomputed;
-		double imageToMatVPrecomputed;
 		//functions			
 		void readParameters(std::ifstream& stream,
 							std::string& path,
@@ -162,6 +140,7 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
+		bool cudaReconstructionCore(FilterType filterType);
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 										   double v,
 										   float u0v0,
@@ -182,6 +161,37 @@ namespace ct {
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
 		static int fftCoordToIndex(int coord, int size);						//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
+		
+		//variables		
+		std::vector<Projection> sinogram;									//here the images are stored
+		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
+		mutable std::mutex exclusiveFunctionsMutex;
+		bool emitSignals = false;											//if true the object emits qt signals in certain functions
+		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
+		Axis crossSectionAxis = Axis::Z;
+		mutable std::atomic<bool> stopActiveProcess{ false };
+		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
+		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
+																			//bounds of what will be reconstructed
+		double xFrom_float = 0, xTo_float = 1;
+		double yFrom_float = 0, yTo_float = 1;
+		double zFrom_float = 0, zTo_float = 1;
+		size_t xFrom = 0, xTo = 0;
+		size_t yFrom = 0, yTo = 0;
+		size_t zFrom = 0, zTo = 0;
+		size_t xMax = 0, yMax = 0, zMax = 0;
+		double SD = 0;														//the distance of the source to the detector in pixel
+		double SO = 0;														//the distance of the source to the object in pixel
+		double pixelSize = 0;
+		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction
+		mutable std::pair<float, float> minMaxValues;
+		//some precomputed values for the coordinate conversion functions for faster execution
+		double worldToVolumeXPrecomputed;
+		double worldToVolumeYPrecomputed;
+		double worldToVolumeZPrecomputed;
+		double volumeToWorldXPrecomputed;
+		double imageToMatUPrecomputed;
+		double imageToMatVPrecomputed;
 	signals:
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
