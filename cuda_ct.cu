@@ -52,7 +52,7 @@ namespace ct {
 			size_t xIndex = blockIdx.x;
 			size_t yIndex = blockIdx.y;
 			size_t zIndex = blockIdx.z;
-			
+
 			//just make sure we're inside the volume bounds
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
 				//check if voxel is inside the reconstructable cylinder
@@ -88,6 +88,7 @@ namespace ct {
 						float u1v1 = image(v1, u1);
 
 						float value = bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+
 						addToVolumeElement(volumePtr, ySize, xIndex, yIndex, zIndex, value);
 					}
 				}
