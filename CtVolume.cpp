@@ -913,7 +913,6 @@ namespace ct {
 		for (int x = 0; x < this->xMax; ++x) {
 			for (int y = 0; y < this->yMax; ++y) {
 				for (int z = 0; z < zSize; ++z) {
-					//volume[x][y][z + zOffset] = arrayPtr.get()[x * this->yMax * this->zMax + y * this->zMax + z];
 					//xSize * ySize * zCoord + xSize * yChoord + xCoord
 					volume[x][y][z + zOffset] = arrayPtr.get()[z * this->xMax * this->yMax + y * this->xMax + x];
 				}
