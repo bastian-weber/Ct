@@ -32,6 +32,10 @@ namespace ct {
 		this->sinogramFromImages(csvFile);
 	}
 
+	bool CtVolume::cudaAvailable() {
+		return (cv::cuda::getCudaEnabledDeviceCount() > 0);
+	}
+
 	void CtVolume::sinogramFromImages(std::string csvFile) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
@@ -269,6 +273,9 @@ namespace ct {
 
 	void CtVolume::reconstructVolume(FilterType filterType) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+
+		bool useCuda = true;
+
 		this->stopActiveProcess = false;
 		if (this->sinogram.size() > 0) {
 			//clear potential old volume
@@ -278,7 +285,16 @@ namespace ct {
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
-			if (reconstructionCore(filterType)) {
+			bool result = false;
+			if (useCuda && !this->cudaAvailable()) {
+				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
+			}
+			if (useCuda && this->cudaAvailable()) {
+				result = this->cudaReconstructionCore(filterType);
+			} else {
+				result = this->reconstructionCore(filterType);
+			}
+			if (result) {
 				//now fill the corners around the cylinder with the lowest density value
 				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
 					double smallestValue;
@@ -786,6 +802,77 @@ namespace ct {
 			}
 		}
 		std::cout << std::endl;
+		return true;
+	}
+
+	bool CtVolume::cudaReconstructionCore(FilterType filterType) {
+
+		size_t freeMemory, totalMemory;
+		cudaMemGetInfo(&freeMemory, &totalMemory);
+
+		std::cout << "Free memory: " << double(freeMemory) / (1024 * 1024 * 1024) << "Gb" << std::endl;
+
+		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
+		size_t sliceCnt = freeMemory / sliceSize;
+		size_t currentSlice = 0;
+
+		if (sliceCnt < 1) {
+			//too little memory
+			std::cout << "The free GPU memory is not sufficient" << std::endl;
+			return false;
+		}
+
+		//precomputing some values
+		double imageLowerBoundU = this->matToImageU(0);
+		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
+		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
+		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+		//inversed because of inversed v axis in mat/image coordinate system
+		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+		double imageUpperBoundV = this->matToImageV(0);
+		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
+		while (currentSlice < this->zMax) {
+
+			size_t lastSlice = std::min(currentSlice + sliceCnt, this->zMax);
+			std::cout << "Processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
+
+			//allocate volume part memory on gpu
+			//fill volume part with 0 on gpu
+
+			//prepare and upload image 1
+			cv::Mat image;
+			cv::cuda::GpuMat gpuPrefetchedImage;
+			cv::cuda::GpuMat gpuCurrentImage;
+			image = this->prepareProjection(0, filterType);
+			gpuPrefetchedImage.upload(image);
+
+			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+
+				gpuCurrentImage = gpuPrefetchedImage;
+
+				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+				double sine = sin(beta_rad);
+				double cosine = cos(beta_rad);
+
+				//start reconstruction with current image
+
+				//prepare and upload next image
+				if (projection < this->sinogram.size() - 1) {
+					image = this->prepareProjection(projection + 1, filterType);
+					gpuPrefetchedImage.upload(image);
+				}
+
+				//sync gpu
+			}
+
+			//donload the reconstructed volume part
+			//free volume part memory on gpu
+
+			currentSlice += sliceCnt;
+		}
+
 		return true;
 	}
 
