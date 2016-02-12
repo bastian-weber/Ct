@@ -45,6 +45,11 @@ if(OPENCV_ROOT_FOUND)
 	find_package(OpenCV 3.0 REQUIRED)
 endif()
 
+if(OPENCV_FOUND)
+	#adds the opencv include dirs to nvcc
+	CUDA_INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
+endif()
+
 #Qt
 set(QT_MODULES_ALL)
 list(APPEND QT_MODULES_ALL ${QT_MODULES_CV})
