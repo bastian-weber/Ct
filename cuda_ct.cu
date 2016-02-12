@@ -55,14 +55,14 @@ namespace ct {
 
 			//just make sure we're inside the volume bounds
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
-				//check if voxel is inside the reconstructable cylinder
-				if ((xIndex*xIndex + yIndex*yIndex) < radiusSquared) {
-
 
 				//calculate the world coordinates
-					double x = double(xIndex) - volumeToWorldXPrecomputed;
-					double y = double(yIndex) - volumeToWorldYPrecomputed;
-					double z = double(zIndex) - volumeToWorldZPrecomputed;
+				double x = double(xIndex) - volumeToWorldXPrecomputed;
+				double y = double(yIndex) - volumeToWorldYPrecomputed;
+				double z = double(zIndex) - volumeToWorldZPrecomputed;
+
+				//check if voxel is inside the reconstructable cylinder
+				if ((x*x + y*y) < radiusSquared) {
 
 					double t = (-1)*x*sine + y*cosine;
 					t += uOffset;
