@@ -29,8 +29,24 @@ namespace ct {
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 
+		__device__ void setVolumeElement(cudaPitchedPtr volumePtr, size_t ySize, size_t xCoord, size_t yCoord, size_t zCoord, float value) {
+			char* devicePtr = (char*)(volumePtr.ptr);
+			//z * xSize * ySize + y * xSize + x
+			size_t pitch = volumePtr.pitch;
+			size_t slicePitch = pitch * ySize;
+			char* slice = devicePtr + zCoord*slicePitch;
+			float* row = (float*)(slice + yCoord * pitch);
+			row[xCoord] = value;
+		}
+
 		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> const& image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBountV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
-			//do sth
+			size_t x = blockIdx.x;
+			size_t y = blockIdx.y;
+			size_t z = blockIdx.z;
+			if (x < xSize && y < ySize && z < zSize) {
+				float value = std::sqrt(double(x*x + y*y + z*z));
+				setVolumeElement(volumePtr, ySize, x, y, z, value);
+			}
 		}
 
 		void startReconstruction(cv::cuda::PtrStepSz<float> const & image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
