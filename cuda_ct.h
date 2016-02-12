@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <stdio.h>
 #include <memory>
+#include <cmath>
 
 //CUDA
 #include <cuda_runtime.h>
