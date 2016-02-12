@@ -144,6 +144,9 @@ namespace ct {
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
 		bool cudaReconstructionCore(FilterType filterType);
+		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
+								   size_t zSize,
+								   size_t zOffset);
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 										   double v,
 										   float u0v0,
@@ -193,6 +196,8 @@ namespace ct {
 		double worldToVolumeYPrecomputed;
 		double worldToVolumeZPrecomputed;
 		double volumeToWorldXPrecomputed;
+		double volumeToWorldYPrecomputed;
+		double volumeToWorldZPrecomputed;
 		double imageToMatUPrecomputed;
 		double imageToMatVPrecomputed;
 	signals:

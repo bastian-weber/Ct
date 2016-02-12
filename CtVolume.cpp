@@ -835,11 +835,15 @@ namespace ct {
 
 		while (currentSlice < this->zMax) {
 
-			size_t lastSlice = std::min(currentSlice + sliceCnt, this->zMax);
+			size_t const lastSlice = std::min(currentSlice + sliceCnt, this->zMax);
+			size_t const xDimension = this->xMax;
+			size_t const yDimension = this->yMax;
+			size_t const zDimension = lastSlice - currentSlice;
+
 			std::cout << "Processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
 			//allocate volume part memory on gpu
-			//fill volume part with 0 on gpu
+			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension);
 
 			//prepare and upload image 1
 			cv::Mat image;
@@ -850,6 +854,8 @@ namespace ct {
 
 			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 
+				std::cout << "Projecting projection " << projection + 1 << "/" << this->sinogram.size() << std::endl;
+
 				gpuCurrentImage = gpuPrefetchedImage;
 
 				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
@@ -857,6 +863,26 @@ namespace ct {
 				double cosine = cos(beta_rad);
 
 				//start reconstruction with current image
+				ct::cuda::startReconstruction(gpuCurrentImage,
+											  gpuVolumePtr,
+											  xDimension,
+											  yDimension,
+											  zDimension,
+											  radiusSquared,
+											  sine,
+											  cosine,
+											  this->sinogram[projection].heightOffset,
+											  this->uOffset,
+											  this->SD,
+											  imageLowerBoundU,
+											  imageUpperBoundU,
+											  imageLowerBoundV,
+											  imageUpperBoundV,
+											  this->volumeToWorldXPrecomputed,
+											  this->volumeToWorldYPrecomputed,
+											  this->volumeToWorldZPrecomputed,
+											  this->imageToMatUPrecomputed,
+											  this->imageToMatVPrecomputed);
 
 				//prepare and upload next image
 				if (projection < this->sinogram.size() - 1) {
@@ -865,15 +891,32 @@ namespace ct {
 				}
 
 				//sync gpu
+				cudaDeviceSynchronize();
 			}
 
 			//donload the reconstructed volume part
+			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension);
+
+			//copy volume part to vector
+			this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
+
 			//free volume part memory on gpu
+			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr);
 
 			currentSlice += sliceCnt;
 		}
 
 		return true;
+	}
+
+	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
+		for (int x = 0; x < this->xMax; ++x) {
+			for (int y = 0; y < this->yMax; ++y) {
+				for (int z = 0; z < zSize; ++z) {
+					volume[x][y][z + zOffset] = arrayPtr.get()[x * this->yMax * this->zMax + y * this->zMax + z];
+				}
+			}
+		}
 	}
 
 	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
@@ -912,6 +955,8 @@ namespace ct {
 		this->worldToVolumeYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
 		this->worldToVolumeZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
 		this->volumeToWorldXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
+		this->volumeToWorldYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
+		this->volumeToWorldZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
 		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
 		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
 	}
@@ -933,11 +978,11 @@ namespace ct {
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - (double(this->ySize) / 2.0) + double(this->yFrom);
+		return yCoord - this->volumeToWorldYPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - (double(this->zSize) / 2.0) + double(this->zFrom);
+		return zCoord - this->volumeToWorldZPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
