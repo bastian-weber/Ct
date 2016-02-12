@@ -23,11 +23,14 @@
 //Qt
 #include <QtCore/QtCore>
 
-//cuda
+//CUDA
 #include <cuda_runtime.h>
 
 //for std::numeric_limits<std::streamsize>::max()
 #undef max
+
+//CUDA functions
+#include "cuda_ct.h"
 
 namespace ct {
 
