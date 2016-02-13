@@ -53,6 +53,10 @@ namespace ct {
 			size_t yIndex = blockIdx.y;
 			size_t zIndex = blockIdx.z;
 
+			//if (xIndex == 0 && yIndex == 0 && zIndex == 0) {
+			//	printf("kernel start\n");
+			//}
+
 			//just make sure we're inside the volume bounds
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
 
@@ -94,6 +98,10 @@ namespace ct {
 				}
 			}
 
+			//if (xIndex == 0 && yIndex == 0 && zIndex == 0) {
+			//	printf("kernel end\n");
+			//}
+
 		}
 
 		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
@@ -118,6 +126,10 @@ namespace ct {
 												   volumeToWorldZPrecomputed,
 												   imageToMatUPrecomputed,
 												   imageToMatVPrecomputed);
+			//cudaDeviceSynchronize();
+		}
+
+		void deviceSynchronize() {
 			cudaDeviceSynchronize();
 		}
 		
