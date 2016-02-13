@@ -852,6 +852,8 @@ namespace ct {
 			image = this->prepareProjection(0, filterType);
 			gpuPrefetchedImage.upload(image);
 
+			cv::cuda::Stream gpuUploadStream;
+
 			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 
 				std::cout << "Projecting projection " << projection + 1 << "/" << this->sinogram.size() << std::endl;
@@ -891,11 +893,12 @@ namespace ct {
 				//prepare and upload next image
 				if (projection < this->sinogram.size() - 1) {
 					image = this->prepareProjection(projection + 1, filterType);
-					gpuPrefetchedImage.upload(image);
+					gpuPrefetchedImage.upload(image, gpuUploadStream);
+					gpuUploadStream.waitForCompletion();
 				}
 
 				//sync gpu
-				//cudaDeviceSynchronize();
+				ct::cuda::deviceSynchronize();
 			}
 
 			//donload the reconstructed volume part

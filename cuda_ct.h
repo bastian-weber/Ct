@@ -39,6 +39,7 @@ namespace ct {
 								 double volumeToWorldZPrecomputed,
 								 double imageToMatUPrecomputed,
 								 double imageToMatVPrecomputed);
+		void deviceSynchronize();
 	
 	}
 
