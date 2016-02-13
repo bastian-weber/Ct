@@ -47,7 +47,7 @@ namespace ct {
 			row[xCoord] += value;
 		}
 
-		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> const& image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
 			
 			size_t xIndex = blockIdx.x;
 			size_t yIndex = blockIdx.y;
@@ -96,7 +96,7 @@ namespace ct {
 
 		}
 
-		void startReconstruction(cv::cuda::PtrStepSz<float> const & image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
 			dim3 blocks(xSize, ySize, zSize);
 			reconstructionKernel <<< blocks, 1 >>>(image,
 												   volumePtr,

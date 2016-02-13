@@ -856,9 +856,11 @@ namespace ct {
 
 				std::cout << "Projecting projection " << projection + 1 << "/" << this->sinogram.size() << std::endl;
 
-				cv::cuda::GpuMat tmp = gpuCurrentImage;
-				gpuCurrentImage = gpuPrefetchedImage;
-				gpuPrefetchedImage = tmp;
+				{
+					cv::cuda::GpuMat tmp = gpuCurrentImage;
+					gpuCurrentImage = gpuPrefetchedImage;
+					gpuPrefetchedImage = tmp;
+				}
 
 				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 				double sine = sin(beta_rad);
@@ -893,7 +895,7 @@ namespace ct {
 				}
 
 				//sync gpu
-				cudaDeviceSynchronize();
+				//cudaDeviceSynchronize();
 			}
 
 			//donload the reconstructed volume part

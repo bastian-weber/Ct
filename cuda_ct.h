@@ -19,7 +19,7 @@ namespace ct {
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr);
 		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize);
-		void startReconstruction(cv::cuda::PtrStepSz<float> const& image,
+		void startReconstruction(cv::cuda::PtrStepSz<float> image,
 								 cudaPitchedPtr volumePtr,
 								 size_t xSize,
 								 size_t ySize,
