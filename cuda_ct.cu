@@ -118,6 +118,7 @@ namespace ct {
 												   volumeToWorldZPrecomputed,
 												   imageToMatUPrecomputed,
 												   imageToMatVPrecomputed);
+			cudaDeviceSynchronize();
 		}
 		
 	}
