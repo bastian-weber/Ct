@@ -4,26 +4,35 @@ namespace ct {
 
 	namespace cuda {
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize) {
+		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
+			success = true;
 			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			status = cudaMalloc3D(&ptr, extent);
 			if (status != cudaSuccess) {
 				std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
 			}
 			status = cudaMemset3D(ptr, 0, extent);
 			if (status != cudaSuccess) {
 				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
 			}
 			return ptr;
 		}
 
-		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr) {
-			cudaFree(devicePtr.ptr);
+		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success) {
+			success = true;
+			cudaError_t status = cudaFree(devicePtr.ptr);
+			if (status != cudaSuccess) {
+				std::cout << "cudaFree ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 		}
 
-		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize) {
+		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
+			success = true;
 			float* hostDataPtr = new float[xSize * ySize * zSize];
 			cudaPitchedPtr hostPtr = make_cudaPitchedPtr(hostDataPtr, xSize * sizeof(float), xSize, ySize);
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
@@ -35,6 +44,7 @@ namespace ct {
 			cudaError_t status = cudaMemcpy3D(&memcopyParameters);
 			if (status != cudaSuccess) {
 				std::cout << "cudaMemcpy3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
 			}
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
@@ -114,8 +124,30 @@ namespace ct {
 
 		}
 
-		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
-			dim3 threads(16, 16, 1);
+		void startReconstruction(cv::cuda::PtrStepSz<float> image, 
+								 cudaPitchedPtr volumePtr, 
+								 size_t xSize, 
+								 size_t ySize, 
+								 size_t zSize, 
+								 size_t zOffset, 
+								 double radiusSquared, 
+								 double sine, 
+								 double cosine, 
+								 double heightOffset, 
+								 double uOffset, 
+								 double SD, 
+								 double imageLowerBoundU, 
+								 double imageUpperBoundU, 
+								 double imageLowerBoundV, 
+								 double imageUpperBoundV, 
+								 double volumeToWorldXPrecomputed, 
+								 double volumeToWorldYPrecomputed, 
+								 double volumeToWorldZPrecomputed, 
+								 double imageToMatUPrecomputed, 
+								 double imageToMatVPrecomputed, 
+								 bool& success) {
+			success = true;
+			dim3 threads(16, 16, 10000);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
@@ -142,14 +174,17 @@ namespace ct {
 														   imageToMatVPrecomputed);
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
-				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status) << std::endl;
+				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status);
+				success = false;
 			}
 		}
 
-		void deviceSynchronize() {
+		void deviceSynchronize(bool& success) {
+			success = true;
 			cudaError_t status = cudaDeviceSynchronize();
 			if (status != cudaSuccess) {
-				std::cout << std::endl << "cudaDeviceSynchronize ERROR: " << cudaGetErrorString(status) << std::endl;
+				std::cout << std::endl << "cudaDeviceSynchronize ERROR: " << cudaGetErrorString(status);
+				success = false;
 			}
 		}
 
