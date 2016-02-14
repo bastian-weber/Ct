@@ -373,6 +373,7 @@ namespace ct {
 					unsigned int number = 1;
 					do {
 						infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(QString::number(number)).append(".txt"));
+						++number;
 					} while (QFileInfo(infoFileName).exists());
 				}
 				QFile file(infoFileName);
