@@ -24,6 +24,7 @@ namespace ct {
 								 size_t xSize,
 								 size_t ySize,
 								 size_t zSize,
+								 size_t zOffset,
 								 double radiusSquared,
 								 double sine,
 								 double cosine,
