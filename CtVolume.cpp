@@ -830,15 +830,14 @@ namespace ct {
 
 		size_t freeMemory, totalMemory;
 		cudaMemGetInfo(&freeMemory, &totalMemory);
-		//spare 80Mb of VRAM for other applications
-		freeMemory -= 200 * 1024 * 1024;
-
 		std::cout << "Free memory: " << double(freeMemory) / (1024 * 1024 * 1024) << "Gb" << std::endl;
+		//spare 200Mb of VRAM for other applications
+		freeMemory -= 200 * 1024 * 1024;
+		//std::cout << sliceSize*sliceCnt << std::endl;
+		//std::cout << "Free: " << freeMemory << std::endl;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		size_t sliceCnt = freeMemory / sliceSize;
-		std::cout << sliceSize*sliceCnt << std::endl;
-		std::cout << "Free: " << freeMemory << std::endl;
 		size_t currentSlice = 0;
 
 		if (sliceCnt < 1) {
