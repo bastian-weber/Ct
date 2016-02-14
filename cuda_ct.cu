@@ -78,7 +78,7 @@ namespace ct {
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 						u += imageToMatUPrecomputed;
-						v += imageToMatVPrecomputed;
+						v = (-1)*v + imageToMatVPrecomputed;
 
 						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
 						size_t u0 = u;
