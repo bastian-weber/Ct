@@ -5,12 +5,17 @@ namespace ct {
 	namespace cuda {
 
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize) {
+			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
-			cudaMalloc3D(&ptr, extent);
-			printf("malloc3D: %s\n", cudaGetErrorString(cudaGetLastError()));
-			cudaMemset3D(ptr, 0, extent);
-			printf("memset3D: %s\n", cudaGetErrorString(cudaGetLastError()));
+			status = cudaMalloc3D(&ptr, extent);
+			if (status != cudaSuccess) {
+				std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
+			}
+			status = cudaMemset3D(ptr, 0, extent);
+			if (status != cudaSuccess) {
+				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+			}
 			return ptr;
 		}
 
@@ -27,8 +32,10 @@ namespace ct {
 			memcopyParameters.dstPtr = hostPtr;
 			memcopyParameters.extent = extent;
 			memcopyParameters.kind = cudaMemcpyDeviceToHost;
-			cudaMemcpy3D(&memcopyParameters);
-			printf("memcopy3D: %s\n", cudaGetErrorString(cudaGetLastError()));
+			cudaError_t status = cudaMemcpy3D(&memcopyParameters);
+			if (status != cudaSuccess) {
+				std::cout << "cudaMemcpy3D ERROR: " << cudaGetErrorString(status) << std::endl;
+			}
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 
@@ -133,12 +140,17 @@ namespace ct {
 														   volumeToWorldZPrecomputed,
 														   imageToMatUPrecomputed,
 														   imageToMatVPrecomputed);
-			//printf("kernel launch: %s\n", cudaGetErrorString(cudaGetLastError()));
+			cudaError_t status = cudaGetLastError();
+			if (status != cudaSuccess) {
+				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status) << std::endl;
+			}
 		}
 
 		void deviceSynchronize() {
-			cudaDeviceSynchronize();
-			//printf("device synchronize: %s\n", cudaGetErrorString(cudaGetLastError()));
+			cudaError_t status = cudaDeviceSynchronize();
+			if (status != cudaSuccess) {
+				std::cout << std::endl << "cudaDeviceSynchronize ERROR: " << cudaGetErrorString(status) << std::endl;
+			}
 		}
 
 	}
