@@ -147,7 +147,7 @@ namespace ct {
 								 double imageToMatVPrecomputed, 
 								 bool& success) {
 			success = true;
-			dim3 threads(16, 16, 1);
+			dim3 threads(32, 32, 1);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
