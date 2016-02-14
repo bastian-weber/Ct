@@ -818,13 +818,27 @@ namespace ct {
 		double imageUpperBoundV = this->matToImageV(0);
 		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
+		//first upload two images, so the memory used will be taken into consideration
+		//prepare and upload image 1
+		cv::Mat image;
+		cv::cuda::GpuMat gpuPrefetchedImage;
+		cv::cuda::GpuMat gpuCurrentImage;
+		image = this->prepareProjection(0, filterType);
+		gpuCurrentImage.upload(image);
+		gpuPrefetchedImage.upload(image);
+		cv::cuda::Stream gpuUploadStream;
+
 		size_t freeMemory, totalMemory;
 		cudaMemGetInfo(&freeMemory, &totalMemory);
+		//spare 80Mb of VRAM for other applications
+		freeMemory -= 200 * 1024 * 1024;
 
 		std::cout << "Free memory: " << double(freeMemory) / (1024 * 1024 * 1024) << "Gb" << std::endl;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		size_t sliceCnt = freeMemory / sliceSize;
+		std::cout << sliceSize*sliceCnt << std::endl;
+		std::cout << "Free: " << freeMemory << std::endl;
 		size_t currentSlice = 0;
 
 		if (sliceCnt < 1) {
@@ -854,16 +868,6 @@ namespace ct {
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 				return false;
 			}
-
-			//prepare and upload image 1
-			cv::Mat image;
-			cv::cuda::GpuMat gpuPrefetchedImage;
-			cv::cuda::GpuMat gpuCurrentImage;
-			image = this->prepareProjection(0, filterType);
-			gpuCurrentImage.upload(image);
-			gpuPrefetchedImage.upload(image);
-
-			cv::cuda::Stream gpuUploadStream;
 
 			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 
