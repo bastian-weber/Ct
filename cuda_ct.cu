@@ -4,9 +4,13 @@ namespace ct {
 
 	namespace cuda {
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
-			success = true;
+		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, int deviceId, bool& success) {
 			cudaError_t status;
+			status = cudaSetDevice(deviceId);
+			if (status != cudaSuccess) {
+				std::cout << "create3dVolumeOnGPU cudaSetDevice ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			status = cudaMalloc3D(&ptr, extent);
@@ -22,17 +26,27 @@ namespace ct {
 			return ptr;
 		}
 
-		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success) {
-			success = true;
-			cudaError_t status = cudaFree(devicePtr.ptr);
+		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, int deviceId, bool& success) {
+			cudaError_t status;
+			status = cudaSetDevice(deviceId);
+			if (status != cudaSuccess) {
+				std::cout << "delete3dVolumeOnGPU cudaSetDevice ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
+			status = cudaFree(devicePtr.ptr);
 			if (status != cudaSuccess) {
 				std::cout << "cudaFree ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
 		}
 
-		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
-			success = true;
+		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, int deviceId, bool& success) {
+			cudaError_t status;
+			status = cudaSetDevice(deviceId);
+			if (status != cudaSuccess) {
+				std::cout << "download3dVolume cudaSetDevice ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 			float* hostDataPtr = new float[xSize * ySize * zSize];
 			cudaPitchedPtr hostPtr = make_cudaPitchedPtr(hostDataPtr, xSize * sizeof(float), xSize, ySize);
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
@@ -41,7 +55,7 @@ namespace ct {
 			memcopyParameters.dstPtr = hostPtr;
 			memcopyParameters.extent = extent;
 			memcopyParameters.kind = cudaMemcpyDeviceToHost;
-			cudaError_t status = cudaMemcpy3D(&memcopyParameters);
+			status = cudaMemcpy3D(&memcopyParameters);
 			if (status != cudaSuccess) {
 				std::cout << "cudaMemcpy3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
@@ -145,8 +159,14 @@ namespace ct {
 								 double volumeToWorldZPrecomputed, 
 								 double imageToMatUPrecomputed, 
 								 double imageToMatVPrecomputed, 
+								 int deviceId,
 								 bool& success) {
-			success = true;
+			cudaError_t status;
+			status = cudaSetDevice(deviceId);
+			if (status != cudaSuccess) {
+				std::cout << "startReconstruction cudaSetDevice ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 			dim3 threads(32, 32, 1);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
@@ -172,16 +192,20 @@ namespace ct {
 														   volumeToWorldZPrecomputed,
 														   imageToMatUPrecomputed,
 														   imageToMatVPrecomputed);
-			cudaError_t status = cudaGetLastError();
+			status = cudaGetLastError();
 			if (status != cudaSuccess) {
 				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status);
 				success = false;
 			}
 		}
 
-		void deviceSynchronize(bool& success) {
-			success = true;
+		void deviceSynchronize(int deviceId, bool& success) {
 			cudaError_t status = cudaDeviceSynchronize();
+			status = cudaSetDevice(deviceId);
+			if (status != cudaSuccess) {
+				std::cout << "deviceSynchronize cudaSetDevice ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 			if (status != cudaSuccess) {
 				std::cout << std::endl << "cudaDeviceSynchronize ERROR: " << cudaGetErrorString(status);
 				success = false;
