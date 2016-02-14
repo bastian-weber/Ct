@@ -114,7 +114,7 @@ namespace ct {
 		private slots:
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
-		void reactToBoundsChange(double value);
+		void reactToBoundsChange();
 		void saveBounds();
 		void resetBounds();
 		void saveFilterType();

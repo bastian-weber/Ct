@@ -57,13 +57,13 @@ namespace ct {
 		this->xFrom->setValue(this->settings.value("xFrom", 0).toDouble());
 		this->xFrom->setDecimals(3);
 		this->xFrom->setSingleStep(0.01);
-		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->xTo = new QDoubleSpinBox;
 		this->xTo->setRange(0, 1);
 		this->xTo->setValue(this->settings.value("xTo", 1).toDouble());
 		this->xTo->setDecimals(3);
 		this->xTo->setSingleStep(0.01);
-		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->yLabel = new QLabel("y:");
 		this->yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
 		this->to2 = new QLabel("to");
@@ -72,13 +72,13 @@ namespace ct {
 		this->yFrom->setValue(this->settings.value("yFrom", 0).toDouble());
 		this->yFrom->setDecimals(3);
 		this->yFrom->setSingleStep(0.01);
-		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->yTo = new QDoubleSpinBox;
 		this->yTo->setRange(0, 1);
 		this->yTo->setValue(this->settings.value("yTo", 1).toDouble());
 		this->yTo->setDecimals(3);
 		this->yTo->setSingleStep(0.01);
-		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->zLabel = new QLabel("z:");
 		this->zLabel->setStyleSheet("QLabel { color: blue; }");
 		this->to3 = new QLabel("to");
@@ -87,13 +87,13 @@ namespace ct {
 		this->zFrom->setValue(this->settings.value("zFrom", 0).toDouble());
 		this->zFrom->setDecimals(3);
 		this->zFrom->setSingleStep(0.01);
-		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->zTo = new QDoubleSpinBox;
 		this->zTo->setRange(0, 1);
 		this->zTo->setValue(this->settings.value("zTo", 1).toDouble());
 		this->zTo->setDecimals(3);
 		this->zTo->setSingleStep(0.01);
-		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->resetButton = new QPushButton(tr("Reset All"));
 		QObject::connect(this->resetButton, SIGNAL(clicked()), this, SLOT(resetBounds()));
 		this->boundsLayout = new QGridLayout();
@@ -192,6 +192,9 @@ namespace ct {
 		QSize lastSize = this->settings.value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings.value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = this->settings.value("maximized", false).toBool();
+
+		//set volume bounds
+		this->reactToBoundsChange();
 
 		//QPalette p(palette());
 		//p.setColor(QPalette::Background, Qt::white);
@@ -709,7 +712,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToBoundsChange(double value) {
+	void MainInterface::reactToBoundsChange() {
 		if (this->xFrom != QObject::sender()) this->xFrom->setMaximum(this->xTo->value());
 		if (this->xTo != QObject::sender()) this->xTo->setMinimum(this->xFrom->value());
 		if (this->yFrom != QObject::sender()) this->yFrom->setMaximum(this->yTo->value());
