@@ -8,7 +8,9 @@ namespace ct {
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			cudaMalloc3D(&ptr, extent);
+			printf("malloc3D: %s\n", cudaGetErrorString(cudaGetLastError()));
 			cudaMemset3D(ptr, 0, extent);
+			printf("memset3D: %s\n", cudaGetErrorString(cudaGetLastError()));
 			return ptr;
 		}
 
@@ -26,7 +28,7 @@ namespace ct {
 			memcopyParameters.extent = extent;
 			memcopyParameters.kind = cudaMemcpyDeviceToHost;
 			cudaMemcpy3D(&memcopyParameters);
-			printf("malloc3D: %s\n", cudaGetErrorString(cudaGetLastError()));
+			printf("memcopy3D: %s\n", cudaGetErrorString(cudaGetLastError()));
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 
@@ -48,8 +50,8 @@ namespace ct {
 			row[xCoord] += value;
 		}
 
-		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
-			
+		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 			size_t zIndex = threadIdx.z + blockIdx.z * blockDim.z;
@@ -64,7 +66,7 @@ namespace ct {
 				//calculate the world coordinates
 				double x = double(xIndex) - volumeToWorldXPrecomputed;
 				double y = double(yIndex) - volumeToWorldYPrecomputed;
-				double z = double(zIndex) - volumeToWorldZPrecomputed;
+				double z = double(zIndex + zOffset) - volumeToWorldZPrecomputed;
 
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
@@ -105,39 +107,40 @@ namespace ct {
 
 		}
 
-		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
-			dim3 block(16, 16, 1);
-			dim3 grid(
-				((unsigned int)xSize + block.x - 1) / block.x,
-				((unsigned int)ySize + block.y - 1) / block.y,
-				((unsigned int)zSize + block.z - 1) / block.z);
-			reconstructionKernel <<< grid, block >>>(image,
-												   volumePtr,
-												   xSize,
-												   ySize,
-												   zSize,
-												   radiusSquared,
-												   sine,
-												   cosine,
-												   heightOffset,
-												   uOffset,
-												   SD,
-												   imageLowerBoundU,
-												   imageUpperBoundU,
-												   imageLowerBoundV,
-												   imageUpperBoundV,
-												   volumeToWorldXPrecomputed,
-												   volumeToWorldYPrecomputed,
-												   volumeToWorldZPrecomputed,
-												   imageToMatUPrecomputed,
-												   imageToMatVPrecomputed);
-			//cudaDeviceSynchronize();
+		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+			dim3 threads(16, 16, 1);
+			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
+						((unsigned int)ySize + threads.y - 1) / threads.y,
+						((unsigned int)zSize + threads.z - 1) / threads.z);
+			reconstructionKernel << < blocks, threads >> >(image,
+														   volumePtr,
+														   xSize,
+														   ySize,
+														   zSize,
+														   zOffset,
+														   radiusSquared,
+														   sine,
+														   cosine,
+														   heightOffset,
+														   uOffset,
+														   SD,
+														   imageLowerBoundU,
+														   imageUpperBoundU,
+														   imageLowerBoundV,
+														   imageUpperBoundV,
+														   volumeToWorldXPrecomputed,
+														   volumeToWorldYPrecomputed,
+														   volumeToWorldZPrecomputed,
+														   imageToMatUPrecomputed,
+														   imageToMatVPrecomputed);
+			//printf("kernel launch: %s\n", cudaGetErrorString(cudaGetLastError()));
 		}
 
 		void deviceSynchronize() {
 			cudaDeviceSynchronize();
+			//printf("device synchronize: %s\n", cudaGetErrorString(cudaGetLastError()));
 		}
-		
+
 	}
 
 }

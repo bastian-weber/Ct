@@ -874,6 +874,7 @@ namespace ct {
 											  xDimension,
 											  yDimension,
 											  zDimension,
+											  currentSlice,
 											  radiusSquared,
 											  sine,
 											  cosine,
@@ -903,8 +904,11 @@ namespace ct {
 
 				//sync gpu
 				ct::cuda::deviceSynchronize();
+				
 			}
 
+			std::cout << std::endl;
+			
 			//donload the reconstructed volume part
 			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension);
 
@@ -916,8 +920,6 @@ namespace ct {
 
 			currentSlice += sliceCnt;
 		}
-
-		std::cout << std::endl;
 
 		return true;
 	}
