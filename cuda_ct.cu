@@ -26,6 +26,7 @@ namespace ct {
 			memcopyParameters.extent = extent;
 			memcopyParameters.kind = cudaMemcpyDeviceToHost;
 			cudaMemcpy3D(&memcopyParameters);
+			printf("malloc3D: %s\n", cudaGetErrorString(cudaGetLastError()));
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 

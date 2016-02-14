@@ -31,6 +31,8 @@ endif()
 #use dynamic linking
 set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 find_package(CUDA)
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_20,code=compute_20")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30")
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=compute_52")
 
 #OpenCV
