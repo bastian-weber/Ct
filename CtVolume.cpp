@@ -818,53 +818,66 @@ namespace ct {
 		double imageUpperBoundV = this->matToImageV(0);
 		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
-		//first upload two images, so the memory used will be taken into consideration
-		//prepare and upload image 1
-		cv::Mat image;
-		cv::cuda::GpuMat gpuPrefetchedImage;
-		cv::cuda::GpuMat gpuCurrentImage;
-		image = this->prepareProjection(0, filterType);
-		gpuCurrentImage.upload(image);
-		gpuPrefetchedImage.upload(image);
-		cv::cuda::Stream gpuUploadStream;
+		//get devices
+		std::vector<CudaDevice> devices = this->setUpCudaDevices();
+		size_t chunkSizePerDevice = getMaximumChunkHeight(devices);
+		size_t chunkSize = chunkSizePerDevice*devices.size();
 
-		size_t freeMemory, totalMemory;
-		cudaMemGetInfo(&freeMemory, &totalMemory);
-		std::cout << "Free memory: " << double(freeMemory) / (1024 * 1024 * 1024) << "Gb" << std::endl;
-		//spare 200Mb of VRAM for other applications
-		freeMemory -= 200 * 1024 * 1024;
-		//std::cout << sliceSize*sliceCnt << std::endl;
-		//std::cout << "Free: " << freeMemory << std::endl;
-
-		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
-		size_t sliceCnt = freeMemory / sliceSize;
-		size_t currentSlice = 0;
-
-		if (sliceCnt < 1) {
+		if (chunkSizePerDevice < 1) {
 			//too little memory
 			std::cout << "The free GPU memory is not sufficient" << std::endl;
 			return false;
 		}
+
+		std::cout << "Using " << devices.size() << " GPUs" << std::endl;
+
+		//prepare and upload image 1
+		cv::Mat image;
+		image = this->prepareProjection(0, filterType);
+		for (int i = 0; i < devices.size(); ++i) {
+			cv::cuda::setDevice(devices[i].id);
+			devices[i].prefetchedImage.upload(image);
+		}
+
+		size_t currentSlice = 0;
 
 		//for cuda error handling
 		bool success;
 
 		while (currentSlice < this->zMax) {
 
-			size_t const lastSlice = std::min(currentSlice + sliceCnt, this->zMax);
+			size_t const lastSlice = std::min(currentSlice + chunkSize, this->zMax);
 			size_t const xDimension = this->xMax;
 			size_t const yDimension = this->yMax;
-			size_t const zDimension = lastSlice - currentSlice;
+			size_t const deviceZDimension = std::ceil(double(lastSlice - currentSlice)/double(devices.size()));
+			size_t totalZDimension = 0;
+			for (int i = 0; i < devices.size(); ++i) {
+				devices[i].startSlice = totalZDimension;
+				size_t whatsLeft = lastSlice - totalZDimension;
+				if (whatsLeft == 0) {
+					devices[i].zDimension = 0;
+				} else {
+					devices[i].zDimension = std::min(whatsLeft, deviceZDimension);
+				}
+				totalZDimension += devices[i].zDimension;
+			}
 
 			std::cout << "Processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
+			for (int i = 0; i < devices.size(); ++i) {
+				std::cout << "\tGPU" << i << "\t[" << devices[i].startSlice << ".." << devices[i].startSlice + devices[i].zDimension << ")" << std::endl;
+			}
+
+			success = true;
 			//allocate volume part memory on gpu
-			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
+			for (int i = 0; i < devices.size(); ++i) {
+				devices[i].volumeChunkOnDevice = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, devices[i].zDimension, devices[i].id, success);
+			}
 
 			if (!success) {
 				std::cout << std::endl << "CUDA ERROR during allocation of memory on GPU." << std::endl;
 				//just try to free memory, we don't know if anything was allocated
-				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+				this->deleteGpuVolumes(devices);
 				return false;
 			}
 
@@ -872,44 +885,47 @@ namespace ct {
 
 				std::cout << "\r" << "Projecting projection " << projection + 1 << "/" << this->sinogram.size();
 
-				{
-					cv::cuda::GpuMat tmp = gpuCurrentImage;
-					gpuCurrentImage = gpuPrefetchedImage;
-					gpuPrefetchedImage = tmp;
+				for (int i = 0; i < devices.size(); ++i) {
+					cv::cuda::GpuMat tmp = devices[i].currentImage;
+					devices[i].currentImage = devices[i].prefetchedImage;
+					devices[i].prefetchedImage = tmp;
 				}
 
 				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 				double sine = sin(beta_rad);
 				double cosine = cos(beta_rad);
 
-				//start reconstruction with current image
-				ct::cuda::startReconstruction(gpuCurrentImage,
-											  gpuVolumePtr,
-											  xDimension,
-											  yDimension,
-											  zDimension,
-											  currentSlice,
-											  radiusSquared,
-											  sine,
-											  cosine,
-											  this->sinogram[projection].heightOffset,
-											  this->uOffset,
-											  this->SD,
-											  imageLowerBoundU,
-											  imageUpperBoundU,
-											  imageLowerBoundV,
-											  imageUpperBoundV,
-											  this->volumeToWorldXPrecomputed,
-											  this->volumeToWorldYPrecomputed,
-											  this->volumeToWorldZPrecomputed,
-											  this->imageToMatUPrecomputed,
-											  this->imageToMatVPrecomputed,
-											  success);
+				success = true;
+				for (int i = 0; i < devices.size(); ++i) {
+					//start reconstruction with current image
+					ct::cuda::startReconstruction(devices[i].currentImage,
+												  devices[i].volumeChunkOnDevice,
+												  xDimension,
+												  yDimension,
+												  devices[i].zDimension,
+												  devices[i].startSlice,
+												  radiusSquared,
+												  sine,
+												  cosine,
+												  this->sinogram[projection].heightOffset,
+												  this->uOffset,
+												  this->SD,
+												  imageLowerBoundU,
+												  imageUpperBoundU,
+												  imageLowerBoundV,
+												  imageUpperBoundV,
+												  this->volumeToWorldXPrecomputed,
+												  this->volumeToWorldYPrecomputed,
+												  this->volumeToWorldZPrecomputed,
+												  this->imageToMatUPrecomputed,
+												  this->imageToMatVPrecomputed,
+												  devices[i].id,
+												  success);
+				}
 
 				if (!success) {
 					std::cout << std::endl << "CUDA ERROR during reconstruction kernel." << std::endl;
-					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+					this->deleteGpuVolumes(devices);
 					return false;
 				}
 
@@ -918,21 +934,27 @@ namespace ct {
 					image = this->prepareProjection(projection + 1, filterType);
 					if (!image.data) {
 						std::cout << std::endl << "Image corrupted" << std::endl;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+						this->deleteGpuVolumes(devices);
 						return false;
 					}
-					gpuPrefetchedImage.upload(image, gpuUploadStream);
-					gpuUploadStream.waitForCompletion();
+					for (int i = 0; i < devices.size(); ++i) {
+						cv::cuda::setDevice(devices[i].id);
+						devices[i].prefetchedImage.upload(image, devices[i].gpuUploadStream);
+					}
+					for (int i = 0; i < devices.size(); ++i) {
+						devices[i].gpuUploadStream.waitForCompletion();
+					}
 				}
 
+				success = true;
 				//sync gpu
-				ct::cuda::deviceSynchronize(success);
+				for (int i = 0; i < devices.size(); ++i) {
+					ct::cuda::deviceSynchronize(devices[i].id, success);
+				}
 
 				if (!success) {
 					std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
-					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+					this->deleteGpuVolumes(devices);
 					return false;
 				}
 				
@@ -940,32 +962,68 @@ namespace ct {
 
 			std::cout << std::endl;
 			
-			//donload the reconstructed volume part
-			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
+			success = true;
+			for (int i = 0; i < devices.size(); ++i) {
+				//donload the reconstructed volume part
+				devices[i].volumeChunkOnHost = ct::cuda::download3dVolume(devices[i].volumeChunkOnDevice, xDimension, yDimension, devices[i].zDimension, devices[i].id, success);
+			}
 
 			if (!success) {
 				std::cout << std::endl << "CUDA ERROR during download of volume part." << std::endl;
-				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-				if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+				this->deleteGpuVolumes(devices);
 				return false;
 			}
 
 			//copy volume part to vector
-			this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
-
-			//free volume part memory on gpu
-			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-
-			if (!success) {
-				std::cout << std::endl << "CUDA ERROR during freeing of VRAM." << std::endl;
-				std::cout << "Allocated VRAM could not be freed." << std::endl;
-				return false;
+			for (int i = 0; i < devices.size(); ++i) {
+				this->copyFromArrayToVolume(devices[i].volumeChunkOnHost, devices[i].zDimension, devices[i].startSlice);
 			}
 
-			currentSlice += sliceCnt;
+			//free volume part memory on gpu
+			this->deleteGpuVolumes(devices);
+
+			currentSlice += lastSlice;
 		}
 
 		return true;
+	}
+
+	std::vector<CtVolume::CudaDevice> CtVolume::setUpCudaDevices() const {
+		int deviceCnt;
+		cudaGetDeviceCount(&deviceCnt);
+		std::vector<CudaDevice> devices(deviceCnt);
+		for (int i = 0; i < deviceCnt; ++i) {
+			devices[i].id = i;
+		}
+		return devices;
+	}
+
+	size_t CtVolume::getMaximumChunkHeight(std::vector<CudaDevice> devices) const {
+		size_t approximatedImageSize = this->imageWidth * this->imageHeight * sizeof(float);
+		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
+
+		size_t minimumSliceCnt = std::numeric_limits<int>::max();
+
+		for (int i = 0; i < devices.size(); ++i) {
+			size_t freeMemory, totalMemory;
+			cudaMemGetInfo(&freeMemory, &totalMemory);
+			//subtract memory required for two images on gpu
+			freeMemory -= 2 * approximatedImageSize;
+			//spare 200Mb of VRAM for other applications
+			freeMemory -= 200 * 1024 * 1024;
+
+			size_t sliceCnt = freeMemory / sliceSize;
+			if (sliceCnt < minimumSliceCnt) minimumSliceCnt = sliceCnt;
+		}
+		return minimumSliceCnt;
+	}
+
+	void CtVolume::deleteGpuVolumes(std::vector<CudaDevice> devices) const {
+		bool success = true;
+		for (int i = 0; i < devices.size(); ++i) {
+			ct::cuda::delete3dVolumeOnGPU(devices[i].volumeChunkOnDevice, devices[i].id, success);
+		}
+		if (!success) std::cout << std::endl << "CUDA ERROR during freeing of VRAM." << std::endl;
 	}
 
 	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {

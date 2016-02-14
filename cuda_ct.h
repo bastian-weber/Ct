@@ -17,9 +17,9 @@ namespace ct {
 
 	namespace cuda {
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success);
-		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);
-		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success);
+		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, int deviceId, bool& success);
+		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, int deviceId, bool& success);
+		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, int deviceId, bool& success);
 		void startReconstruction(cv::cuda::PtrStepSz<float> image,
 								 cudaPitchedPtr volumePtr,
 								 size_t xSize,
@@ -41,8 +41,9 @@ namespace ct {
 								 double volumeToWorldZPrecomputed,
 								 double imageToMatUPrecomputed,
 								 double imageToMatVPrecomputed,
+								 int deviceId,
 								 bool& success);
-		void deviceSynchronize(bool& success);
+		void deviceSynchronize(int deviceId, bool& success);
 	
 	}
 
