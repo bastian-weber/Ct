@@ -49,9 +49,9 @@ namespace ct {
 
 		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
 			
-			size_t xIndex = blockIdx.x;
-			size_t yIndex = blockIdx.y;
-			size_t zIndex = blockIdx.z;
+			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+			size_t zIndex = threadIdx.z + blockIdx.z * blockDim.z;
 
 			//if (xIndex == 0 && yIndex == 0 && zIndex == 0) {
 			//	printf("kernel start\n");
@@ -105,8 +105,12 @@ namespace ct {
 		}
 
 		void startReconstruction(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
-			dim3 blocks(xSize, ySize, zSize);
-			reconstructionKernel <<< blocks, 1 >>>(image,
+			dim3 block(16, 16, 1);
+			dim3 grid(
+				((unsigned int)xSize + block.x - 1) / block.x,
+				((unsigned int)ySize + block.y - 1) / block.y,
+				((unsigned int)zSize + block.z - 1) / block.z);
+			reconstructionKernel <<< grid, block >>>(image,
 												   volumePtr,
 												   xSize,
 												   ySize,
