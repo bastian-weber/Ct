@@ -807,6 +807,17 @@ namespace ct {
 
 	bool CtVolume::cudaReconstructionCore(FilterType filterType) {
 
+		//precomputing some values
+		double imageLowerBoundU = this->matToImageU(0);
+		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
+		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
+		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+		//inversed because of inversed v axis in mat/image coordinate system
+		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+		double imageUpperBoundV = this->matToImageV(0);
+		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
 		size_t freeMemory, totalMemory;
 		cudaMemGetInfo(&freeMemory, &totalMemory);
 
@@ -822,16 +833,8 @@ namespace ct {
 			return false;
 		}
 
-		//precomputing some values
-		double imageLowerBoundU = this->matToImageU(0);
-		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
-		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
-		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
-		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
-		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
-		double imageUpperBoundV = this->matToImageV(0);
-		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+		//for cuda error handling
+		bool success;
 
 		while (currentSlice < this->zMax) {
 
@@ -843,7 +846,14 @@ namespace ct {
 			std::cout << "Processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
 			//allocate volume part memory on gpu
-			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension);
+			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
+
+			if (!success) {
+				std::cout << std::endl << "CUDA ERROR during allocation of memory on GPU." << std::endl;
+				//just try to free memory, we don't know if anything was allocated
+				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+				return false;
+			}
 
 			//prepare and upload image 1
 			cv::Mat image;
@@ -889,13 +899,23 @@ namespace ct {
 											  this->volumeToWorldYPrecomputed,
 											  this->volumeToWorldZPrecomputed,
 											  this->imageToMatUPrecomputed,
-											  this->imageToMatVPrecomputed);
+											  this->imageToMatVPrecomputed,
+											  success);
+
+				if (!success) {
+					std::cout << std::endl << "CUDA ERROR during reconstruction kernel." << std::endl;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+					return false;
+				}
 
 				//prepare and upload next image
 				if (projection < this->sinogram.size() - 1) {
 					image = this->prepareProjection(projection + 1, filterType);
 					if (!image.data) {
 						std::cout << std::endl << "Image corrupted" << std::endl;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 						return false;
 					}
 					gpuPrefetchedImage.upload(image, gpuUploadStream);
@@ -903,20 +923,40 @@ namespace ct {
 				}
 
 				//sync gpu
-				ct::cuda::deviceSynchronize();
+				ct::cuda::deviceSynchronize(success);
+
+				if (!success) {
+					std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+					return false;
+				}
 				
 			}
 
 			std::cout << std::endl;
 			
 			//donload the reconstructed volume part
-			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension);
+			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
+
+			if (!success) {
+				std::cout << std::endl << "CUDA ERROR during download of volume part." << std::endl;
+				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+				if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+				return false;
+			}
 
 			//copy volume part to vector
 			this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
 
 			//free volume part memory on gpu
-			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr);
+			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+
+			if (!success) {
+				std::cout << std::endl << "CUDA ERROR during freeing of VRAM." << std::endl;
+				std::cout << "Allocated VRAM could not be freed." << std::endl;
+				return false;
+			}
 
 			currentSlice += sliceCnt;
 		}
