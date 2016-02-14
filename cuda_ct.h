@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <memory>
 #include <cmath>
+#include <iostream>
 
 //CUDA
 #include <cuda_runtime.h>
