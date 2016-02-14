@@ -856,7 +856,7 @@ namespace ct {
 
 			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 
-				std::cout << "Projecting projection " << projection + 1 << "/" << this->sinogram.size() << std::endl;
+				std::cout << "\r" << "Projecting projection " << projection + 1 << "/" << this->sinogram.size();
 
 				{
 					cv::cuda::GpuMat tmp = gpuCurrentImage;
@@ -893,6 +893,10 @@ namespace ct {
 				//prepare and upload next image
 				if (projection < this->sinogram.size() - 1) {
 					image = this->prepareProjection(projection + 1, filterType);
+					if (!image.data) {
+						std::cout << std::endl << "Image corrupted" << std::endl;
+						return false;
+					}
 					gpuPrefetchedImage.upload(image, gpuUploadStream);
 					gpuUploadStream.waitForCompletion();
 				}
@@ -912,6 +916,8 @@ namespace ct {
 
 			currentSlice += sliceCnt;
 		}
+
+		std::cout << std::endl;
 
 		return true;
 	}
