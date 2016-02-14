@@ -860,6 +860,7 @@ namespace ct {
 			cv::cuda::GpuMat gpuPrefetchedImage;
 			cv::cuda::GpuMat gpuCurrentImage;
 			image = this->prepareProjection(0, filterType);
+			gpuCurrentImage.upload(image);
 			gpuPrefetchedImage.upload(image);
 
 			cv::cuda::Stream gpuUploadStream;
