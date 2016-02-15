@@ -62,11 +62,11 @@ namespace ct {
 			return (1.0 - v)*v0 + v*v1;
 		}
 
-		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, size_t ySize, size_t xCoord, size_t yCoord, size_t zCoord, float value) {
+		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, size_t xCoord, size_t yCoord, size_t zCoord, float value) {
 			char* devicePtr = (char*)(volumePtr.ptr);
 			//z * xSize * ySize + y * xSize + x
 			size_t pitch = volumePtr.pitch;
-			size_t slicePitch = pitch * ySize;
+			size_t slicePitch = pitch * volumePtr.ysize;
 			char* slice = devicePtr + zCoord*slicePitch;
 			float* row = (float*)(slice + yCoord * pitch);
 			row[xCoord] += value;
@@ -118,7 +118,7 @@ namespace ct {
 
 						float value = bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 
-						addToVolumeElement(volumePtr, ySize, xIndex, yIndex, zIndex, value);
+						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, value);
 					}
 				}
 			}
