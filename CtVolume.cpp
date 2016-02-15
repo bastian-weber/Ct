@@ -290,7 +290,7 @@ namespace ct {
 				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
 			}
 			if (useCuda && this->cudaAvailable()) {
-				result = this->cudaThreads(filterType);
+				result = this->launchCudaThreads(filterType);
 			} else {
 				result = this->reconstructionCore(filterType);
 			}
@@ -309,6 +309,7 @@ namespace ct {
 						}
 					}
 
+#pragma omp parallel for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
 							if (sqrt(this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y)) >= ((double)this->xSize / 2) - 3) {
@@ -806,7 +807,7 @@ namespace ct {
 		return true;
 	}
 
-	bool CtVolume::cudaThreads(FilterType filterType) {
+	bool CtVolume::launchCudaThreads(FilterType filterType) {
 		int deviceCnt;
 		cudaGetDeviceCount(&deviceCnt);
 		std::vector<std::future<bool>> threads(deviceCnt);
@@ -998,6 +999,7 @@ namespace ct {
 	}
 
 	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
+#pragma omp parallel for schedule(dynamic)
 		for (int x = 0; x < this->xMax; ++x) {
 			for (int y = 0; y < this->yMax; ++y) {
 				for (int z = 0; z < zSize; ++z) {
