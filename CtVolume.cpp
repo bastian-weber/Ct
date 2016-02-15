@@ -940,24 +940,24 @@ namespace ct {
 					}
 					for (int i = 0; i < devices.size(); ++i) {
 						cv::cuda::setDevice(devices[i].id);
-						devices[i].prefetchedImage.upload(image, devices[i].gpuUploadStream);
+						devices[i].prefetchedImage.upload(image/*, devices[i].gpuUploadStream*/);
 					}
-					for (int i = 0; i < devices.size(); ++i) {
-						devices[i].gpuUploadStream.waitForCompletion();
-					}
+					//for (int i = 0; i < devices.size(); ++i) {
+					//	devices[i].gpuUploadStream.waitForCompletion();
+					//}
 				}
 
-				success = true;
-				//sync gpu
-				for (int i = 0; i < devices.size(); ++i) {
-					ct::cuda::deviceSynchronize(devices[i].id, success);
-				}
+				//success = true;
+				////sync gpu
+				//for (int i = 0; i < devices.size(); ++i) {
+				//	ct::cuda::deviceSynchronize(devices[i].id, success);
+				//}
 
-				if (!success) {
-					std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
-					this->deleteGpuVolumes(devices);
-					return false;
-				}
+				//if (!success) {
+				//	std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
+				//	this->deleteGpuVolumes(devices);
+				//	return false;
+				//}
 				
 			}
 

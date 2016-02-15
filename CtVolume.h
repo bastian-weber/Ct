@@ -26,11 +26,11 @@
 //CUDA
 #include <cuda_runtime.h>
 
-//for std::numeric_limits<std::streamsize>::max()
-#undef max
-
 //CUDA functions
 #include "cuda_ct.h"
+
+//for std::numeric_limits<std::streamsize>::max()
+#undef max
 
 namespace ct {
 
