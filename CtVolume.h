@@ -120,18 +120,6 @@ namespace ct {
 			double heightOffset;													//for random trajectory
 		};
 
-		//struct for storing data for the different CUDA devices
-		struct CudaDevice {
-			int id;
-			cv::cuda::GpuMat currentImage;
-			cv::cuda::GpuMat prefetchedImage;
-			cv::cuda::Stream gpuUploadStream;
-			cudaPitchedPtr volumeChunkOnDevice;
-			std::shared_ptr<float> volumeChunkOnHost;
-			size_t zDimension;
-			size_t startSlice;
-		};
-
 		//functions			
 		void readParameters(std::ifstream& stream,
 							std::string& path,
@@ -155,10 +143,10 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
-		bool cudaReconstructionCore(FilterType filterType);
-		std::vector<CudaDevice> setUpCudaDevices() const;						//sets up a vector containing all the cuda devices
-		size_t getMaximumChunkHeight(std::vector<CudaDevice> devices) const;	//returns the maximum amount of volume slices that fit into the VRAM of the GPU with least of latter
-		void deleteGpuVolumes(std::vector<CudaDevice> devices) const;
+		bool launchCudaThreads(FilterType filterType);
+		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
+									size_t threadZMax, 
+									int deviceId);
 		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
 								   size_t zSize,
 								   size_t zOffset);
