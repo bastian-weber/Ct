@@ -72,7 +72,7 @@ namespace ct {
 			row[xCoord] += value;
 		}
 
-		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cv::cuda::PtrStepSz<float> lookupTable, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
@@ -86,9 +86,9 @@ namespace ct {
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
 
 				//calculate the world coordinates
-				double x = double(xIndex) - volumeToWorldXPrecomputed;
-				double y = double(yIndex) - volumeToWorldYPrecomputed;
-				double z = double(zIndex + zOffset) - volumeToWorldZPrecomputed;
+				double x = lookupTable(0, xIndex);
+				double y = lookupTable(1, yIndex);
+				double z = lookupTable(2, zIndex + zOffset);
 
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
@@ -130,6 +130,7 @@ namespace ct {
 		}
 
 		void startReconstruction(cv::cuda::PtrStepSz<float> image, 
+								 cv::cuda::PtrStepSz<float> lookupTable,
 								 cudaPitchedPtr volumePtr, 
 								 size_t xSize, 
 								 size_t ySize, 
@@ -145,9 +146,6 @@ namespace ct {
 								 double imageUpperBoundU, 
 								 double imageLowerBoundV, 
 								 double imageUpperBoundV, 
-								 double volumeToWorldXPrecomputed, 
-								 double volumeToWorldYPrecomputed, 
-								 double volumeToWorldZPrecomputed, 
 								 double imageToMatUPrecomputed, 
 								 double imageToMatVPrecomputed, 
 								 bool& success) {
@@ -157,6 +155,7 @@ namespace ct {
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
 			reconstructionKernel << < blocks, threads >> >(image,
+														   lookupTable,
 														   volumePtr,
 														   xSize,
 														   ySize,
@@ -172,9 +171,6 @@ namespace ct {
 														   imageUpperBoundU,
 														   imageLowerBoundV,
 														   imageUpperBoundV,
-														   volumeToWorldXPrecomputed,
-														   volumeToWorldYPrecomputed,
-														   volumeToWorldZPrecomputed,
 														   imageToMatUPrecomputed,
 														   imageToMatVPrecomputed);
 			cudaError_t status = cudaGetLastError();

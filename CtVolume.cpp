@@ -835,6 +835,27 @@ namespace ct {
 
 		cudaSetDevice(deviceId);
 
+		//setup a lookup table for the volume indices
+		int upperLimit = std::max({ this->xMax, this->yMax, this->zMax });
+		std::cout << upperLimit << std::endl;
+		cv::Mat volumeToWorldLookupTable(3, upperLimit, CV_32FC1);
+		float* ptr;
+#pragma omp parallel for private(ptr)
+		for (int row = 0; row < volumeToWorldLookupTable.rows; ++row) {
+			ptr = volumeToWorldLookupTable.ptr<float>(row);
+			for (int column = 0; column < volumeToWorldLookupTable.cols; ++column) {
+				if (row == 0) {
+					ptr[column] = this->volumeToWorldX(column);
+				} else if (row == 1) {
+					ptr[column] = this->volumeToWorldY(column);
+				} else if (row == 2) {
+					ptr[column] = this->volumeToWorldZ(column);
+				}
+			}
+		}
+		cv::cuda::GpuMat gpuVolumeToWorldLookupTable;
+		gpuVolumeToWorldLookupTable.upload(volumeToWorldLookupTable);
+
 		//precomputing some values
 		double imageLowerBoundU = this->matToImageU(0);
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
@@ -912,6 +933,7 @@ namespace ct {
 
 				//start reconstruction with current image
 				ct::cuda::startReconstruction(gpuCurrentImage,
+											  gpuVolumeToWorldLookupTable,
 											  gpuVolumePtr,
 											  xDimension,
 											  yDimension,
@@ -927,9 +949,6 @@ namespace ct {
 											  imageUpperBoundU,
 											  imageLowerBoundV,
 											  imageUpperBoundV,
-											  this->volumeToWorldXPrecomputed,
-											  this->volumeToWorldYPrecomputed,
-											  this->volumeToWorldZPrecomputed,
 											  this->imageToMatUPrecomputed,
 											  this->imageToMatVPrecomputed,
 											  success);
