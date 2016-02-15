@@ -290,7 +290,7 @@ namespace ct {
 				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
 			}
 			if (useCuda && this->cudaAvailable()) {
-				result = this->cudaReconstructionCore(filterType);
+				result = this->cudaThreads(filterType);
 			} else {
 				result = this->reconstructionCore(filterType);
 			}
@@ -806,7 +806,33 @@ namespace ct {
 		return true;
 	}
 
-	bool CtVolume::cudaReconstructionCore(FilterType filterType) {
+	bool CtVolume::cudaThreads(FilterType filterType) {
+		int deviceCnt;
+		cudaGetDeviceCount(&deviceCnt);
+		std::vector<std::future<bool>> threads(deviceCnt);
+		std::vector<int> multiprocessorCnt(deviceCnt);
+		size_t totalMultiprocessorsCnt = 0;
+		for (int i = 0; i < deviceCnt; ++i) {
+			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(i);
+			totalMultiprocessorsCnt += multiprocessorCnt[i];
+		}
+		size_t currentSlice = 0;
+		for (int i = 0; i < deviceCnt; ++i) {
+			size_t sliceCnt = std::round((double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt)) * double(zMax));
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, filterType, currentSlice, currentSlice + sliceCnt, i);
+			currentSlice += sliceCnt;
+		}
+		bool result = true;
+		for (int i = 0; i < deviceCnt; ++i) {
+			result = result && threads[i].get();
+		}
+
+		return result;
+	}
+
+	bool CtVolume::cudaReconstructionCore(FilterType filterType, size_t threadZMin, size_t threadZMax, int deviceId) {
+
+		cudaSetDevice(deviceId);
 
 		//precomputing some values
 		double imageLowerBoundU = this->matToImageU(0);
@@ -839,7 +865,7 @@ namespace ct {
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		size_t sliceCnt = freeMemory / sliceSize;
-		size_t currentSlice = 0;
+		size_t currentSlice = threadZMin;
 
 		if (sliceCnt < 1) {
 			//too little memory
@@ -850,9 +876,9 @@ namespace ct {
 		//for cuda error handling
 		bool success;
 
-		while (currentSlice < this->zMax) {
+		while (currentSlice < threadZMax) {
 
-			size_t const lastSlice = std::min(currentSlice + sliceCnt, this->zMax);
+			size_t const lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
 			size_t const xDimension = this->xMax;
 			size_t const yDimension = this->yMax;
 			size_t const zDimension = lastSlice - currentSlice;
@@ -923,19 +949,19 @@ namespace ct {
 						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 						return false;
 					}
-					gpuPrefetchedImage.upload(image, gpuUploadStream);
-					gpuUploadStream.waitForCompletion();
+					gpuPrefetchedImage.upload(image/*, gpuUploadStream*/);
+					//gpuUploadStream.waitForCompletion();
 				}
 
-				//sync gpu
-				ct::cuda::deviceSynchronize(success);
+				////sync gpu
+				//ct::cuda::deviceSynchronize(success);
 
-				if (!success) {
-					std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
-					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
-					return false;
-				}
+				//if (!success) {
+				//	std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
+				//	ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+				//	if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+				//	return false;
+				//}
 				
 			}
 
@@ -965,6 +991,8 @@ namespace ct {
 
 			currentSlice += sliceCnt;
 		}
+
+		std::cout << "GPU" << deviceId << " finished." << std::endl;
 
 		return true;
 	}

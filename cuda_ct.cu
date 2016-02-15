@@ -4,6 +4,11 @@ namespace ct {
 
 	namespace cuda {
 
+		int getMultiprocessorCnt(int deviceId) {
+			int cnt;
+			cudaDeviceGetAttribute(&cnt, cudaDevAttrMultiProcessorCount, deviceId);
+			return cnt;
+		}
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
 			success = true;
 			cudaError_t status;

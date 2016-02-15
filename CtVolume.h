@@ -143,7 +143,10 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
-		bool cudaReconstructionCore(FilterType filterType);
+		bool cudaThreads(FilterType filterType);
+		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
+									size_t threadZMax, 
+									int deviceId);
 		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
 								   size_t zSize,
 								   size_t zOffset);
