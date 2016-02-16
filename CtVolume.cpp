@@ -833,7 +833,8 @@ namespace ct {
 			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(i);
 			totalMultiprocessorsCnt += multiprocessorCnt[i];
 			std::cout << "GPU" << i << std::endl;
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory(i)) / 1024 / 1024 / 1025 << " Gb" << std::endl;
+			cudaSetDevice(i);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
 			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
 		}
 
@@ -886,7 +887,7 @@ namespace ct {
 		gpuPrefetchedImage.upload(image);
 		cv::cuda::Stream gpuUploadStream;
 
-		size_t freeMemory = ct::cuda::getFreeMemory(deviceId);
+		size_t freeMemory = ct::cuda::getFreeMemory();
 		//spare 200Mb of VRAM for other applications
 		freeMemory -= 200 * 1024 * 1024;
 
@@ -1043,6 +1044,8 @@ namespace ct {
 
 		std::cout << std::endl;
 		std::cout << "GPU" << deviceId << " finished." << std::endl;
+
+		if (this->emitSignals) emit(this->cudaThreadProgressUpdate(1, deviceId, true));
 
 		return true;
 	}
