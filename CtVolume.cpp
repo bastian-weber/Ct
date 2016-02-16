@@ -327,6 +327,7 @@ namespace ct {
 				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
 			} else {
 				this->volume.clear();
+
 			}
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
@@ -808,6 +809,7 @@ namespace ct {
 	}
 
 	bool CtVolume::launchCudaThreads(FilterType filterType) {
+		this->stopCudaThreads = false;
 		int deviceCnt;
 		cudaGetDeviceCount(&deviceCnt);
 		std::vector<std::future<bool>> threads(deviceCnt);
@@ -826,6 +828,14 @@ namespace ct {
 		bool result = true;
 		for (int i = 0; i < deviceCnt; ++i) {
 			result = result && threads[i].get();
+		}
+
+		if (!result) {
+			if (this->stopActiveProcess) {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+			} else {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("An error during the CUDA reconstruction occured.")));
+			}
 		}
 
 		return result;
@@ -871,6 +881,8 @@ namespace ct {
 		if (sliceCnt < 1) {
 			//too little memory
 			std::cout << "The free GPU memory is not sufficient" << std::endl;
+			//stop also the other cuda threads
+			stopCudaThreads = true;
 			return false;
 		}
 
@@ -891,12 +903,26 @@ namespace ct {
 
 			if (!success) {
 				std::cout << std::endl << "CUDA ERROR during allocation of memory on GPU." << std::endl;
+				stopCudaThreads = true;
 				//just try to free memory, we don't know if anything was allocated
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 				return false;
 			}
 
 			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+
+				//if user interrupts
+				if (this->stopActiveProcess) {
+					std::cout << std::endl << "User interrupted. Stopping." << std::endl;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					return false;
+				}
+
+				//if this thread shall be stopped (probably because an error in another thread occured)
+				if (this->stopCudaThreads) {
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					return false;
+				}
 
 				std::cout << "\r" << "Projecting projection " << projection + 1 << "/" << this->sinogram.size();
 
@@ -936,6 +962,7 @@ namespace ct {
 
 				if (!success) {
 					std::cout << std::endl << "CUDA ERROR during reconstruction kernel." << std::endl;
+					stopCudaThreads = true;
 					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 					return false;
@@ -945,7 +972,8 @@ namespace ct {
 				if (projection < this->sinogram.size() - 1) {
 					image = this->prepareProjection(projection + 1, filterType);
 					if (!image.data) {
-						std::cout << std::endl << "Image corrupted" << std::endl;
+						std::cout << std::endl << "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format." << std::endl;
+						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 						return false;
@@ -973,6 +1001,7 @@ namespace ct {
 
 			if (!success) {
 				std::cout << std::endl << "CUDA ERROR during download of volume part." << std::endl;
+				stopCudaThreads = true;
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 				if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 				return false;
@@ -987,6 +1016,7 @@ namespace ct {
 			if (!success) {
 				std::cout << std::endl << "CUDA ERROR during freeing of VRAM." << std::endl;
 				std::cout << "Allocated VRAM could not be freed." << std::endl;
+				stopCudaThreads = true;
 				return false;
 			}
 

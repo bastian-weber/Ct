@@ -179,6 +179,7 @@ namespace ct {
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;
 		mutable std::atomic<bool> stopActiveProcess{ false };
+		mutable std::atomic<bool> stopCudaThreads{ false };
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
 																			//bounds of what will be reconstructed
