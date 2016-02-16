@@ -3,16 +3,19 @@
 namespace ct {
 
 	namespace cuda {
-		size_t getFreeMemory(int deviceId) {
+
+		size_t getFreeMemory() {
 			size_t freeMemory, totalMemory;
 			cudaMemGetInfo(&freeMemory, &totalMemory);
 			return freeMemory;
 		}
+
 		int getMultiprocessorCnt(int deviceId) {
 			int cnt;
 			cudaDeviceGetAttribute(&cnt, cudaDevAttrMultiProcessorCount, deviceId);
 			return cnt;
 		}
+
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
 			success = true;
 			cudaError_t status;
