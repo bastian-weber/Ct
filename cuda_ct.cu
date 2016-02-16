@@ -61,10 +61,10 @@ namespace ct {
 			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 
-		__device__ float bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
+		__device__ float bilinearInterpolation(float u, float v, float u0v0, float u1v0, float u0v1, float u1v1) {
 			//the two interpolations on the u axis
-			double v0 = (1.0 - u)*u0v0 + u*u1v0;
-			double v1 = (1.0 - u)*u0v1 + u*u1v1;
+			float v0 = (1.0 - u)*u0v0 + u*u1v0;
+			float v1 = (1.0 - u)*u0v1 + u*u1v1;
 			//interpolation on the v axis between the two u-interpolated values
 			return (1.0 - v)*v0 + v*v1;
 		}
@@ -79,7 +79,25 @@ namespace ct {
 			row[xCoord] += value;
 		}
 
-		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, cudaPitchedPtr volumePtr, size_t xSize, size_t ySize, size_t zSize, size_t zOffset, double radiusSquared, double sine, double cosine, double heightOffset, double uOffset, double SD, double imageLowerBoundU, double imageUpperBoundU, double imageLowerBoundV, double imageUpperBoundV, double volumeToWorldXPrecomputed, double volumeToWorldYPrecomputed, double volumeToWorldZPrecomputed, double imageToMatUPrecomputed, double imageToMatVPrecomputed) {
+		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, 
+											 cudaPitchedPtr volumePtr, 
+											 size_t xSize, size_t ySize, 
+											 size_t zSize, size_t zOffset, 
+											 float radiusSquared,
+											 float sine,
+											 float cosine,
+											 float heightOffset,
+											 float uOffset,
+											 float SD,
+											 float imageLowerBoundU,
+											 float imageUpperBoundU,
+											 float imageLowerBoundV,
+											 float imageUpperBoundV,
+											 float volumeToWorldXPrecomputed,
+											 float volumeToWorldYPrecomputed,
+											 float volumeToWorldZPrecomputed,
+											 float imageToMatUPrecomputed,
+											 float imageToMatVPrecomputed) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
@@ -93,18 +111,18 @@ namespace ct {
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
 
 				//calculate the world coordinates
-				double x = double(xIndex) - volumeToWorldXPrecomputed;
-				double y = double(yIndex) - volumeToWorldYPrecomputed;
-				double z = double(zIndex + zOffset) - volumeToWorldZPrecomputed;
+				float x = float(xIndex) - volumeToWorldXPrecomputed;
+				float y = float(yIndex) - volumeToWorldYPrecomputed;
+				float z = float(zIndex + zOffset) - volumeToWorldZPrecomputed;
 
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
 
-					double t = (-1)*x*sine + y*cosine;
+					float t = (-1)*x*sine + y*cosine;
 					t += uOffset;
-					double s = x*cosine + y*sine;
-					double u = (t*SD) / (SD - s);
-					double v = ((z + heightOffset)*SD) / (SD - s);
+					float s = x*cosine + y*sine;
+					float u = (t*SD) / (SD - s);
+					float v = ((z + heightOffset)*SD) / (SD - s);
 
 					//check if it's inside the image (before the coordinate transformation)
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
@@ -123,7 +141,7 @@ namespace ct {
 						float u0v1 = image(v1, u0);
 						float u1v1 = image(v1, u1);
 
-						float value = bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+						float value = bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
 						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, value);
 					}
@@ -142,24 +160,24 @@ namespace ct {
 								 size_t ySize, 
 								 size_t zSize, 
 								 size_t zOffset, 
-								 double radiusSquared, 
-								 double sine, 
-								 double cosine, 
-								 double heightOffset, 
-								 double uOffset, 
-								 double SD, 
-								 double imageLowerBoundU, 
-								 double imageUpperBoundU, 
-								 double imageLowerBoundV, 
-								 double imageUpperBoundV, 
-								 double volumeToWorldXPrecomputed, 
-								 double volumeToWorldYPrecomputed, 
-								 double volumeToWorldZPrecomputed, 
-								 double imageToMatUPrecomputed, 
-								 double imageToMatVPrecomputed, 
+								 float radiusSquared, 
+								 float sine,
+								 float cosine,
+								 float heightOffset,
+								 float uOffset,
+								 float SD,
+								 float imageLowerBoundU,
+								 float imageUpperBoundU,
+								 float imageLowerBoundV,
+								 float imageUpperBoundV,
+								 float volumeToWorldXPrecomputed,
+								 float volumeToWorldYPrecomputed,
+								 float volumeToWorldZPrecomputed,
+								 float imageToMatUPrecomputed,
+								 float imageToMatVPrecomputed,
 								 bool& success) {
 			success = true;
-			dim3 threads(32, 32, 1);
+			dim3 threads(32, 16, 1);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
