@@ -28,7 +28,12 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
+	CtVolume::CtVolume() {
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+	}
+
 	CtVolume::CtVolume(std::string csvFile) {
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 		this->sinogramFromImages(csvFile);
 	}
 
@@ -399,7 +404,7 @@ namespace ct {
 				out << "[Volume dimensions]" << endl;
 				out << "X size:\t\t\t" << this->xMax << endl;
 				out << "Y size:\t\t\t" << this->yMax << endl;
-				out << "Z size:\t\t\t" << this->zMax<<endl<<endl;
+				out << "Z size:\t\t\t" << this->zMax << endl << endl;
 				out << "[Data format]" << endl;
 				out << "Data type:\t\t32bit IEEE 754 float" << endl;
 				out << "Endianness:\t\tLittle Endian" << endl;
@@ -733,7 +738,7 @@ namespace ct {
 				return false;
 			}
 			//output percentage
-			double percentage = floor((double)projection / (double)this->sinogram.size() * 100 + 0.5);
+			double percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
 			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionIndex)));
 			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
@@ -810,21 +815,36 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads(FilterType filterType) {
 		this->stopCudaThreads = false;
+		//get number of devices
 		int deviceCnt;
 		cudaGetDeviceCount(&deviceCnt);
+
+		//clear progress
+		this->cudaThreadProgress.clear();
+		this->cudaThreadProgress.resize(deviceCnt, 0);
+
+		//create vector to store threads
 		std::vector<std::future<bool>> threads(deviceCnt);
+
+		//get amount of multiprocessors per GPU
 		std::vector<int> multiprocessorCnt(deviceCnt);
 		size_t totalMultiprocessorsCnt = 0;
 		for (int i = 0; i < deviceCnt; ++i) {
 			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(i);
 			totalMultiprocessorsCnt += multiprocessorCnt[i];
+			std::cout << "GPU" << i << std::endl;
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory(i)) / 1024 / 1024 / 1025 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
 		}
+
+		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
 		for (int i = 0; i < deviceCnt; ++i) {
 			size_t sliceCnt = std::round((double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt)) * double(zMax));
 			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, filterType, currentSlice, currentSlice + sliceCnt, i);
 			currentSlice += sliceCnt;
 		}
+		//wait for threads to finish
 		bool result = true;
 		for (int i = 0; i < deviceCnt; ++i) {
 			result = result && threads[i].get();
@@ -866,13 +886,9 @@ namespace ct {
 		gpuPrefetchedImage.upload(image);
 		cv::cuda::Stream gpuUploadStream;
 
-		size_t freeMemory, totalMemory;
-		cudaMemGetInfo(&freeMemory, &totalMemory);
-		std::cout << "Free memory: " << double(freeMemory) / (1024 * 1024 * 1024) << "Gb" << std::endl;
+		size_t freeMemory = ct::cuda::getFreeMemory(deviceId);
 		//spare 200Mb of VRAM for other applications
 		freeMemory -= 200 * 1024 * 1024;
-		//std::cout << sliceSize*sliceCnt << std::endl;
-		//std::cout << "Free: " << freeMemory << std::endl;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		size_t sliceCnt = freeMemory / sliceSize;
@@ -896,7 +912,7 @@ namespace ct {
 			size_t const yDimension = this->yMax;
 			size_t const zDimension = lastSlice - currentSlice;
 
-			std::cout << "Processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
+			std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
 			//allocate volume part memory on gpu
 			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
@@ -924,7 +940,11 @@ namespace ct {
 					return false;
 				}
 
-				std::cout << "\r" << "Projecting projection " << projection + 1 << "/" << this->sinogram.size();
+				//emit progress update
+				double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
+				double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+				double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+				if (this->emitSignals && projection%10 == 0) emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 
 				{
 					cv::cuda::GpuMat tmp = gpuCurrentImage;
@@ -991,11 +1011,9 @@ namespace ct {
 				//	if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 				//	return false;
 				//}
-				
+
 			}
 
-			std::cout << std::endl;
-			
 			//donload the reconstructed volume part
 			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
 
@@ -1023,6 +1041,7 @@ namespace ct {
 			currentSlice += sliceCnt;
 		}
 
+		std::cout << std::endl;
 		std::cout << "GPU" << deviceId << " finished." << std::endl;
 
 		return true;
@@ -1127,6 +1146,24 @@ namespace ct {
 	int CtVolume::fftCoordToIndex(int coord, int size) {
 		if (coord < 0)return size + coord;
 		return coord;
+	}
+
+	//============================================== PRIVATE SLOTS ==============================================\\
+
+	void CtVolume::emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection) {
+		this->cudaThreadProgress[deviceId] = percentage;
+		double totalProgress = 0;
+		for (int i = 0; i < this->cudaThreadProgress.size(); ++i) {
+			totalProgress += this->cudaThreadProgress[i];
+		}
+		totalProgress /= this->cudaThreadProgress.size();
+		totalProgress *= 100;
+		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
+		if (emitCrossSection) {
+			emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionIndex)));
+		} else {
+			emit(reconstructionProgress(totalProgress, cv::Mat()));
+		}
 	}
 
 }

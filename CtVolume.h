@@ -72,7 +72,7 @@ namespace ct {
 
 		//functions		
 		//constructor
-		CtVolume() = default;
+		CtVolume();
 		CtVolume(std::string csvFile);
 		bool cudaAvailable();
 		//getters
@@ -195,6 +195,8 @@ namespace ct {
 		double pixelSize = 0;
 		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction
 		mutable std::pair<float, float> minMaxValues;
+		//for keeping track of the progress on multithread CUDA execution
+		std::vector<double> cudaThreadProgress;
 		//some precomputed values for the coordinate conversion functions for faster execution
 		double worldToVolumeXPrecomputed;
 		double worldToVolumeYPrecomputed;
@@ -204,6 +206,8 @@ namespace ct {
 		double volumeToWorldZPrecomputed;
 		double imageToMatUPrecomputed;
 		double imageToMatVPrecomputed;
+	private slots:
+		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:
 		void loadingProgress(double percentage) const;
 		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
@@ -211,6 +215,7 @@ namespace ct {
 		void reconstructionFinished(cv::Mat crossSection, CtVolume::CompletionStatus status = CompletionStatus::success()) const;
 		void savingProgress(double percentage) const;
 		void savingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
+		void cudaThreadProgressUpdate(double percentage, int deviceId, bool emitCrossSection);
 	};
 
 }

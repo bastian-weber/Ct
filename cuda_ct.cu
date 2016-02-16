@@ -3,7 +3,11 @@
 namespace ct {
 
 	namespace cuda {
-
+		size_t getFreeMemory(int deviceId) {
+			size_t freeMemory, totalMemory;
+			cudaMemGetInfo(&freeMemory, &totalMemory);
+			return freeMemory;
+		}
 		int getMultiprocessorCnt(int deviceId) {
 			int cnt;
 			cudaDeviceGetAttribute(&cnt, cudaDevAttrMultiProcessorCount, deviceId);
@@ -152,7 +156,7 @@ namespace ct {
 								 double imageToMatVPrecomputed, 
 								 bool& success) {
 			success = true;
-			dim3 threads(32, 32, 100);
+			dim3 threads(32, 32, 1);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
