@@ -17,6 +17,7 @@ namespace ct {
 
 	namespace cuda {
 
+		size_t getFreeMemory(int deviceId);
 		int getMultiprocessorCnt(int deviceId);
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);
