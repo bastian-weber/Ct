@@ -899,6 +899,7 @@ namespace ct {
 		cv::cuda::dft(negationResult, dftResult, image.size(), cv::DFT_ROWS, stream);
 		ct::cuda::applyFrequencyFiltering(dftResult, int(filterType), cv::cuda::StreamAccessor::getStream(stream), success);
 		cv::cuda::dft(dftResult, idftResult, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		ct::cuda::applyFeldkampWeightFiltering(idftResult, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), success);
 		return idftResult;
 	}
 
@@ -1143,6 +1144,8 @@ namespace ct {
 		this->volumeToWorldZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
 		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
 		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
+		this->matToImageUPreprocessed = double(this->imageWidth) / 2.0;
+		this->matToImageVPreprocessed = double(this->imageHeight / 2.0);
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
@@ -1179,12 +1182,12 @@ namespace ct {
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {
-		return uCoord - ((double)this->imageWidth / 2.0);
+		return uCoord - this->matToImageUPreprocessed;
 	}
 
 	inline double CtVolume::matToImageV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*(vCoord - ((double)this->imageHeight / 2.0));
+		return (-1)*vCoord + this->matToImageVPreprocessed;
 	}
 
 	int CtVolume::fftCoordToIndex(int coord, int size) {
