@@ -148,7 +148,8 @@ namespace ct {
 		bool launchCudaThreads(FilterType filterType);
 		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
 											 FilterType filterType,
-											 cv::cuda::Stream stream) const;		
+											 cv::cuda::Stream stream,
+											 bool& success) const;		
 		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
 									size_t threadZMax, 
 									int deviceId);
