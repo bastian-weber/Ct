@@ -925,13 +925,14 @@ namespace ct {
 		cv::cuda::GpuMat gpuPrefetchedImage;
 		cv::cuda::GpuMat gpuCurrentImage;
 		image = this->prepareProjection(0, filterType);
-		gpuCurrentImage.upload(image);
 		gpuPrefetchedImage.upload(image);
 		cv::cuda::Stream gpuPreprocessingStream;
 
 		size_t freeMemory = ct::cuda::getFreeMemory();
 		//spare 200Mb of VRAM for other applications
 		freeMemory -= 200 * 1024 * 1024;
+		//spare memory for intermediate images and dft result
+		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		size_t sliceCnt = freeMemory / sliceSize;
