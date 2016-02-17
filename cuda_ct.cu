@@ -299,15 +299,4 @@ namespace ct {
 			}
 		}
 
-		void deviceSynchronize(bool& success) {
-			success = true;
-			cudaError_t status = cudaDeviceSynchronize();
-			if (status != cudaSuccess) {
-				std::cout << std::endl << "cudaDeviceSynchronize ERROR: " << cudaGetErrorString(status);
-				success = false;
-			}
-		}
-
-	}
-
 }
