@@ -328,7 +328,7 @@ namespace ct {
 
 				//mesure time
 				clock_t end = clock();
-				std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
+				std::cout << std::endl << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
 				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
 			} else {
 				this->volume.clear();
@@ -830,7 +830,7 @@ namespace ct {
 			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
 		}
 		std::vector<double> scalingFactors(devices.size());
-		double scalingFactorSum;
+		double scalingFactorSum = 0;
 		for (int i = 0; i < devices.size(); ++i) {
 			double multiprocessorScalingFactor = (double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt));
 			double busWidthScalingFactor = (double(busWidth[i]) / double(totalBusWidth));
@@ -968,7 +968,7 @@ namespace ct {
 				double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
 				double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
 				double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
-				if (this->emitSignals && projection%10 == 0) emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+				if (projection%10 == 0) emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 
 				{
 					cv::cuda::GpuMat tmp = gpuCurrentImage;
@@ -1068,7 +1068,7 @@ namespace ct {
 		std::cout << std::endl;
 		std::cout << "GPU" << deviceId << " finished." << std::endl;
 
-		if (this->emitSignals) emit(this->cudaThreadProgressUpdate(1, deviceId, true));
+		emit(this->cudaThreadProgressUpdate(1, deviceId, true));
 
 		return true;
 	}
@@ -1185,10 +1185,12 @@ namespace ct {
 		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
 		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
-		if (emitCrossSection) {
-			emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionIndex)));
-		} else {
-			emit(reconstructionProgress(totalProgress, cv::Mat()));
+		if (this->emitSignals) {
+			if (emitCrossSection) {
+				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionIndex)));
+			} else {
+				emit(reconstructionProgress(totalProgress, cv::Mat()));
+			}
 		}
 	}
 
