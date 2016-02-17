@@ -16,6 +16,12 @@ namespace ct {
 			return cnt;
 		}
 
+		int getMemoryBusWidth(int deviceId) {
+			int busWidth;
+			cudaDeviceGetAttribute(&busWidth, cudaDevAttrGlobalMemoryBusWidth, deviceId);
+			return busWidth;
+		}
+
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
 			success = true;
 			cudaError_t status;
