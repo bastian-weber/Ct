@@ -63,7 +63,7 @@ namespace ct {
 
 		void applyFrequencyFiltering(cv::cuda::PtrStepSz<float2> image, int filterType, cudaStream_t stream, bool& success) {
 			success = true;
-			dim3 threads(32, 32);
+			dim3 threads(32, 1);
 			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
 						((unsigned int)image.rows + threads.y - 1) / threads.y);
 			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType);
@@ -94,7 +94,7 @@ namespace ct {
 
 		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed, cudaStream_t stream, bool& success) {
 			success = true;
-			dim3 threads(32, 32);
+			dim3 threads(32, 1);
 			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
 						((unsigned int)image.rows + threads.y - 1) / threads.y);
 			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, SD, matToImageUPreprocessed, matToImageVPreprocessed);
@@ -267,7 +267,7 @@ namespace ct {
 								 float imageToMatVPrecomputed,
 								 bool& success) {
 			success = true;
-			dim3 threads(32, 16, 1);
+			dim3 threads(8, 8, 2);
 			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
 						((unsigned int)ySize + threads.y - 1) / threads.y,
 						((unsigned int)zSize + threads.z - 1) / threads.z);
