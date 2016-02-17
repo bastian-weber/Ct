@@ -47,7 +47,6 @@ namespace ct {
 								 float imageToMatUPrecomputed,
 								 float imageToMatVPrecomputed,
 								 bool& success);
-		void deviceSynchronize(bool& success);
 	
 	}
 
