@@ -889,21 +889,19 @@ namespace ct {
 
 	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, FilterType filterType, cv::cuda::Stream stream, bool& success) const {
 		success = true;
-		cv::cuda::GpuMat dftResult;
-		cv::cuda::GpuMat conversionResult;
-		cv::cuda::GpuMat negationResult;
-		cv::cuda::GpuMat idftResult;
-		image.convertTo(conversionResult, CV_32FC1, stream);
-		cv::cuda::log(conversionResult, conversionResult, stream);
-		conversionResult.convertTo(negationResult, conversionResult.type(), -1, stream);
-		cv::cuda::dft(negationResult, dftResult, image.size(), cv::DFT_ROWS, stream);
+		cv::cuda::GpuMat tmp1;
+		cv::cuda::GpuMat tmp2;
+		image.convertTo(tmp1, CV_32FC1, stream);
+		cv::cuda::log(tmp1, tmp1, stream);
+		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
 		bool successLocal;
-		ct::cuda::applyFrequencyFiltering(dftResult, int(filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFrequencyFiltering(tmp2, int(filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
-		cv::cuda::dft(dftResult, idftResult, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
-		ct::cuda::applyFeldkampWeightFiltering(idftResult, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		ct::cuda::applyFeldkampWeightFiltering(image, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
-		return idftResult;
+		return image;
 	}
 
 	bool CtVolume::cudaReconstructionCore(FilterType filterType, size_t threadZMin, size_t threadZMax, int deviceId) {
