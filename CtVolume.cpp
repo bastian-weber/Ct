@@ -887,19 +887,22 @@ namespace ct {
 		return result;
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, FilterType filterType, cv::cuda::Stream stream) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, FilterType filterType, cv::cuda::Stream stream, bool& success) const {
+		success = true;
 		cv::cuda::GpuMat dftResult;
 		cv::cuda::GpuMat conversionResult;
 		cv::cuda::GpuMat negationResult;
 		cv::cuda::GpuMat idftResult;
-		bool success;
 		image.convertTo(conversionResult, CV_32FC1, stream);
 		cv::cuda::log(conversionResult, conversionResult, stream);
 		conversionResult.convertTo(negationResult, conversionResult.type(), -1, stream);
 		cv::cuda::dft(negationResult, dftResult, image.size(), cv::DFT_ROWS, stream);
-		ct::cuda::applyFrequencyFiltering(dftResult, int(filterType), cv::cuda::StreamAccessor::getStream(stream), success);
+		bool successLocal;
+		ct::cuda::applyFrequencyFiltering(dftResult, int(filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
 		cv::cuda::dft(dftResult, idftResult, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
-		ct::cuda::applyFeldkampWeightFiltering(idftResult, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), success);
+		ct::cuda::applyFeldkampWeightFiltering(idftResult, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
 		return idftResult;
 	}
 
@@ -1041,8 +1044,15 @@ namespace ct {
 						return false;
 					}
 					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, filterType, gpuPreprocessingStream);
+					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, filterType, gpuPreprocessingStream, success);
 					gpuPreprocessingStream.waitForCompletion();
+					if (!success) {
+						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+						return false;
+					}
 				}
 
 				////sync gpu
