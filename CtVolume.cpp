@@ -657,6 +657,7 @@ namespace ct {
 		CV_Assert(image.depth() == CV_32F);
 
 		float* ptr;
+#pragma omp parallel for private(ptr)
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
@@ -670,6 +671,7 @@ namespace ct {
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
 		cv::Vec2f* ptr;
+#pragma omp parallel for private(ptr)
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (int column = 0; column < nyquist; ++column) {
