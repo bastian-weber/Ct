@@ -211,6 +211,8 @@ namespace ct {
 		double volumeToWorldZPrecomputed;
 		double imageToMatUPrecomputed;
 		double imageToMatVPrecomputed;
+		double matToImageUPreprocessed;
+		double matToImageVPreprocessed;
 	private slots:
 		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:

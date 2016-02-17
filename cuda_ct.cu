@@ -75,7 +75,36 @@ namespace ct {
 			}
 		}
 
+		__device__ float W(float D, float u, float v) {
+			return D / std::sqrt(D*D + u*u + v*v);
+		}
 
+		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed) {
+
+			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+
+			if (xIndex < image.cols && yIndex < image.rows) {
+				float u = float(xIndex) - matToImageUPreprocessed;
+				float v = (-1.0)*float(yIndex) + matToImageVPreprocessed;
+				image(yIndex, xIndex) *= W(SD, u, v);
+			}
+
+		}
+
+		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed, cudaStream_t stream, bool& success) {
+			success = true;
+			dim3 threads(32, 32);
+			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
+						((unsigned int)image.rows + threads.y - 1) / threads.y);
+			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, SD, matToImageUPreprocessed, matToImageVPreprocessed);
+
+			cudaError_t status = cudaGetLastError();
+			if (status != cudaSuccess) {
+				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status);
+				success = false;
+			}
+		}
 
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
 			success = true;
