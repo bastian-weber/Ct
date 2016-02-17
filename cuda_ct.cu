@@ -1,4 +1,5 @@
 #include "cuda_ct.h"
+#include "math_constants.h"
 
 namespace ct {
 
@@ -21,6 +22,60 @@ namespace ct {
 			cudaDeviceGetAttribute(&busWidth, cudaDevAttrGlobalMemoryBusWidth, deviceId);
 			return busWidth;
 		}
+
+		__device__ float ramLakWindowFilter(float n, float N){
+			return n / N;
+		}
+
+		__device__ float sheppLoganWindowFilter(float n, float N) {
+			if (n == 0) {
+				return 0;
+			} else {
+				float rl = ramLakWindowFilter(n, N);
+				return (rl)* (sin(rl*0.5*CUDART_PI_F)) / (rl*0.5*CUDART_PI_F);
+			}
+
+		}
+
+		__device__ float hannWindowFilter(float n, float N) {
+			return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * CUDART_PI_F * float(n)) / (float(N) * 2)));
+		}
+
+		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
+
+			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+
+			if (xIndex < image.cols && yIndex < image.rows) {
+				float2 pixel = image(yIndex, xIndex);
+				float factor;
+				if (filterType == 0) {
+					factor = ramLakWindowFilter(xIndex, image.cols);
+				} else if (filterType == 1) {
+					factor = sheppLoganWindowFilter(xIndex, image.cols);
+				} else if (filterType == 2) {
+					factor = hannWindowFilter(xIndex, image.cols);
+				}
+				image(yIndex, xIndex) = make_float2(pixel.x*factor, pixel.y*factor);
+			}
+
+		}
+
+		void applyFrequencyFiltering(cv::cuda::PtrStepSz<float2> image, int filterType, cudaStream_t stream, bool& success) {
+			success = true;
+			dim3 threads(32, 32);
+			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
+						((unsigned int)image.rows + threads.y - 1) / threads.y);
+			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType);
+
+			cudaError_t status = cudaGetLastError();
+			if (status != cudaSuccess) {
+				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status);
+				success = false;
+			}
+		}
+
+
 
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
 			success = true;

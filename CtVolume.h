@@ -19,6 +19,7 @@
 #include <opencv2/cudaimgproc.hpp>
 #include <opencv2/cudafilters.hpp>
 #include <opencv2/cudawarping.hpp>
+#include "opencv2/core/cuda_stream_accessor.hpp"
 
 //Qt
 #include <QtCore/QtCore>
@@ -145,6 +146,9 @@ namespace ct {
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
 		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
 		bool launchCudaThreads(FilterType filterType);
+		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
+											 FilterType filterType,
+											 cv::cuda::Stream stream) const;		
 		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
 									size_t threadZMax, 
 									int deviceId);

@@ -887,6 +887,21 @@ namespace ct {
 		return result;
 	}
 
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, FilterType filterType, cv::cuda::Stream stream) const {
+		cv::cuda::GpuMat dftResult;
+		cv::cuda::GpuMat conversionResult;
+		cv::cuda::GpuMat negationResult;
+		cv::cuda::GpuMat idftResult;
+		bool success;
+		image.convertTo(conversionResult, CV_32FC1, stream);
+		cv::cuda::log(conversionResult, conversionResult, stream);
+		conversionResult.convertTo(negationResult, conversionResult.type(), -1, stream);
+		cv::cuda::dft(negationResult, dftResult, image.size(), cv::DFT_ROWS, stream);
+		ct::cuda::applyFrequencyFiltering(dftResult, int(filterType), cv::cuda::StreamAccessor::getStream(stream), success);
+		cv::cuda::dft(dftResult, idftResult, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		return idftResult;
+	}
+
 	bool CtVolume::cudaReconstructionCore(FilterType filterType, size_t threadZMin, size_t threadZMax, int deviceId) {
 
 		cudaSetDevice(deviceId);
@@ -910,7 +925,7 @@ namespace ct {
 		image = this->prepareProjection(0, filterType);
 		gpuCurrentImage.upload(image);
 		gpuPrefetchedImage.upload(image);
-		cv::cuda::Stream gpuUploadStream;
+		cv::cuda::Stream gpuPreprocessingStream;
 
 		size_t freeMemory = ct::cuda::getFreeMemory();
 		//spare 200Mb of VRAM for other applications
@@ -1016,7 +1031,7 @@ namespace ct {
 
 				//prepare and upload next image
 				if (projection < this->sinogram.size() - 1) {
-					image = this->prepareProjection(projection + 1, filterType);
+					image = this->sinogram[projection + 1].getImage();
 					if (!image.data) {
 						std::cout << std::endl << "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format." << std::endl;
 						stopCudaThreads = true;
@@ -1024,8 +1039,9 @@ namespace ct {
 						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 						return false;
 					}
-					gpuPrefetchedImage.upload(image/*, gpuUploadStream*/);
-					//gpuUploadStream.waitForCompletion();
+					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, filterType, gpuPreprocessingStream);
+					gpuPreprocessingStream.waitForCompletion();
 				}
 
 				////sync gpu

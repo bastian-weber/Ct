@@ -20,6 +20,7 @@ namespace ct {
 		size_t getFreeMemory();
 		int getMultiprocessorCnt(int deviceId);
 		int getMemoryBusWidth(int deviceId);
+		void applyFrequencyFiltering(cv::cuda::PtrStepSz<float2> image, int filterType, cudaStream_t stream, bool& success);
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);
 		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success);
