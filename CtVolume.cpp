@@ -813,41 +813,64 @@ namespace ct {
 		return true;
 	}
 
+	std::vector<double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
+		//get amount of multiprocessors per GPU
+		std::vector<int> multiprocessorCnt(devices.size());
+		size_t totalMultiprocessorsCnt = 0;
+		std::vector<int> busWidth(devices.size());
+		size_t totalBusWidth = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(devices[i]);
+			totalMultiprocessorsCnt += multiprocessorCnt[i];
+			busWidth[i] = ct::cuda::getMemoryBusWidth(devices[i]);
+			totalBusWidth += busWidth[i];
+			std::cout << "GPU" << i << std::endl;
+			cudaSetDevice(devices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
+		}
+		std::vector<double> scalingFactors(devices.size());
+		double scalingFactorSum;
+		for (int i = 0; i < devices.size(); ++i) {
+			double multiprocessorScalingFactor = (double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt));
+			double busWidthScalingFactor = (double(busWidth[i]) / double(totalBusWidth));
+			scalingFactors[i] = multiprocessorScalingFactor*busWidthScalingFactor;
+			scalingFactorSum += scalingFactors[i];
+		}
+		for (int i = 0; i < devices.size(); ++i) {
+			scalingFactors[i] /= scalingFactorSum;
+		}
+		return scalingFactors;
+	}
+
 	bool CtVolume::launchCudaThreads(FilterType filterType) {
 		this->stopCudaThreads = false;
 		//get number of devices
 		int deviceCnt;
 		cudaGetDeviceCount(&deviceCnt);
 
+		std::vector<int> devices(deviceCnt);
+		for (int i = 0; i < deviceCnt; ++i) {
+			devices[i] = i;
+		}
+		std::vector<double> scalingFactors = this->getGpuWeights(devices);
+
 		//clear progress
 		this->cudaThreadProgress.clear();
-		this->cudaThreadProgress.resize(deviceCnt, 0);
+		this->cudaThreadProgress.resize(devices.size(), 0);
 
 		//create vector to store threads
-		std::vector<std::future<bool>> threads(deviceCnt);
-
-		//get amount of multiprocessors per GPU
-		std::vector<int> multiprocessorCnt(deviceCnt);
-		size_t totalMultiprocessorsCnt = 0;
-		for (int i = 0; i < deviceCnt; ++i) {
-			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(i);
-			totalMultiprocessorsCnt += multiprocessorCnt[i];
-			std::cout << "GPU" << i << std::endl;
-			cudaSetDevice(i);
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
-		}
-
+		std::vector<std::future<bool>> threads(devices.size());
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
-		for (int i = 0; i < deviceCnt; ++i) {
-			size_t sliceCnt = std::round((double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt)) * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, filterType, currentSlice, currentSlice + sliceCnt, i);
+		for (int i = 0; i < devices.size(); ++i) {
+			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, filterType, currentSlice, currentSlice + sliceCnt, devices[i]);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish
 		bool result = true;
-		for (int i = 0; i < deviceCnt; ++i) {
+		for (int i = 0; i < devices.size(); ++i) {
 			result = result && threads[i].get();
 		}
 

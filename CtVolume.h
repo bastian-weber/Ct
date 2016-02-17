@@ -143,6 +143,7 @@ namespace ct {
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
 		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
+		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
 		bool launchCudaThreads(FilterType filterType);
 		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
 									size_t threadZMax, 
