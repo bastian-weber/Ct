@@ -781,7 +781,8 @@ namespace ct {
 			type = FilterType::HANN;
 		}
 		this->reconstructionActive = true;
-		std::thread(&CtVolume::reconstructVolume, &this->volume, type).detach();
+		this->volume.setFrequencyFilterType(type);
+		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
 	void MainInterface::reactToSaveButtonClick() {

@@ -276,7 +276,11 @@ namespace ct {
 		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
-	void CtVolume::reconstructVolume(FilterType filterType) {
+	void CtVolume::setFrequencyFilterType(FilterType filterType) {
+		this->filterType = filterType;
+	}
+
+	void CtVolume::reconstructVolume() {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 
 		bool useCuda = true;
@@ -295,9 +299,9 @@ namespace ct {
 				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
 			}
 			if (useCuda && this->cudaAvailable()) {
-				result = this->launchCudaThreads(filterType);
+				result = this->launchCudaThreads();
 			} else {
-				result = this->reconstructionCore(filterType);
+				result = this->reconstructionCore();
 			}
 			if (result) {
 				//now fill the corners around the cylinder with the lowest density value
@@ -628,18 +632,18 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
+	cv::Mat CtVolume::prepareProjection(size_t index) const {
 		cv::Mat image = this->sinogram[index].getImage();
 		if (image.data) {
 			convertTo32bit(image);
-			this->preprocessImage(image, filterType);
+			this->preprocessImage(image);
 		}
 		return image;
 	}
 
-	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
+	void CtVolume::preprocessImage(cv::Mat& image) const {
 		applyLogScaling(image);
-		applyFourierFilter(image, filterType);
+		applyFourierFilter(image, this->filterType);
 		this->applyFeldkampWeight(image);
 	}
 
@@ -666,7 +670,7 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) {
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType filterType) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
@@ -675,7 +679,7 @@ namespace ct {
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (int column = 0; column < nyquist; ++column) {
-				switch (type) {
+				switch (filterType) {
 					case FilterType::RAMLAK:
 						ptr[column] *= ramLakWindowFilter(column, nyquist);
 						break;
@@ -715,7 +719,7 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	bool CtVolume::reconstructionCore(FilterType filterType) {
+	bool CtVolume::reconstructionCore() {
 		double imageLowerBoundU = this->matToImageU(0);
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
 		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
@@ -749,12 +753,12 @@ namespace ct {
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
-				image = this->prepareProjection(projection, filterType);
+				image = this->prepareProjection(projection);
 			} else {
 				image = future.get();
 			}
 			if (projection + 1 != this->sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1);
 			}
 			//check if the image is good
 			if (!image.data) {
@@ -845,7 +849,7 @@ namespace ct {
 		return scalingFactors;
 	}
 
-	bool CtVolume::launchCudaThreads(FilterType filterType) {
+	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
 		//get number of devices
 		int deviceCnt;
@@ -867,7 +871,7 @@ namespace ct {
 		size_t currentSlice = 0;
 		for (int i = 0; i < devices.size(); ++i) {
 			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, filterType, currentSlice, currentSlice + sliceCnt, devices[i]);
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, devices[i]);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish
@@ -887,7 +891,7 @@ namespace ct {
 		return result;
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, FilterType filterType, cv::cuda::Stream stream, bool& success) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream stream, bool& success) const {
 		success = true;
 		cv::cuda::GpuMat tmp1;
 		cv::cuda::GpuMat tmp2;
@@ -896,7 +900,7 @@ namespace ct {
 		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
 		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
 		bool successLocal;
-		ct::cuda::applyFrequencyFiltering(tmp2, int(filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
 		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
 		ct::cuda::applyFeldkampWeightFiltering(image, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
@@ -904,9 +908,11 @@ namespace ct {
 		return image;
 	}
 
-	bool CtVolume::cudaReconstructionCore(FilterType filterType, size_t threadZMin, size_t threadZMax, int deviceId) {
+	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
 
 		cudaSetDevice(deviceId);
+		//for cuda error handling
+		bool success;
 
 		//precomputing some values
 		double imageLowerBoundU = this->matToImageU(0);
@@ -924,9 +930,16 @@ namespace ct {
 		cv::Mat image;
 		cv::cuda::GpuMat gpuPrefetchedImage;
 		cv::cuda::GpuMat gpuCurrentImage;
-		image = this->prepareProjection(0, filterType);
+		image = this->sinogram[0].getImage();
 		gpuPrefetchedImage.upload(image);
 		cv::cuda::Stream gpuPreprocessingStream;
+		this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+		gpuPreprocessingStream.waitForCompletion();
+		if (!success) {
+			std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
+			stopCudaThreads = true;
+			return false;
+		}
 
 		size_t freeMemory = ct::cuda::getFreeMemory();
 		//spare 200Mb of VRAM for other applications
@@ -945,9 +958,6 @@ namespace ct {
 			stopCudaThreads = true;
 			return false;
 		}
-
-		//for cuda error handling
-		bool success;
 
 		while (currentSlice < threadZMax) {
 
@@ -1043,7 +1053,7 @@ namespace ct {
 						return false;
 					}
 					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, filterType, gpuPreprocessingStream, success);
+					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 					gpuPreprocessingStream.waitForCompletion();
 					if (!success) {
 						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
