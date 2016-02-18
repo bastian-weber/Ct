@@ -145,11 +145,12 @@ int main(int argc, char* argv[]) {
 				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
 				std::cout << "\t\t\t\tz: [" << std::to_string(zmin) << " .. " << std::to_string(zmax) << "]" << std::endl;
 				std::cout << std::endl;
-				ct::CtVolume myVolume(input);
-				myVolume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
-				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << myVolume.getXSize() << "x" << myVolume.getYSize() << "x" << myVolume.getZSize() << " (x:y:z)" << std::endl << std::endl;
-				myVolume.reconstructVolume(filterType);
-				myVolume.saveVolumeToBinaryFile(output);
+				ct::CtVolume volume(input);
+				volume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
+				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << volume.getXSize() << "x" << volume.getYSize() << "x" << volume.getZSize() << " (x:y:z)" << std::endl << std::endl;
+				volume.setFrequencyFilterType(filterType);
+				volume.reconstructVolume();
+				volume.saveVolumeToBinaryFile(output);
 			} else {
 				std::cout << "You must provide a file path to the config file as input as well as a file path for the output." << std::endl;
 				return 1;
@@ -159,9 +160,5 @@ int main(int argc, char* argv[]) {
 		std::cout << "Launching in GUI mode." << std::endl;
 		return init(argc, argv);
 	}
-	//CtVolume myVolume("G:/Desktop/Turnschuh_1200/angles.csv", CtVolume::RAMLAK);
-	//myVolume.displaySinogram(true);	
-	//myVolume.reconstructVolume(CtVolume::MULTITHREADED);
-	//myVolume.saveVolumeToBinaryFile("G:/Desktop/volume.raw");
 	return 0;
 }

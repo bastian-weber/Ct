@@ -103,9 +103,10 @@ namespace ct {
 							 double yTo,
 							 double zFrom,
 							 double zTo);
+		void setFrequencyFilterType(FilterType filterType);
 		//control functions
 		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
-		void reconstructVolume(FilterType filterType = FilterType::RAMLAK);		//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
+		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 	private:
@@ -133,24 +134,22 @@ namespace ct {
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		cv::Mat prepareProjection(size_t index, FilterType filterType) const;	//returns the image of the projection at position index preprocessed and converted
-		void preprocessImage(cv::Mat& image, FilterType filterType) const;
+		cv::Mat prepareProjection(size_t index) const;							//returns the image of the projection at position index preprocessed and converted
+		void preprocessImage(cv::Mat& image) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
-		static void applyFourierFilter(cv::Mat& image,
-									   FilterType type);
+		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
 		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
 		static double sheppLoganWindowFilter(double n, double N);
 		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		bool reconstructionCore(FilterType filterType);							//does the actual reconstruction, filterType specifies the type of the highpass filter
+		bool reconstructionCore();												//does the actual reconstruction
 		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
-		bool launchCudaThreads(FilterType filterType);
+		bool launchCudaThreads();
 		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
-											 FilterType filterType,
 											 cv::cuda::Stream stream,
 											 bool& success) const;		
-		bool cudaReconstructionCore(FilterType filterType, size_t threadZMin, 
+		bool cudaReconstructionCore(size_t threadZMin, 
 									size_t threadZMax, 
 									int deviceId);
 		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
@@ -180,6 +179,7 @@ namespace ct {
 		//variables		
 		std::vector<Projection> sinogram;									//here the images are stored
 		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
+		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
 		mutable std::mutex exclusiveFunctionsMutex;
 		bool emitSignals = false;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
