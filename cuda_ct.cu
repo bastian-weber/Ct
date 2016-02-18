@@ -64,8 +64,8 @@ namespace ct {
 		void applyFrequencyFiltering(cv::cuda::PtrStepSz<float2> image, int filterType, cudaStream_t stream, bool& success) {
 			success = true;
 			dim3 threads(32, 1);
-			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
-						((unsigned int)image.rows + threads.y - 1) / threads.y);
+			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
+						std::ceil(float(image.rows) / float(threads.y)));
 			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType);
 
 			cudaError_t status = cudaGetLastError();
@@ -95,8 +95,8 @@ namespace ct {
 		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed, cudaStream_t stream, bool& success) {
 			success = true;
 			dim3 threads(32, 1);
-			dim3 blocks(((unsigned int)image.cols + threads.x - 1) / threads.x,
-						((unsigned int)image.rows + threads.y - 1) / threads.y);
+			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
+						std::ceil(float(image.rows) / float(threads.y)));
 			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, SD, matToImageUPreprocessed, matToImageVPreprocessed);
 
 			cudaError_t status = cudaGetLastError();
@@ -268,9 +268,9 @@ namespace ct {
 								 bool& success) {
 			success = true;
 			dim3 threads(16, 16, 1);
-			dim3 blocks(((unsigned int)xSize + threads.x - 1) / threads.x,
-						((unsigned int)ySize + threads.y - 1) / threads.y,
-						((unsigned int)zSize + threads.z - 1) / threads.z);
+			dim3 blocks(std::ceil(float(xSize) / float(threads.x)),
+						std::ceil(float(ySize) / float(threads.y)),
+						std::ceil(float(zSize) / float(threads.z)));
 			reconstructionKernel << < blocks, threads >> >(image,
 														   volumePtr,
 														   xSize,
