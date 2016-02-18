@@ -125,7 +125,8 @@ namespace ct {
 		};
 
 		//=========================================== PRIVATE FUNCTIONS ===========================================\\
-				
+		
+		//related to parsing of config file
 		void readParameters(std::ifstream& stream,
 							std::string& path,
 							std::string& rotationDirection);
@@ -134,6 +135,8 @@ namespace ct {
 		bool readImages(std::ifstream& csvStream, std::string path, int imgCnt);
 		void makeHeightOffsetRelative();
 		void correctAngleDirection(std::string rotationDirection);
+		
+		//related to CPU image preprocessing
 		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
@@ -141,32 +144,39 @@ namespace ct {
 		void preprocessImage(cv::Mat& image) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
+		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume		
 		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
-		static double ramLakWindowFilter(double n, double N);					//Those functions return the scaling coefficients for the
-		static double sheppLoganWindowFilter(double n, double N);
-		static double hannWindowFilter(double n, double N);						//fourier filters for each n out of N
-		bool reconstructionCore();												//does the actual reconstruction
-		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
-		bool launchCudaThreads();
+		static double ramLakWindowFilter(double n, double N);					//these functions return the scaling coefficients for the
+		static double sheppLoganWindowFilter(double n, double N);				//fourier filters for each n out of N
+		static double hannWindowFilter(double n, double N);						
+		
+		//related to the GPU image preprocessing
 		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
 											 cv::cuda::Stream stream,
-											 bool& success) const;		
-		bool cudaReconstructionCore(size_t threadZMin, 
-									size_t threadZMax, 
-									int deviceId);
-		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
-								   size_t zSize,
-								   size_t zOffset);
+											 bool& success) const;	
+
+		//related to the CPU reconstruction
+		bool reconstructionCore();												//does the actual reconstruction
 		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
 										   double v,
 										   float u0v0,
 										   float u1v0,
 										   float u0v1,
 										   float u1v1);
-		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume
+
+		//related to the GPU reconstruction
+		bool cudaReconstructionCore(size_t threadZMin, 
+									size_t threadZMax, 
+									int deviceId);
+		bool launchCudaThreads();
+		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
+		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
+								   size_t zSize,
+								   size_t zOffset);
+
 		//coordinate transformation functions
-		void updateBoundaries();
+		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
 		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to
 		double worldToVolumeY(double yCoord) const;								//the coordinates of the "world" and the other way around
 		double worldToVolumeZ(double zCoord) const;
@@ -177,7 +187,6 @@ namespace ct {
 		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
 		double matToImageU(double uCoord)const;
 		double matToImageV(double vCoord)const;
-		static int fftCoordToIndex(int coord, int size);						//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 		
 		//=========================================== PRIVATE VARIABLES ===========================================\\
 

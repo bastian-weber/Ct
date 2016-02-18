@@ -7,8 +7,7 @@ namespace ct {
 	Projection::Projection() { }
 
 	Projection::Projection(cv::Mat image, double angle, double heightOffset) : image(image), angle(angle), heightOffset(heightOffset) { }
-
-
+	
 	//internal data type projection
 
 	CtVolume::Projection::Projection() { }
@@ -670,6 +669,10 @@ namespace ct {
 		}
 	}
 
+	inline double CtVolume::W(double D, double u, double v) {
+		return D / sqrt(D*D + u*u + v*v);
+	}
+
 	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType filterType) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
@@ -717,6 +720,23 @@ namespace ct {
 
 	double CtVolume::hannWindowFilter(double n, double N) {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
+	}
+
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream stream, bool& success) const {
+		success = true;
+		cv::cuda::GpuMat tmp1;
+		cv::cuda::GpuMat tmp2;
+		image.convertTo(tmp1, CV_32FC1, stream);
+		cv::cuda::log(tmp1, tmp1, stream);
+		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
+		bool successLocal;
+		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
+		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		ct::cuda::applyFeldkampWeightFiltering(image, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
+		return image;
 	}
 
 	bool CtVolume::reconstructionCore() {
@@ -819,93 +839,12 @@ namespace ct {
 		return true;
 	}
 
-	std::vector<double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
-		//get amount of multiprocessors per GPU
-		std::vector<int> multiprocessorCnt(devices.size());
-		size_t totalMultiprocessorsCnt = 0;
-		std::vector<int> busWidth(devices.size());
-		size_t totalBusWidth = 0;
-		for (int i = 0; i < devices.size(); ++i) {
-			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(devices[i]);
-			totalMultiprocessorsCnt += multiprocessorCnt[i];
-			busWidth[i] = ct::cuda::getMemoryBusWidth(devices[i]);
-			totalBusWidth += busWidth[i];
-			std::cout << "GPU" << i << std::endl;
-			cudaSetDevice(devices[i]);
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
-		}
-		std::vector<double> scalingFactors(devices.size());
-		double scalingFactorSum = 0;
-		for (int i = 0; i < devices.size(); ++i) {
-			double multiprocessorScalingFactor = (double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt));
-			double busWidthScalingFactor = (double(busWidth[i]) / double(totalBusWidth));
-			scalingFactors[i] = multiprocessorScalingFactor*busWidthScalingFactor;
-			scalingFactorSum += scalingFactors[i];
-		}
-		for (int i = 0; i < devices.size(); ++i) {
-			scalingFactors[i] /= scalingFactorSum;
-		}
-		return scalingFactors;
-	}
-
-	bool CtVolume::launchCudaThreads() {
-		this->stopCudaThreads = false;
-		//get number of devices
-		int deviceCnt;
-		cudaGetDeviceCount(&deviceCnt);
-
-		std::vector<int> devices(deviceCnt);
-		for (int i = 0; i < deviceCnt; ++i) {
-			devices[i] = i;
-		}
-		std::vector<double> scalingFactors = this->getGpuWeights(devices);
-
-		//clear progress
-		this->cudaThreadProgress.clear();
-		this->cudaThreadProgress.resize(devices.size(), 0);
-
-		//create vector to store threads
-		std::vector<std::future<bool>> threads(devices.size());
-		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
-		size_t currentSlice = 0;
-		for (int i = 0; i < devices.size(); ++i) {
-			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, devices[i]);
-			currentSlice += sliceCnt;
-		}
-		//wait for threads to finish
-		bool result = true;
-		for (int i = 0; i < devices.size(); ++i) {
-			result = result && threads[i].get();
-		}
-
-		if (!result) {
-			if (this->stopActiveProcess) {
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
-			} else {
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("An error during the CUDA reconstruction occured.")));
-			}
-		}
-
-		return result;
-	}
-
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream stream, bool& success) const {
-		success = true;
-		cv::cuda::GpuMat tmp1;
-		cv::cuda::GpuMat tmp2;
-		image.convertTo(tmp1, CV_32FC1, stream);
-		cv::cuda::log(tmp1, tmp1, stream);
-		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
-		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
-		bool successLocal;
-		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
-		success = success && successLocal;
-		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
-		ct::cuda::applyFeldkampWeightFiltering(image, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
-		success = success && successLocal;
-		return image;
+	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
+		//the two interpolations on the u axis
+		double v0 = (1.0 - u)*u0v0 + u*u1v0;
+		double v1 = (1.0 - u)*u0v1 + u*u1v1;
+		//interpolation on the v axis between the two u-interpolated values
+		return (1.0 - v)*v0 + v*v1;
 	}
 
 	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
@@ -1100,6 +1039,78 @@ namespace ct {
 		return true;
 	}
 
+	bool CtVolume::launchCudaThreads() {
+		this->stopCudaThreads = false;
+		//get number of devices
+		int deviceCnt;
+		cudaGetDeviceCount(&deviceCnt);
+
+		std::vector<int> devices(deviceCnt);
+		for (int i = 0; i < deviceCnt; ++i) {
+			devices[i] = i;
+		}
+		std::vector<double> scalingFactors = this->getGpuWeights(devices);
+
+		//clear progress
+		this->cudaThreadProgress.clear();
+		this->cudaThreadProgress.resize(devices.size(), 0);
+
+		//create vector to store threads
+		std::vector<std::future<bool>> threads(devices.size());
+		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
+		size_t currentSlice = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, devices[i]);
+			currentSlice += sliceCnt;
+		}
+		//wait for threads to finish
+		bool result = true;
+		for (int i = 0; i < devices.size(); ++i) {
+			result = result && threads[i].get();
+		}
+
+		if (!result) {
+			if (this->stopActiveProcess) {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+			} else {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("An error during the CUDA reconstruction occured.")));
+			}
+		}
+
+		return result;
+	}
+
+	std::vector<double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
+		//get amount of multiprocessors per GPU
+		std::vector<int> multiprocessorCnt(devices.size());
+		size_t totalMultiprocessorsCnt = 0;
+		std::vector<int> busWidth(devices.size());
+		size_t totalBusWidth = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(devices[i]);
+			totalMultiprocessorsCnt += multiprocessorCnt[i];
+			busWidth[i] = ct::cuda::getMemoryBusWidth(devices[i]);
+			totalBusWidth += busWidth[i];
+			std::cout << "GPU" << i << std::endl;
+			cudaSetDevice(devices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
+		}
+		std::vector<double> scalingFactors(devices.size());
+		double scalingFactorSum = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			double multiprocessorScalingFactor = (double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt));
+			double busWidthScalingFactor = (double(busWidth[i]) / double(totalBusWidth));
+			scalingFactors[i] = multiprocessorScalingFactor*busWidthScalingFactor;
+			scalingFactorSum += scalingFactors[i];
+		}
+		for (int i = 0; i < devices.size(); ++i) {
+			scalingFactors[i] /= scalingFactorSum;
+		}
+		return scalingFactors;
+	}
+
 	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
 #pragma omp parallel for schedule(dynamic)
 		for (int x = 0; x < this->xMax; ++x) {
@@ -1110,18 +1121,6 @@ namespace ct {
 				}
 			}
 		}
-	}
-
-	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
-		//the two interpolations on the u axis
-		double v0 = (1.0 - u)*u0v0 + u*u1v0;
-		double v1 = (1.0 - u)*u0v1 + u*u1v1;
-		//interpolation on the v axis between the two u-interpolated values
-		return (1.0 - v)*v0 + v*v1;
-	}
-
-	inline double CtVolume::W(double D, double u, double v) {
-		return D / sqrt(D*D + u*u + v*v);
 	}
 
 	void CtVolume::updateBoundaries() {
@@ -1196,11 +1195,6 @@ namespace ct {
 	inline double CtVolume::matToImageV(double vCoord)const {
 		//factor -1 because of different z-axis direction
 		return (-1)*vCoord + this->matToImageVPreprocessed;
-	}
-
-	int CtVolume::fftCoordToIndex(int coord, int size) {
-		if (coord < 0)return size + coord;
-		return coord;
 	}
 
 	//============================================== PRIVATE SLOTS ==============================================\\
