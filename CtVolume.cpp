@@ -1063,17 +1063,6 @@ namespace ct {
 						return false;
 					}
 				}
-
-				////sync gpu
-				//ct::cuda::deviceSynchronize(success);
-
-				//if (!success) {
-				//	std::cout << std::endl << "CUDA ERROR during device synchronisation." << std::endl;
-				//	ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-				//	if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
-				//	return false;
-				//}
-
 			}
 
 			//donload the reconstructed volume part
