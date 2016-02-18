@@ -71,12 +71,13 @@ namespace ct {
 			QString errorMessage;
 		};
 
-		//functions		
-		//constructor
+		//=========================================== PUBLIC FUNCTIONS ===========================================\\
+		
+		//constructors
 		CtVolume();
 		CtVolume(std::string csvFile);
-		bool cudaAvailable();
 		//getters
+		bool cudaAvailable();
 		ct::Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
 		size_t getImageWidth() const;
@@ -109,6 +110,7 @@ namespace ct {
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
+	
 	private:
 
 		//struct for storing one projection internally
@@ -122,7 +124,8 @@ namespace ct {
 			double heightOffset;													//for random trajectory
 		};
 
-		//functions			
+		//=========================================== PRIVATE FUNCTIONS ===========================================\\
+				
 		void readParameters(std::ifstream& stream,
 							std::string& path,
 							std::string& rotationDirection);
@@ -176,34 +179,39 @@ namespace ct {
 		double matToImageV(double vCoord)const;
 		static int fftCoordToIndex(int coord, int size);						//coordinate transformation for the FFT lowpass filtering, only used for the 2D highpass filtering, which is currently not used
 		
-		//variables		
+		//=========================================== PRIVATE VARIABLES ===========================================\\
+
+		//parameters that are set when reading the config file/the images
 		std::vector<Projection> sinogram;									//here the images are stored
-		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
-		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
-		mutable std::mutex exclusiveFunctionsMutex;
-		bool emitSignals = false;											//if true the object emits qt signals in certain functions
-		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
-		Axis crossSectionAxis = Axis::Z;
-		mutable std::atomic<bool> stopActiveProcess{ false };
-		mutable std::atomic<bool> stopCudaThreads{ false };
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
-																			//bounds of what will be reconstructed
-		double xFrom_float = 0, xTo_float = 1;
-		double yFrom_float = 0, yTo_float = 1;
-		double zFrom_float = 0, zTo_float = 1;
-		size_t xFrom = 0, xTo = 0;
-		size_t yFrom = 0, yTo = 0;
-		size_t zFrom = 0, zTo = 0;
-		size_t xMax = 0, yMax = 0, zMax = 0;
 		double SD = 0;														//the distance of the source to the detector in pixel
 		double SO = 0;														//the distance of the source to the object in pixel
 		double pixelSize = 0;
-		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction
-		mutable std::pair<float, float> minMaxValues;
-		//for keeping track of the progress on multithread CUDA execution
-		std::vector<double> cudaThreadProgress;
-		//some precomputed values for the coordinate conversion functions for faster execution
+		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+
+		//variables that can be set from outside and controls the behaviour of the object
+		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
+		bool emitSignals = false;											//if true the object emits qt signals in certain functions
+		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
+		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
+		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
+		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
+		double yFrom_float = 0, yTo_float = 1;
+		double zFrom_float = 0, zTo_float = 1;
+
+		//variables that are only internally used
+		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
+		size_t xFrom = 0, xTo = 0;											//the volume ROI in actual volume coordinates, calculated from the float ROI
+		size_t yFrom = 0, yTo = 0;
+		size_t zFrom = 0, zTo = 0;
+		size_t xMax = 0, yMax = 0, zMax = 0;								//the width, height and depth of the volume ROI that is going to be reconstructed
+		mutable std::pair<float, float> minMaxValues;						//stores the brightest and darkes value in all of the sinogram images (for normalisation)
+		std::vector<double> cudaThreadProgress;								//for keeping track of the progress on multithread CUDA execution
+		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently
+		mutable std::atomic<bool> stopCudaThreads{ false };					//this will be set to true if all cuda threads shall be stopped
+		
+		//variables for precomputed parts of coordinate transformations
 		double worldToVolumeXPrecomputed;
 		double worldToVolumeYPrecomputed;
 		double worldToVolumeZPrecomputed;
