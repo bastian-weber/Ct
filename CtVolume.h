@@ -94,6 +94,7 @@ namespace ct {
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
+		bool getUseCuda() const;
 		//setters
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
@@ -104,6 +105,7 @@ namespace ct {
 							 double yTo,
 							 double zFrom,
 							 double zTo);
+		void setUseCuda(bool value);
 		void setFrequencyFilterType(FilterType filterType);
 		//control functions
 		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
@@ -204,6 +206,7 @@ namespace ct {
 		bool emitSignals = false;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
+		bool useCuda = true;
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
 		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
 		double yFrom_float = 0, yTo_float = 1;

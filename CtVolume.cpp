@@ -264,6 +264,10 @@ namespace ct {
 		return this->crossSectionAxis;
 	}
 
+	bool CtVolume::getUseCuda() const {
+		return this->useCuda;
+	}
+
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
@@ -275,14 +279,16 @@ namespace ct {
 		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
+	void CtVolume::setUseCuda(bool value) {
+		this->useCuda = value;
+	}
+
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
 		this->filterType = filterType;
 	}
 
 	void CtVolume::reconstructVolume() {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
-
-		bool useCuda = true;
 
 		this->stopActiveProcess = false;
 		if (this->sinogram.size() > 0) {
@@ -294,10 +300,10 @@ namespace ct {
 			clock_t start = clock();
 			//fill the volume
 			bool result = false;
-			if (useCuda && !this->cudaAvailable()) {
+			if (this->useCuda && !this->cudaAvailable()) {
 				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
 			}
-			if (useCuda && this->cudaAvailable()) {
+			if (this->useCuda && this->cudaAvailable()) {
 				result = this->launchCudaThreads();
 			} else {
 				result = this->reconstructionCore();
