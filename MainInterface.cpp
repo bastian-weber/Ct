@@ -119,6 +119,7 @@ namespace ct {
 
 		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
 		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
+		QObject::connect(this->cudaCheckBox, SIGNAL(stateChanged(int)), this, SLOT(reactToCudaCheckboxChange()));
 		this->cudaSettingsButton = new QPushButton(tr("CUDA Settings"), this->cudaGroupBox);
 		this->cudaLayout = new QVBoxLayout();
 		this->cudaLayout->addWidget(this->cudaCheckBox);
@@ -199,6 +200,7 @@ namespace ct {
 
 		this->startupState();
 		this->inputFileEdit->setText(this->settings.value("last_path", "").toString());
+		this->cudaCheckBox->setChecked(this->settings.value("useCuda", true).toBool());
 		QSize lastSize = this->settings.value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings.value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = this->settings.value("maximized", false).toBool();
@@ -223,6 +225,7 @@ namespace ct {
 		delete this->leftLayout;
 		delete this->filterLayout;
 		delete this->boundsLayout;
+		delete this->cudaLayout;
 		delete this->progressLayout;
 		delete this->rightLayout;
 		delete this->loadLayout;
@@ -249,6 +252,9 @@ namespace ct {
 		delete this->to2;
 		delete this->to3;
 		delete this->resetButton;
+		delete this->cudaLayout;
+		delete this->cudaCheckBox;
+		delete this->cudaSettingsButton;
 		delete this->inputFileEdit;
 		delete this->completer;
 		delete this->browseButton;
@@ -737,6 +743,10 @@ namespace ct {
 		}
 	}
 
+	void MainInterface::reactToCudaCheckboxChange() {
+		this->settings.setValue("useCuda", this->cudaCheckBox->isChecked());
+	}
+
 	void MainInterface::saveBounds() {
 		this->settings.setValue("xFrom", this->xFrom->value());
 		this->settings.setValue("xTo", this->xTo->value());
@@ -792,6 +802,7 @@ namespace ct {
 		}
 		this->reconstructionActive = true;
 		this->volume.setFrequencyFilterType(type);
+		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 

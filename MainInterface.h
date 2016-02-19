@@ -119,6 +119,7 @@ namespace ct {
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
 		void reactToBoundsChange();
+		void reactToCudaCheckboxChange();
 		void saveBounds();
 		void resetBounds();
 		void saveFilterType();
