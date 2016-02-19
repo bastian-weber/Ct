@@ -1077,18 +1077,20 @@ namespace ct {
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
 
-		std::vector<double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
+		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
 		this->cudaThreadProgress.clear();
-		this->cudaThreadProgress.resize(this->activeCudaDevices.size(), 0);
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			this->cudaThreadProgress.insert(std::make_pair(activeCudaDevices[i], 0));
+		}
 
 		//create vector to store threads
 		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
+			size_t sliceCnt = std::round(scalingFactors[this->activeCudaDevices[i]] * double(zMax));
 			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
@@ -1109,32 +1111,32 @@ namespace ct {
 		return result;
 	}
 
-	std::vector<double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
+	std::map<int, double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
 		//get amount of multiprocessors per GPU
-		std::vector<int> multiprocessorCnt(devices.size());
+		std::map<int, int> multiprocessorCnt;
 		size_t totalMultiprocessorsCnt = 0;
-		std::vector<int> busWidth(devices.size());
+		std::map<int, int> busWidth;
 		size_t totalBusWidth = 0;
 		for (int i = 0; i < devices.size(); ++i) {
-			multiprocessorCnt[i] = ct::cuda::getMultiprocessorCnt(devices[i]);
-			totalMultiprocessorsCnt += multiprocessorCnt[i];
-			busWidth[i] = ct::cuda::getMemoryBusWidth(devices[i]);
-			totalBusWidth += busWidth[i];
-			std::cout << "GPU" << i << std::endl;
+			multiprocessorCnt[devices[i]] = ct::cuda::getMultiprocessorCnt(devices[i]);
+			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
+			busWidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i]);
+			totalBusWidth += busWidth[devices[i]];
+			std::cout << "GPU" << devices[i] << std::endl;
 			cudaSetDevice(devices[i]);
 			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[i] << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
 		}
-		std::vector<double> scalingFactors(devices.size());
+		std::map<int, double> scalingFactors;
 		double scalingFactorSum = 0;
 		for (int i = 0; i < devices.size(); ++i) {
-			double multiprocessorScalingFactor = (double(multiprocessorCnt[i]) / double(totalMultiprocessorsCnt));
-			double busWidthScalingFactor = (double(busWidth[i]) / double(totalBusWidth));
-			scalingFactors[i] = multiprocessorScalingFactor*busWidthScalingFactor;
-			scalingFactorSum += scalingFactors[i];
+			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
+			double busWidthScalingFactor = (double(busWidth[devices[i]]) / double(totalBusWidth));
+			scalingFactors[devices[i]] = multiprocessorScalingFactor*busWidthScalingFactor;
+			scalingFactorSum += scalingFactors[devices[i]];
 		}
 		for (int i = 0; i < devices.size(); ++i) {
-			scalingFactors[i] /= scalingFactorSum;
+			scalingFactors[devices[i]] /= scalingFactorSum;
 		}
 		return scalingFactors;
 	}
@@ -1230,8 +1232,8 @@ namespace ct {
 	void CtVolume::emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection) {
 		this->cudaThreadProgress[deviceId] = percentage;
 		double totalProgress = 0;
-		for (int i = 0; i < this->cudaThreadProgress.size(); ++i) {
-			totalProgress += this->cudaThreadProgress[i];
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]];
 		}
 		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
