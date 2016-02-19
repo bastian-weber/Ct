@@ -175,7 +175,7 @@ namespace ct {
 									size_t threadZMax, 
 									int deviceId);
 		bool launchCudaThreads();
-		std::vector<double> getGpuWeights(std::vector<int> const& devices) const;
+		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
 		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
 								   size_t zSize,
 								   size_t zOffset);
@@ -223,7 +223,7 @@ namespace ct {
 		size_t zFrom = 0, zTo = 0;
 		size_t xMax = 0, yMax = 0, zMax = 0;								//the width, height and depth of the volume ROI that is going to be reconstructed
 		mutable std::pair<float, float> minMaxValues;						//stores the brightest and darkes value in all of the sinogram images (for normalisation)
-		std::vector<double> cudaThreadProgress;								//for keeping track of the progress on multithread CUDA execution
+		std::map<int, double> cudaThreadProgress;							//for keeping track of the progress on multithread CUDA execution
 		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently
 		mutable std::atomic<bool> stopCudaThreads{ false };					//this will be set to true if all cuda threads shall be stopped
 		
