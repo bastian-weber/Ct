@@ -27,11 +27,11 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume() {
+	CtVolume::CtVolume() : activeCudaDevices({ 0 }) {
 		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 	}
 
-	CtVolume::CtVolume(std::string csvFile) {
+	CtVolume::CtVolume(std::string csvFile) : activeCudaDevices({ 0 }) {
 		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 		this->sinogramFromImages(csvFile);
 	}
@@ -268,6 +268,10 @@ namespace ct {
 		return this->useCuda;
 	}
 
+	std::vector<int> CtVolume::getActiveCudaDevices() const {
+		return this->activeCudaDevices;
+	}
+
 	std::vector<std::string> CtVolume::getCudaDeviceList() const {
 		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
 		std::vector<std::string> result(deviceCnt);
@@ -290,6 +294,22 @@ namespace ct {
 
 	void CtVolume::setUseCuda(bool value) {
 		this->useCuda = value;
+	}
+
+	void CtVolume::setActiveCudaDevices(std::vector<int> devices) {
+		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		for (std::vector<int>::iterator i = devices.begin(); i != devices.end();) {
+			if (*i >= deviceCnt) {
+				i = devices.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (devices.size() > 0) {
+			this->activeCudaDevices = devices;
+		} else {
+			std::cout << "Active CUDA devices were not set because vector did not contain any valid device id." << std::endl;
+		}
 	}
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
@@ -1056,32 +1076,25 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-		//get number of devices
-		int deviceCnt;
-		cudaGetDeviceCount(&deviceCnt);
 
-		std::vector<int> devices(deviceCnt);
-		for (int i = 0; i < deviceCnt; ++i) {
-			devices[i] = i;
-		}
-		std::vector<double> scalingFactors = this->getGpuWeights(devices);
+		std::vector<double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
 		this->cudaThreadProgress.clear();
-		this->cudaThreadProgress.resize(devices.size(), 0);
+		this->cudaThreadProgress.resize(this->activeCudaDevices.size(), 0);
 
 		//create vector to store threads
-		std::vector<std::future<bool>> threads(devices.size());
+		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
-		for (int i = 0; i < devices.size(); ++i) {
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			size_t sliceCnt = std::round(scalingFactors[i] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, devices[i]);
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish
 		bool result = true;
-		for (int i = 0; i < devices.size(); ++i) {
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
 		}
 
