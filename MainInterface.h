@@ -67,6 +67,7 @@ namespace ct {
 		QVBoxLayout* leftLayout;
 		QVBoxLayout* filterLayout;
 		QGridLayout* boundsLayout;
+		QVBoxLayout* cudaLayout;
 		QHBoxLayout* progressLayout;
 		QVBoxLayout* rightLayout;
 		QVBoxLayout* loadLayout;
@@ -93,6 +94,9 @@ namespace ct {
 		QLabel* to2;
 		QLabel* to3;
 		QPushButton* resetButton;
+		QGroupBox* cudaGroupBox;
+		QCheckBox* cudaCheckBox;
+		QPushButton* cudaSettingsButton;
 		QLineEdit* inputFileEdit;
 		QCompleter* completer;
 		QPushButton* browseButton;
