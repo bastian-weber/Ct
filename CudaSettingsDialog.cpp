@@ -51,15 +51,26 @@ namespace ct {
 		}
 	}
 
-	void CudaSettingsDialog::showEvent(QShowEvent * e) {
+	std::vector<int> CudaSettingsDialog::getActiveCudaDevices() const {
 		//load settings
+		std::vector<int> devices;
 		QVariantList standard;
 		standard << 0;
 		QList<QVariant> deviceIds = this->settings->value("activeCudaDevices", standard).toList();
 		if (deviceIds.size() == 0) deviceIds = standard;
 		for (QList<QVariant>::const_iterator i = deviceIds.begin(); i != deviceIds.end(); ++i) {
 			if (i->toInt() < this->checkboxes.size()) {
-				this->checkboxes[i->toInt()]->setChecked(true);
+				devices.push_back(i->toInt());
+			}
+		}
+		return devices;
+	}
+
+	void CudaSettingsDialog::showEvent(QShowEvent * e) {
+		std::vector<int> activeDevices = this->getActiveCudaDevices();
+		for (int i = 0; i < activeDevices.size(); ++i) {
+			if (activeDevices[i] < this->checkboxes.size()) {
+				this->checkboxes[activeDevices[i]]->setChecked(true);
 			}
 		}
 	}

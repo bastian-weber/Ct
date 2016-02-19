@@ -10,9 +10,6 @@
 
 //OpenCV
 #include <opencv2/core/cuda.hpp>
-//#include <opencv2/cudaarithm.hpp>
-//#include <opencv2/cudaimgproc.hpp>
-//#include <opencv2/cudev.hpp>
 
 namespace ct {
 

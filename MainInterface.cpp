@@ -806,6 +806,7 @@ namespace ct {
 		this->reconstructionActive = true;
 		this->volume.setFrequencyFilterType(type);
 		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
+		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
