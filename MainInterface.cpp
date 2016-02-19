@@ -117,6 +117,14 @@ namespace ct {
 		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		this->boundsGroupBox->setLayout(this->boundsLayout);
 
+		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
+		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
+		this->cudaSettingsButton = new QPushButton(tr("CUDA Settings"), this->cudaGroupBox);
+		this->cudaLayout = new QVBoxLayout();
+		this->cudaLayout->addWidget(this->cudaCheckBox);
+		this->cudaLayout->addWidget(this->cudaSettingsButton);
+		this->cudaGroupBox->setLayout(this->cudaLayout);
+
 		this->loadButton = new QPushButton(tr("&Load Configuration File"));
 		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
@@ -151,7 +159,7 @@ namespace ct {
 		this->stopButton = new QPushButton(tr("Stop"));
 		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
-		this->progressLayout = new QHBoxLayout;
+		this->progressLayout = new QHBoxLayout();
 		this->progressLayout->addWidget(this->progressBar, 1);
 		this->progressLayout->addWidget(this->stopButton, 0);
 
@@ -162,6 +170,8 @@ namespace ct {
 		this->leftLayout->addWidget(this->filterGroupBox);
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->boundsGroupBox);
+		this->leftLayout->addSpacing(20);
+		this->leftLayout->addWidget(this->cudaGroupBox);
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->loadButton);
 		this->leftLayout->addWidget(this->reconstructButton);
