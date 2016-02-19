@@ -95,6 +95,7 @@ namespace ct {
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
 		bool getUseCuda() const;
+		std::vector<std::string> getCudaDeviceList() const;
 		//setters
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);

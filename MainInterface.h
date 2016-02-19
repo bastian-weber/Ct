@@ -3,6 +3,7 @@
 
 #include <future>
 #include <cmath>
+#include <memory>
 
 //Qt
 #include <QtWidgets/QtWidgets>
@@ -12,6 +13,7 @@
 #endif
 
 #include "ImageView.h"
+#include "CudaSettingsDialog.h"
 #include "CtVolume.h"
 #include "Timer.h"
 
@@ -60,7 +62,7 @@ namespace ct {
 		QString savingPath;
 		size_t currentIndex;
 		hb::Timer timer;
-		QSettings settings;
+		std::shared_ptr<QSettings> settings;
 
 		//interface widgets
 		QHBoxLayout* subLayout;
@@ -97,6 +99,7 @@ namespace ct {
 		QGroupBox* cudaGroupBox;
 		QCheckBox* cudaCheckBox;
 		QPushButton* cudaSettingsButton;
+		ct::CudaSettingsDialog* cudaSettingsDialog;
 		QLineEdit* inputFileEdit;
 		QCompleter* completer;
 		QPushButton* browseButton;

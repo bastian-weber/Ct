@@ -11,6 +11,12 @@ namespace ct {
 			return freeMemory;
 		}
 
+		size_t getTotalMemory() {
+			size_t freeMemory, totalMemory;
+			cudaMemGetInfo(&freeMemory, &totalMemory);
+			return totalMemory;
+		}
+
 		int getMultiprocessorCnt(int deviceId) {
 			int cnt;
 			cudaDeviceGetAttribute(&cnt, cudaDevAttrMultiProcessorCount, deviceId);
@@ -21,6 +27,16 @@ namespace ct {
 			int busWidth;
 			cudaDeviceGetAttribute(&busWidth, cudaDevAttrGlobalMemoryBusWidth, deviceId);
 			return busWidth;
+		}
+
+		std::string getDeviceName(int deviceId) {
+			cudaSetDevice(deviceId);
+			cudaDeviceProp prop;
+			cudaGetDeviceProperties(&prop, deviceId);
+			double memory = getTotalMemory();
+			std::ostringstream out;
+			out << std::setprecision(1) << prop.name << ", " << memory / 1024.0 / 1024.0 / 1024.0 << " Gb";
+			return out.str();
 		}
 
 		__device__ float ramLakWindowFilter(float n, float N){

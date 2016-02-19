@@ -4,7 +4,7 @@ namespace ct {
 
 	MainInterface::MainInterface(QWidget *parent)
 		: QWidget(parent),
-		settings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat) {
+		settings(new QSettings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat)) {
 		setAcceptDrops(true);
 
 		this->volume.setEmitSignals(true);
@@ -34,13 +34,13 @@ namespace ct {
 		this->loadGroupBox->setLayout(this->loadLayout);
 
 		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
-		if (this->settings.value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
 		QObject::connect(this->ramlakRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
-		if (this->settings.value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
 		QObject::connect(this->shepploganRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->hannRadioButton = new QRadioButton(tr("&Hann"));
-		if (this->settings.value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
 		QObject::connect(this->hannRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->filterLayout = new QVBoxLayout;
 		this->filterLayout->addWidget(this->ramlakRadioButton);
@@ -54,13 +54,13 @@ namespace ct {
 		this->to1 = new QLabel("to");
 		this->xFrom = new QDoubleSpinBox;
 		this->xFrom->setRange(0, 1);
-		this->xFrom->setValue(this->settings.value("xFrom", 0).toDouble());
+		this->xFrom->setValue(this->settings->value("xFrom", 0).toDouble());
 		this->xFrom->setDecimals(3);
 		this->xFrom->setSingleStep(0.01);
 		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->xTo = new QDoubleSpinBox;
 		this->xTo->setRange(0, 1);
-		this->xTo->setValue(this->settings.value("xTo", 1).toDouble());
+		this->xTo->setValue(this->settings->value("xTo", 1).toDouble());
 		this->xTo->setDecimals(3);
 		this->xTo->setSingleStep(0.01);
 		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
@@ -69,13 +69,13 @@ namespace ct {
 		this->to2 = new QLabel("to");
 		this->yFrom = new QDoubleSpinBox;
 		this->yFrom->setRange(0, 1);
-		this->yFrom->setValue(this->settings.value("yFrom", 0).toDouble());
+		this->yFrom->setValue(this->settings->value("yFrom", 0).toDouble());
 		this->yFrom->setDecimals(3);
 		this->yFrom->setSingleStep(0.01);
 		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->yTo = new QDoubleSpinBox;
 		this->yTo->setRange(0, 1);
-		this->yTo->setValue(this->settings.value("yTo", 1).toDouble());
+		this->yTo->setValue(this->settings->value("yTo", 1).toDouble());
 		this->yTo->setDecimals(3);
 		this->yTo->setSingleStep(0.01);
 		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
@@ -84,13 +84,13 @@ namespace ct {
 		this->to3 = new QLabel("to");
 		this->zFrom = new QDoubleSpinBox;
 		this->zFrom->setRange(0, 1);
-		this->zFrom->setValue(this->settings.value("zFrom", 0).toDouble());
+		this->zFrom->setValue(this->settings->value("zFrom", 0).toDouble());
 		this->zFrom->setDecimals(3);
 		this->zFrom->setSingleStep(0.01);
 		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->zTo = new QDoubleSpinBox;
 		this->zTo->setRange(0, 1);
-		this->zTo->setValue(this->settings.value("zTo", 1).toDouble());
+		this->zTo->setValue(this->settings->value("zTo", 1).toDouble());
 		this->zTo->setDecimals(3);
 		this->zTo->setSingleStep(0.01);
 		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
@@ -117,10 +117,12 @@ namespace ct {
 		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		this->boundsGroupBox->setLayout(this->boundsLayout);
 
+		this->cudaSettingsDialog = new CudaSettingsDialog(this->settings, volume.getCudaDeviceList(), this);
 		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
 		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
 		QObject::connect(this->cudaCheckBox, SIGNAL(stateChanged(int)), this, SLOT(reactToCudaCheckboxChange()));
 		this->cudaSettingsButton = new QPushButton(tr("CUDA Settings"), this->cudaGroupBox);
+		QObject::connect(this->cudaSettingsButton, SIGNAL(clicked()), this->cudaSettingsDialog, SLOT(show()));
 		this->cudaLayout = new QVBoxLayout();
 		this->cudaLayout->addWidget(this->cudaCheckBox);
 		this->cudaLayout->addWidget(this->cudaSettingsButton);
@@ -199,11 +201,11 @@ namespace ct {
 		setLayout(this->subLayout);
 
 		this->startupState();
-		this->inputFileEdit->setText(this->settings.value("last_path", "").toString());
-		this->cudaCheckBox->setChecked(this->settings.value("useCuda", true).toBool());
-		QSize lastSize = this->settings.value("size", QSize(-1, -1)).toSize();
-		QPoint lastPos = this->settings.value("pos", QPoint(-1, -1)).toPoint();
-		bool maximized = this->settings.value("maximized", false).toBool();
+		this->inputFileEdit->setText(this->settings->value("last_path", "").toString());
+		this->cudaCheckBox->setChecked(this->settings->value("useCuda", true).toBool());
+		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
+		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
+		bool maximized = this->settings->value("maximized", false).toBool();
 
 		//set volume bounds
 		this->reactToBoundsChange();
@@ -255,6 +257,7 @@ namespace ct {
 		delete this->cudaLayout;
 		delete this->cudaCheckBox;
 		delete this->cudaSettingsButton;
+		delete this->cudaSettingsDialog;
 		delete this->inputFileEdit;
 		delete this->completer;
 		delete this->browseButton;
@@ -275,7 +278,7 @@ namespace ct {
 	}
 
 	QSize MainInterface::sizeHint() const {
-		return QSize(1053, 570);
+		return QSize(1053, 660);
 	}
 
 	void MainInterface::infoPaintFunction(QPainter& canvas) {
@@ -464,9 +467,9 @@ namespace ct {
 			}
 			return;
 		}
-		this->settings.setValue("size", size());
-		this->settings.setValue("pos", pos());
-		this->settings.setValue("maximized", isMaximized());
+		this->settings->setValue("size", size());
+		this->settings->setValue("pos", pos());
+		this->settings->setValue("maximized", isMaximized());
 		e->accept();
 	}
 
@@ -697,7 +700,7 @@ namespace ct {
 		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
 			this->fileSelectedState();
 			this->inputFileEdit->setPalette(QPalette());
-			this->settings.setValue("last_path", text);
+			this->settings->setValue("last_path", text);
 		} else {
 			this->startupState();
 			this->inputFileEdit->setFocus();
@@ -744,16 +747,16 @@ namespace ct {
 	}
 
 	void MainInterface::reactToCudaCheckboxChange() {
-		this->settings.setValue("useCuda", this->cudaCheckBox->isChecked());
+		this->settings->setValue("useCuda", this->cudaCheckBox->isChecked());
 	}
 
 	void MainInterface::saveBounds() {
-		this->settings.setValue("xFrom", this->xFrom->value());
-		this->settings.setValue("xTo", this->xTo->value());
-		this->settings.setValue("yFrom", this->yFrom->value());
-		this->settings.setValue("yTo", this->yTo->value());
-		this->settings.setValue("zFrom", this->zFrom->value());
-		this->settings.setValue("zTo", this->zTo->value());
+		this->settings->setValue("xFrom", this->xFrom->value());
+		this->settings->setValue("xTo", this->xTo->value());
+		this->settings->setValue("yFrom", this->yFrom->value());
+		this->settings->setValue("yTo", this->yTo->value());
+		this->settings->setValue("zFrom", this->zFrom->value());
+		this->settings->setValue("zTo", this->zTo->value());
 	}
 
 	void MainInterface::resetBounds() {
@@ -767,11 +770,11 @@ namespace ct {
 
 	void MainInterface::saveFilterType() {
 		if (this->ramlakRadioButton->isChecked()) {
-			this->settings.setValue("filterType", "ramLak");
+			this->settings->setValue("filterType", "ramLak");
 		} else if(this->shepploganRadioButton->isChecked()) {
-			this->settings.setValue("filterType", "sheppLogan");
+			this->settings->setValue("filterType", "sheppLogan");
 		} else {
-			this->settings.setValue("filterType", "hann");
+			this->settings->setValue("filterType", "hann");
 		}
 	}
 
