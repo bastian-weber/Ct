@@ -35,7 +35,7 @@ namespace ct {
 			cudaGetDeviceProperties(&prop, deviceId);
 			double memory = getTotalMemory();
 			std::ostringstream out;
-			out << std::setprecision(1) << prop.name << ", " << memory / 1024.0 / 1024.0 / 1024.0 << " Gb";
+			out << std::setprecision(1) << std::fixed << prop.name << ", " << memory / 1024.0 / 1024.0 / 1024.0 << " Gb";
 			return out.str();
 		}
 

@@ -27,9 +27,14 @@ namespace ct {
 		std::shared_ptr<QSettings> settings;
 		//widgets
 		QVBoxLayout* mainLayout;
+		QVBoxLayout* devicesLayout;
+		QVBoxLayout* memoryLayout;
+		QPushButton* okButton;
+		QGroupBox* devicesGroupBox;
+		QGroupBox* memoryGroupBox;
+		QSpinBox* memorySpinBox;
 		std::vector<QCheckBox*> checkboxes;
 		QHBoxLayout* buttonLayout;
-		QPushButton* okButton;
 		QPushButton* cancelButton;
 	private slots:
 		void reactToOkButtonClick();

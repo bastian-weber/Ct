@@ -807,6 +807,7 @@ namespace ct {
 		this->volume.setFrequencyFilterType(type);
 		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
 		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
+		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
