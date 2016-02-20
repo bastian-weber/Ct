@@ -281,6 +281,10 @@ namespace ct {
 		return result;
 	}
 
+	size_t CtVolume::getGpuSpareMemory() const {
+		return this->gpuSpareMemory;
+	}
+
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
@@ -310,6 +314,10 @@ namespace ct {
 		} else {
 			std::cout << "Active CUDA devices were not set because vector did not contain any valid device id." << std::endl;
 		}
+	}
+
+	void CtVolume::setGpuSpareMemory(size_t amount) {
+		this->gpuSpareMemory = amount;
 	}
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
@@ -915,9 +923,9 @@ namespace ct {
 			return false;
 		}
 
-		size_t freeMemory = ct::cuda::getFreeMemory();
-		//spare 200Mb of VRAM for other applications
-		freeMemory -= 200 * 1024 * 1024;
+		long long freeMemory = ct::cuda::getFreeMemory();
+		//spare some VRAM for other applications
+		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
 		//spare memory for intermediate images and dft result
 		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
 
@@ -925,7 +933,7 @@ namespace ct {
 		size_t sliceCnt = freeMemory / sliceSize;
 		size_t currentSlice = threadZMin;
 
-		if (sliceCnt < 1) {
+		if (sliceCnt < 1 || freeMemory < 0) {
 			//too little memory
 			std::cout << "The free GPU memory is not sufficient" << std::endl;
 			//stop also the other cuda threads

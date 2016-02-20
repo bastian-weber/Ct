@@ -60,19 +60,8 @@ namespace ct {
 	class CtVolume : public QObject {
 		Q_OBJECT
 	public:
-		struct CompletionStatus {
-			CompletionStatus() : successful(true), userInterrupted(false) { };
-			CompletionStatus(bool successful, bool userInterrupted, QString const& errorMessage = QString()) : successful(successful), userInterrupted(userInterrupted), errorMessage(errorMessage) { }
-			static CompletionStatus success() { return CompletionStatus(true, false); }
-			static CompletionStatus interrupted() { return CompletionStatus(false, true); }
-			static CompletionStatus error(QString const& errorMessage) { return CompletionStatus(false, false, errorMessage); }
-			bool successful;
-			bool userInterrupted;
-			QString errorMessage;
-		};
-
 		//=========================================== PUBLIC FUNCTIONS ===========================================\\
-		
+
 		//constructors
 		CtVolume();
 		CtVolume(std::string csvFile);
@@ -97,6 +86,8 @@ namespace ct {
 		bool getUseCuda() const;
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
+		size_t getGpuSpareMemory() const;
+
 		//setters
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
@@ -109,13 +100,26 @@ namespace ct {
 							 double zTo);
 		void setUseCuda(bool value);
 		void setActiveCudaDevices(std::vector<int> devices);
+		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
 		void setFrequencyFilterType(FilterType filterType);
+
 		//control functions
 		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 	
+		struct CompletionStatus {
+			CompletionStatus() : successful(true), userInterrupted(false) { };
+			CompletionStatus(bool successful, bool userInterrupted, QString const& errorMessage = QString()) : successful(successful), userInterrupted(userInterrupted), errorMessage(errorMessage) { }
+			static CompletionStatus success() { return CompletionStatus(true, false); }
+			static CompletionStatus interrupted() { return CompletionStatus(false, true); }
+			static CompletionStatus error(QString const& errorMessage) { return CompletionStatus(false, false, errorMessage); }
+			bool successful;
+			bool userInterrupted;
+			QString errorMessage;
+		};
+
 	private:
 
 		//struct for storing one projection internally
@@ -209,8 +213,9 @@ namespace ct {
 		bool emitSignals = false;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
-		bool useCuda = true;
-		std::vector<int> activeCudaDevices;
+		bool useCuda = true;												//enables or disables the use of cuda
+		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
+		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
 		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
 		double yFrom_float = 0, yTo_float = 1;

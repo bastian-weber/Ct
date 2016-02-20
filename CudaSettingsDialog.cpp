@@ -26,15 +26,30 @@ namespace ct {
 		this->buttonLayout->addWidget(okButton);
 		this->buttonLayout->addWidget(cancelButton);
 
-		this->mainLayout = new QVBoxLayout();
+		this->devicesLayout = new QVBoxLayout();
 
 		//generate the checkboxes for all the devices
 		for (int i = 0; i < devices.size(); ++i) {
 			this->checkboxes[i] = new QCheckBox(devices[i].c_str());
 			QObject::connect(this->checkboxes[i], SIGNAL(stateChanged(int)), this, SLOT(reactToCheckboxToggle()));
-			mainLayout->addWidget(this->checkboxes[i]);
+			devicesLayout->addWidget(this->checkboxes[i]);
 		}
+		this->devicesGroupBox = new QGroupBox(tr("CUDA Devices"));
+		this->devicesGroupBox->setLayout(devicesLayout);
 
+		this->memorySpinBox = new QSpinBox;
+		this->memorySpinBox->setMinimum(0);
+		this->memorySpinBox->setMaximum(50000);
+		this->memorySpinBox->setSuffix(tr("Mb"));
+		this->memorySpinBox->setSingleStep(1);
+		this->memoryLayout = new QVBoxLayout;
+		this->memoryLayout->addWidget(this->memorySpinBox, 0, Qt::AlignLeft);
+		this->memoryGroupBox = new QGroupBox(tr("Amount of GPU memory to spare"));
+		this->memoryGroupBox->setLayout(this->memoryLayout);
+
+		this->mainLayout = new QVBoxLayout;
+		this->mainLayout->addWidget(devicesGroupBox);
+		this->mainLayout->addWidget(memoryGroupBox);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
@@ -44,6 +59,11 @@ namespace ct {
 	CudaSettingsDialog::~CudaSettingsDialog() {
 		delete this->mainLayout;
 		delete this->buttonLayout;
+		delete this->devicesLayout;
+		delete this->memoryLayout;
+		delete this->devicesGroupBox;
+		delete this->memoryGroupBox;
+		delete this->memorySpinBox;
 		delete this->okButton;
 		delete this->cancelButton;
 		for (int i = 0; i < this->checkboxes.size(); ++i) {
@@ -73,6 +93,8 @@ namespace ct {
 				this->checkboxes[activeDevices[i]]->setChecked(true);
 			}
 		}
+
+		this->memorySpinBox->setValue(this->settings->value("gpuSpareMemory", 200).toLongLong());
 	}
 
 	void CudaSettingsDialog::reactToCheckboxToggle() {
@@ -101,6 +123,7 @@ namespace ct {
 			if (this->checkboxes[i]->isChecked()) deviceIds << i;
 		}
 		settings->setValue("activeCudaDevices", deviceIds);
+		settings->setValue("gpuSpareMemory", this->memorySpinBox->value());
 		emit(dialogConfirmed());
 		this->close();
 	}
