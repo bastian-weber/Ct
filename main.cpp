@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 				std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
 				if (volume.cudaAvailable()) {
 						std::cout << "\tCUDA devices:" << std::endl;
-					for (int i = 0; i < cudaDeviceNames; ++i) {
+					for (int i = 0; i < cudaDeviceNames.size(); ++i) {
 						std::cout << "[" << (activeCudaDevices.indexOf(i) >= 0 ? "X" : " ") << "]" << "\t\t" << cudaDeviceNames[i] << std::endl;
 					}
 				}
