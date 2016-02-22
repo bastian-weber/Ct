@@ -51,9 +51,11 @@ void parseDoubleArgument(int argc, char* argv[], int index, double& output) {
 }
 
 int main(int argc, char* argv[]) {
+	ct::CtVolume volume;
 	bool inputProvided = false;
 	bool outputProvided = false;
 	bool lowerPriority = false;
+	bool useCuda = volume.cudaAvailable();
 	ct::FilterType filterType = ct::FilterType::RAMLAK;
 	std::string filterTypeString = "Ram-Lak";
 	std::string input;
@@ -122,6 +124,17 @@ int main(int argc, char* argv[]) {
 					}
 				} else if (std::string(argv[i]).compare("-b") == 0 || std::string(argv[i]).compare("--background") == 0) {
 					lowerPriority = true;
+				} else if (std::string(argv[i]).compare("-n") == 0 || std::string(argv[i]).compare("--nocuda") == 0) {
+					useCuda = false;
+				}else if(std::string(argv[i]).compare("-d") == 0 || std::string(argv[i]).compare("--cudadevices") == 0){
+					if (++i < argc) {
+						QStringList devices = QString(argv[i]).split(",");
+						std::vector<int> cudaDeviceList;
+						for (QString& device : devices) {
+							cudaDeviceList.push_back(device.toInt());
+						}
+						volume.setActiveCudaDevices(cudaDeviceList);
+					}
 				} else {
 					std::cout << "Unknown or misplaced parameter " << argv[i] << "." << std::endl;
 					return 1;
@@ -136,16 +149,19 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #endif
+				std::vector<std::string> cudaDeviceNames = volume.getCudaDeviceList();
+				std::vector<int> activeCudaDevices = volume.getActiveCudaDevices();
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
 				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
+				std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
 				std::cout << "\tVolume bounds:";
 				std::cout << "\t\tx: [" << std::to_string(xmin) << " .. " << std::to_string(xmax) << "]" << std::endl;;
 				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
 				std::cout << "\t\t\t\tz: [" << std::to_string(zmin) << " .. " << std::to_string(zmax) << "]" << std::endl;
 				std::cout << std::endl;
-				ct::CtVolume volume(input);
+				volume.sinogramFromImages(input);
 				volume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
 				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << volume.getXSize() << "x" << volume.getYSize() << "x" << volume.getZSize() << " (x:y:z)" << std::endl << std::endl;
 				volume.setFrequencyFilterType(filterType);
