@@ -274,6 +274,8 @@ namespace ct {
 
 	std::vector<std::string> CtVolume::getCudaDeviceList() const {
 		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		//return an empty vector if there are no cuda devices
+		if(deviceCnt < 1) return std::vector<std::string>();
 		std::vector<std::string> result(deviceCnt);
 		for (int i = 0; i < deviceCnt; ++i) {
 			result[i] = ct::cuda::getDeviceName(i);
