@@ -34,6 +34,7 @@ find_package(CUDA)
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_20,code=compute_20")
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30")
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=compute_52")
+list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 
 #OpenCV
 set(OpenCV_STATIC OFF)
@@ -48,7 +49,7 @@ if(OPENCV_ROOT_FOUND)
 	find_package(OpenCV 3.0 REQUIRED)
 endif()
 
-if(OPENCV_FOUND)
+if(OPENCV_ROOT_FOUND)
 	#adds the opencv include dirs to nvcc
 	CUDA_INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 endif()
@@ -110,7 +111,7 @@ add_dependencies(Ct COPY_RESSOURCES)
 
 ########################################### OpenCV Libs ###########################################
 
-if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
+if(DEFINED OPENCV_ROOT_FOUND)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
