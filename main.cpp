@@ -150,12 +150,18 @@ int main(int argc, char* argv[]) {
 				}
 #endif
 				std::vector<std::string> cudaDeviceNames = volume.getCudaDeviceList();
-				std::vector<int> activeCudaDevices = volume.getActiveCudaDevices();
+				QVector<int> activeCudaDevices = QVector<int>::fromStdVector(volume.getActiveCudaDevices());
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
 				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
 				std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
+				if (volume.cudaAvailable()) {
+						std::cout << "\tCUDA devices:" << std::endl;
+					for (int i = 0; i < cudaDeviceNames; ++i) {
+						std::cout << "[" << (activeCudaDevices.indexOf(i) >= 0 ? "X" : " ") << "]" << "\t\t" << cudaDeviceNames[i] << std::endl;
+					}
+				}
 				std::cout << "\tVolume bounds:";
 				std::cout << "\t\tx: [" << std::to_string(xmin) << " .. " << std::to_string(xmax) << "]" << std::endl;;
 				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
