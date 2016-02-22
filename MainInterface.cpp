@@ -917,11 +917,21 @@ namespace ct {
 				if (this->yTo->value() != 1) stream << " --ymax " << this->yTo->value();
 				if (this->zFrom->value() != 0) stream << " --zmin " << this->zFrom->value();
 				if (this->zTo->value() != 1) stream << " --zmax " << this->zTo->value();
+				if (volume.cudaAvailable()) {
+					if (!this->cudaCheckBox->isChecked()) stream << " -n";
+					QStringList devices;
+					std::vector<int> deviceIds = volume.getActiveCudaDevices();
+					for (int& deviceId : deviceIds) {
+						devices.append(QString::number(deviceId));
+					}
+					stream << " -d " << devices.join(',');
+					stream << " -m " << this->settings->value("gpuSpareMemory", 200).toLongLong();
+				}
 				file.close();
 				this->setStatus(status);
 			}
-			}
-			}
+		}
+	}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
