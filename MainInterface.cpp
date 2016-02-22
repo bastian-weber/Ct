@@ -127,6 +127,10 @@ namespace ct {
 		this->cudaLayout->addWidget(this->cudaCheckBox);
 		this->cudaLayout->addWidget(this->cudaSettingsButton);
 		this->cudaGroupBox->setLayout(this->cudaLayout);
+		if (!volume.cudaAvailable()) {
+			this->cudaCheckBox->setEnabled(false);
+			this->cudaSettingsDialog->setEnabled(false);
+		}
 
 		this->loadButton = new QPushButton(tr("&Load Configuration File"));
 		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
@@ -202,7 +206,7 @@ namespace ct {
 
 		this->startupState();
 		this->inputFileEdit->setText(this->settings->value("last_path", "").toString());
-		this->cudaCheckBox->setChecked(this->settings->value("useCuda", true).toBool());
+		if(volume.cudaAvailable()) this->cudaCheckBox->setChecked(this->settings->value("useCuda", true).toBool());
 		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = this->settings->value("maximized", false).toBool();
