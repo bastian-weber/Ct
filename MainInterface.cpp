@@ -129,7 +129,7 @@ namespace ct {
 		this->cudaGroupBox->setLayout(this->cudaLayout);
 		if (!volume.cudaAvailable()) {
 			this->cudaCheckBox->setEnabled(false);
-			this->cudaSettingsDialog->setEnabled(false);
+			this->cudaSettingsButton->setEnabled(false);
 		}
 
 		this->loadButton = new QPushButton(tr("&Load Configuration File"));
