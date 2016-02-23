@@ -30,8 +30,10 @@
 //CUDA functions
 #include "cuda_ct.h"
 
+//undefines some macros of VC++ that cause naming conflicts
 //for std::numeric_limits<std::streamsize>::max()
 #undef max
+#undef min
 
 namespace ct {
 
@@ -60,6 +62,7 @@ namespace ct {
 	class CtVolume : public QObject {
 		Q_OBJECT
 	public:
+
 		//=========================================== PUBLIC FUNCTIONS ===========================================\\
 
 		//constructors
@@ -87,6 +90,7 @@ namespace ct {
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
+		size_t getRequiredMemoryUpperBound() const;
 
 		//setters
 		void setCrossSectionIndex(size_t index);
@@ -180,6 +184,7 @@ namespace ct {
 									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
+		size_t getMaxChunkSize() const;											//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
 								   size_t zSize,
 								   size_t zOffset);

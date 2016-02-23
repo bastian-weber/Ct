@@ -47,8 +47,8 @@ namespace ct {
 		void setPreviousSlice();
 		void updateBoundsDisplay();
 		void setStatus(QString text);
-		void setInfo();
 		void resetInfo();
+		void setVolumeSettings();
 
 		CtVolume volume;
 		std::atomic<bool> sinogramDisplayActive{ false };
@@ -126,6 +126,7 @@ namespace ct {
 		void saveBounds();
 		void resetBounds();
 		void saveFilterType();
+		void updateInfo();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();

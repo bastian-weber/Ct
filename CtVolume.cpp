@@ -287,6 +287,29 @@ namespace ct {
 		return this->gpuSpareMemory;
 	}
 
+	size_t CtVolume::getRequiredMemoryUpperBound() const {
+		//size of volume
+		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
+		if (this->useCuda) {
+			//images in RAM
+			std::vector<int> devices = this->getActiveCudaDevices();
+			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * devices.size();
+			for (int& device : devices) {
+				cudaSetDevice(device);
+				size_t maxSlices = this->getMaxChunkSize();
+				//upper bounded by zMax
+				//assume the volume is equally divided amonst gpus for simplicity
+				maxSlices = std::min(maxSlices, size_t(std::ceil(double(this->zMax)/double(devices.size()))));
+				//add extra memory required during download
+				requiredMemory += this->xMax * this->yMax * maxSlices * sizeof(float);
+			}
+		} else {
+			//images in RAM
+			requiredMemory += this->imageWidth*this->imageHeight*sizeof(float) * 2;
+		}
+		return requiredMemory;
+	}
+
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
@@ -925,17 +948,10 @@ namespace ct {
 			return false;
 		}
 
-		long long freeMemory = ct::cuda::getFreeMemory();
-		//spare some VRAM for other applications
-		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
-		//spare memory for intermediate images and dft result
-		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
-
-		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
-		size_t sliceCnt = freeMemory / sliceSize;
+		size_t sliceCnt = getMaxChunkSize();
 		size_t currentSlice = threadZMin;
 
-		if (sliceCnt < 1 || freeMemory < 0) {
+		if (sliceCnt < 1) {
 			//too little memory
 			std::cout << "The free GPU memory is not sufficient" << std::endl;
 			//stop also the other cuda threads
@@ -1149,6 +1165,21 @@ namespace ct {
 			scalingFactors[devices[i]] /= scalingFactorSum;
 		}
 		return scalingFactors;
+	}
+
+	size_t CtVolume::getMaxChunkSize() const {
+		long long freeMemory = ct::cuda::getFreeMemory();
+		//spare some VRAM for other applications
+		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
+		//spare memory for intermediate images and dft result
+		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
+
+		if (freeMemory < 0) return 0;
+
+		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
+		size_t sliceCnt = freeMemory / sliceSize;
+
+		return sliceCnt;
 	}
 
 	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
