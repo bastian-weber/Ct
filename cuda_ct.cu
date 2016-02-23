@@ -224,7 +224,7 @@ namespace ct {
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
 
-					float t = (-1)*x*sine + y*cosine;
+					float t = (-1.0f)*x*sine + y*cosine;
 					t += uOffset;
 					float s = x*cosine + y*sine;
 					float u = (t*SD) / (SD - s);
