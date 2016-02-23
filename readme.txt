@@ -12,11 +12,11 @@ The required libraries are:
 			https://developer.nvidia.com/cuda-toolkit
 	3. Qt (currently 5.5.1)
 			https://www.qt.io/download-open-source/#section-2
-			
+
 ============================================= Windows =============================================
 
 	-	Install the Nidia Cuda Toolkit via the installer provided on the website 
-	-	OpenCV can be compiled using cmake and make
+	-	OpenCV can be compiled using cmake
 		- 	Open cmake and specify the source and the build directories
 		- 	Hit configure
 		- 	Make sure to check the WITH_CUDA option in cmake (is default). Depending on which feature architectures you want to

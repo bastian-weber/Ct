@@ -337,7 +337,7 @@ namespace ct {
 		if (devices.size() > 0) {
 			this->activeCudaDevices = devices;
 		} else {
-			std::cout << "Active CUDA devices were not set because vector did not contain any valid device id." << std::endl;
+			std::cout << "Active CUDA devices were not set because vector did not contain any valid device ID." << std::endl;
 		}
 	}
 
@@ -356,8 +356,14 @@ namespace ct {
 		if (this->sinogram.size() > 0) {
 			//clear potential old volume
 			this->volume.clear();
+			try {
 			//resize the volume to the correct size
-			this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
+				this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
+			} catch (...) {
+				std::cout << "The memory allocation for the volume failed. Maybe there is not enought free RAM." << std::endl;
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("The memory allocation for the volume failed. Maybe there is not enought free RAM.")));
+				return;
+			}
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
@@ -944,12 +950,14 @@ namespace ct {
 			this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 			gpuPreprocessingStream.waitForCompletion();
 		} catch (...) {
-			std::cout << std::endl << "CUDA ERROR during CUDA preprocessing. Not enough VRAM?" << std::endl;
+			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 			stopCudaThreads = true;
 			return false;
 		}
 		if (!success) {
-			std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
+			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 			stopCudaThreads = true;
 			return false;
 		}
@@ -959,7 +967,8 @@ namespace ct {
 
 		if (sliceCnt < 1) {
 			//too little memory
-			std::cout << "The free GPU memory is not sufficient" << std::endl;
+			this->lastCudaErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
+			std::cout << this->lastCudaErrorMessage << std::endl;
 			//stop also the other cuda threads
 			stopCudaThreads = true;
 			return false;
@@ -978,7 +987,8 @@ namespace ct {
 			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
 
 			if (!success) {
-				std::cout << std::endl << "CUDA ERROR during allocation of memory on GPU." << std::endl;
+				this->lastCudaErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 				stopCudaThreads = true;
 				//just try to free memory, we don't know if anything was allocated
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
@@ -1041,10 +1051,11 @@ namespace ct {
 											  success);
 
 				if (!success) {
-					std::cout << std::endl << "CUDA ERROR during reconstruction kernel." << std::endl;
+					this->lastCudaErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
 					stopCudaThreads = true;
 					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+					if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+					std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 					return false;
 				}
 
@@ -1052,26 +1063,31 @@ namespace ct {
 				if (projection < this->sinogram.size() - 1) {
 					image = this->sinogram[projection + 1].getImage();
 					if (!image.data) {
-						std::cout << std::endl << "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format." << std::endl;
+						this->lastCudaErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 						return false;
 					}
-					try{
+					try {
 						gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
 						gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 						gpuPreprocessingStream.waitForCompletion();
 					} catch (...) {
-						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing. Not enough VRAM?" << std::endl;
+						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 						return false;
 					}
 					if (!success) {
-						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
+						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 						return false;
 					}
 				}
@@ -1081,10 +1097,11 @@ namespace ct {
 			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
 
 			if (!success) {
-				std::cout << std::endl << "CUDA ERROR during download of volume part." << std::endl;
+				this->lastCudaErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
 				stopCudaThreads = true;
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-				if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
+				if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 				return false;
 			}
 
@@ -1095,8 +1112,8 @@ namespace ct {
 			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 
 			if (!success) {
-				std::cout << std::endl << "CUDA ERROR during freeing of VRAM." << std::endl;
-				std::cout << "Allocated VRAM could not be freed." << std::endl;
+				this->lastCudaErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 				stopCudaThreads = true;
 				return false;
 			}
@@ -1114,6 +1131,8 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
+		//default error message
+		this->lastCudaErrorMessage = "An error during the CUDA reconstruction occured.";
 
 		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
@@ -1142,7 +1161,7 @@ namespace ct {
 			if (this->stopActiveProcess) {
 				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
 			} else {
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("An error during the CUDA reconstruction occured.")));
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(this->lastCudaErrorMessage.c_str())));
 			}
 		}
 
