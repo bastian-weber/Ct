@@ -118,6 +118,7 @@ namespace ct {
 		this->boundsGroupBox->setLayout(this->boundsLayout);
 
 		this->cudaSettingsDialog = new CudaSettingsDialog(this->settings, volume.getCudaDeviceList(), this);
+		QObject::connect(this->cudaSettingsDialog, SIGNAL(dialogConfirmed()), this, SLOT(updateInfo()));
 		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
 		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
 		QObject::connect(this->cudaCheckBox, SIGNAL(stateChanged(int)), this, SLOT(reactToCudaCheckboxChange()));
@@ -680,22 +681,22 @@ namespace ct {
 		this->statusLabel->setText(text);
 	}
 
-	void MainInterface::setInfo() {
-		size_t xSize = this->volume.getXSize();
-		size_t ySize = this->volume.getYSize();
-		size_t zSize = this->volume.getZSize();
-		size_t width = this->volume.getImageWidth();
-		size_t height = this->volume.getImageHeight();
-		double memory = double(xSize*ySize*zSize + 2 * width*height) / 268435456.0;
-		QString infoText = tr("<p>Memory required: %L1Gb</p>"
-							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
-							  "<p>Projections: %L5</p>");
-		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
-		this->informationLabel->setText(infoText);
-	}
-
 	void MainInterface::resetInfo() {
 		this->informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
+	}
+
+	void MainInterface::setVolumeSettings() {
+		FilterType type = FilterType::RAMLAK;
+		if (this->shepploganRadioButton->isChecked()) {
+			type = FilterType::SHEPP_LOGAN;
+		} else if (this->hannRadioButton->isChecked()) {
+			type = FilterType::HANN;
+		}
+		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
+		this->volume.setFrequencyFilterType(type);
+		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
+		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
+		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
@@ -743,15 +744,16 @@ namespace ct {
 		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
 		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
 		this->saveBounds();
-		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
+		this->setVolumeSettings();
 		if (this->volume.getSinogramSize() > 0) {
-			this->setInfo();
+			this->updateInfo();
 			this->updateBoundsDisplay();
 		}
 	}
 
 	void MainInterface::reactToCudaCheckboxChange() {
 		this->settings->setValue("useCuda", this->cudaCheckBox->isChecked());
+		this->updateInfo();
 	}
 
 	void MainInterface::saveBounds() {
@@ -782,6 +784,19 @@ namespace ct {
 		}
 	}
 
+	void MainInterface::updateInfo() {
+		this->setVolumeSettings();
+		size_t xSize = this->volume.getXSize();
+		size_t ySize = this->volume.getYSize();
+		size_t zSize = this->volume.getZSize();
+		double memory = double(this->volume.getRequiredMemoryUpperBound()) / 1024 / 1024 / 1024;
+		QString infoText = tr("<p>Memory required: %L1Gb</p>"
+							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
+							  "<p>Projections: %L5</p>");
+		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
+		this->informationLabel->setText(infoText);
+	}
+
 	void MainInterface::reactToLoadButtonClick() {
 		this->disableAllControls();
 		this->setStatus(tr("Loading file and analysing images..."));
@@ -800,18 +815,8 @@ namespace ct {
 		this->taskbarProgress->show();
 #endif
 		this->timer.reset();
-		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
-		FilterType type = FilterType::RAMLAK;
-		if (this->shepploganRadioButton->isChecked()) {
-			type = FilterType::SHEPP_LOGAN;
-		} else if (this->hannRadioButton->isChecked()) {
-			type = FilterType::HANN;
-		}
 		this->reconstructionActive = true;
-		this->volume.setFrequencyFilterType(type);
-		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
-		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
-		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
+		this->setVolumeSettings();
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
@@ -949,7 +954,7 @@ namespace ct {
 		if (status.successful) {
 			double time = this->timer.getTime();
 			this->setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
-			this->setInfo();
+			this->updateInfo();
 			if (this->runAll) {
 				this->reactToReconstructButtonClick();
 			} else {
