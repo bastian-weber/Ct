@@ -938,10 +938,16 @@ namespace ct {
 		cv::cuda::GpuMat gpuPrefetchedImage;
 		cv::cuda::GpuMat gpuCurrentImage;
 		image = this->sinogram[0].getImage();
-		gpuPrefetchedImage.upload(image);
 		cv::cuda::Stream gpuPreprocessingStream;
-		this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-		gpuPreprocessingStream.waitForCompletion();
+		try {
+			gpuPrefetchedImage.upload(image);
+			this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+			gpuPreprocessingStream.waitForCompletion();
+		} catch (...) {
+			std::cout << std::endl << "CUDA ERROR during CUDA preprocessing. Not enough VRAM?" << std::endl;
+			stopCudaThreads = true;
+			return false;
+		}
 		if (!success) {
 			std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
 			stopCudaThreads = true;
@@ -1052,9 +1058,15 @@ namespace ct {
 						if (!success) std::cout << "Allocated VRAM could not be freed." << std::endl;
 						return false;
 					}
-					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-					gpuPreprocessingStream.waitForCompletion();
+					try{
+						gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+						gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+						gpuPreprocessingStream.waitForCompletion();
+					} catch (...) {
+						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing. Not enough VRAM?" << std::endl;
+						stopCudaThreads = true;
+						return false;
+					}
 					if (!success) {
 						std::cout << std::endl << "CUDA ERROR during CUDA preprocessing." << std::endl;
 						stopCudaThreads = true;
