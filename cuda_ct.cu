@@ -48,13 +48,13 @@ namespace ct {
 				return 0;
 			} else {
 				float rl = ramLakWindowFilter(n, N);
-				return (rl)* (sin(rl*0.5*CUDART_PI_F)) / (rl*0.5*CUDART_PI_F);
+				return (rl)* (sin(rl*0.5*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
 			}
 
 		}
 
 		__device__ float hannWindowFilter(float n, float N) {
-			return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * CUDART_PI_F * float(n)) / (float(N) * 2)));
+			return ramLakWindowFilter(n, N) * 0.5f*(1.0f + cos((2.0f * CUDART_PI_F * float(n)) / (float(N) * 2.0f)));
 		}
 
 		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
@@ -102,7 +102,7 @@ namespace ct {
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float u = float(xIndex) - matToImageUPreprocessed;
-				float v = (-1.0)*float(yIndex) + matToImageVPreprocessed;
+				float v = (-1.0f)*float(yIndex) + matToImageVPreprocessed;
 				image(yIndex, xIndex) *= W(SD, u, v);
 			}
 
@@ -169,10 +169,10 @@ namespace ct {
 
 		__device__ float bilinearInterpolation(float u, float v, float u0v0, float u1v0, float u0v1, float u1v1) {
 			//the two interpolations on the u axis
-			float v0 = (1.0 - u)*u0v0 + u*u1v0;
-			float v1 = (1.0 - u)*u0v1 + u*u1v1;
+			float v0 = (1.0f - u)*u0v0 + u*u1v0;
+			float v1 = (1.0f - u)*u0v1 + u*u1v1;
 			//interpolation on the v axis between the two u-interpolated values
-			return (1.0 - v)*v0 + v*v1;
+			return (1.0f - v)*v0 + v*v1;
 		}
 
 		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, size_t xCoord, size_t yCoord, size_t zCoord, float value) {
@@ -234,7 +234,7 @@ namespace ct {
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 						u += imageToMatUPrecomputed;
-						v = (-1)*v + imageToMatVPrecomputed;
+						v = (-1.0f)*v + imageToMatVPrecomputed;
 
 						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
 						size_t u0 = u;
