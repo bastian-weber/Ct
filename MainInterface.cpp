@@ -744,8 +744,8 @@ namespace ct {
 		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
 		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
 		this->saveBounds();
-		this->setVolumeSettings();
 		if (this->volume.getSinogramSize() > 0) {
+			this->setVolumeSettings();
 			this->updateInfo();
 			this->updateBoundsDisplay();
 		}
@@ -785,16 +785,18 @@ namespace ct {
 	}
 
 	void MainInterface::updateInfo() {
-		this->setVolumeSettings();
-		size_t xSize = this->volume.getXSize();
-		size_t ySize = this->volume.getYSize();
-		size_t zSize = this->volume.getZSize();
-		double memory = double(this->volume.getRequiredMemoryUpperBound()) / 1024 / 1024 / 1024;
-		QString infoText = tr("<p>Memory required: %L1Gb</p>"
-							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
-							  "<p>Projections: %L5</p>");
-		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
-		this->informationLabel->setText(infoText);
+		if (this->volume.getSinogramSize() > 0) {
+			this->setVolumeSettings();
+			size_t xSize = this->volume.getXSize();
+			size_t ySize = this->volume.getYSize();
+			size_t zSize = this->volume.getZSize();
+			double memory = double(this->volume.getRequiredMemoryUpperBound()) / 1024 / 1024 / 1024;
+			QString infoText = tr("<p>Memory required: %L1Gb</p>"
+								  "<p>Volume dimensions: %L2x%L3x%L4</p>"
+								  "<p>Projections: %L5</p>");
+			infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
+			this->informationLabel->setText(infoText);
+		}
 	}
 
 	void MainInterface::reactToLoadButtonClick() {
