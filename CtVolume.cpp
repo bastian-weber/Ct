@@ -1168,6 +1168,7 @@ namespace ct {
 	}
 
 	size_t CtVolume::getMaxChunkSize() const {
+		if (this->sinogram.size() < 1) return 0;
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
 		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
