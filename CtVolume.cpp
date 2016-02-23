@@ -1178,6 +1178,7 @@ namespace ct {
 		if (freeMemory < 0) return 0;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
+		if (sliceSize == 0) return 0;
 		size_t sliceCnt = freeMemory / sliceSize;
 
 		return sliceCnt;
