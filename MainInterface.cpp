@@ -4,7 +4,7 @@ namespace ct {
 
 	MainInterface::MainInterface(QWidget *parent)
 		: QWidget(parent),
-		settings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat) {
+		settings(new QSettings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ct.ini", QSettings::IniFormat)) {
 		setAcceptDrops(true);
 
 		this->volume.setEmitSignals(true);
@@ -34,13 +34,13 @@ namespace ct {
 		this->loadGroupBox->setLayout(this->loadLayout);
 
 		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
-		if (this->settings.value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
 		QObject::connect(this->ramlakRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
-		if (this->settings.value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
 		QObject::connect(this->shepploganRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->hannRadioButton = new QRadioButton(tr("&Hann"));
-		if (this->settings.value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
+		if (this->settings->value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
 		QObject::connect(this->hannRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->filterLayout = new QVBoxLayout;
 		this->filterLayout->addWidget(this->ramlakRadioButton);
@@ -54,46 +54,46 @@ namespace ct {
 		this->to1 = new QLabel("to");
 		this->xFrom = new QDoubleSpinBox;
 		this->xFrom->setRange(0, 1);
-		this->xFrom->setValue(this->settings.value("xFrom", 0).toDouble());
+		this->xFrom->setValue(this->settings->value("xFrom", 0).toDouble());
 		this->xFrom->setDecimals(3);
 		this->xFrom->setSingleStep(0.01);
-		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->xTo = new QDoubleSpinBox;
 		this->xTo->setRange(0, 1);
-		this->xTo->setValue(this->settings.value("xTo", 1).toDouble());
+		this->xTo->setValue(this->settings->value("xTo", 1).toDouble());
 		this->xTo->setDecimals(3);
 		this->xTo->setSingleStep(0.01);
-		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->yLabel = new QLabel("y:");
 		this->yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
 		this->to2 = new QLabel("to");
 		this->yFrom = new QDoubleSpinBox;
 		this->yFrom->setRange(0, 1);
-		this->yFrom->setValue(this->settings.value("yFrom", 0).toDouble());
+		this->yFrom->setValue(this->settings->value("yFrom", 0).toDouble());
 		this->yFrom->setDecimals(3);
 		this->yFrom->setSingleStep(0.01);
-		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->yTo = new QDoubleSpinBox;
 		this->yTo->setRange(0, 1);
-		this->yTo->setValue(this->settings.value("yTo", 1).toDouble());
+		this->yTo->setValue(this->settings->value("yTo", 1).toDouble());
 		this->yTo->setDecimals(3);
 		this->yTo->setSingleStep(0.01);
-		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->zLabel = new QLabel("z:");
 		this->zLabel->setStyleSheet("QLabel { color: blue; }");
 		this->to3 = new QLabel("to");
 		this->zFrom = new QDoubleSpinBox;
 		this->zFrom->setRange(0, 1);
-		this->zFrom->setValue(this->settings.value("zFrom", 0).toDouble());
+		this->zFrom->setValue(this->settings->value("zFrom", 0).toDouble());
 		this->zFrom->setDecimals(3);
 		this->zFrom->setSingleStep(0.01);
-		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->zTo = new QDoubleSpinBox;
 		this->zTo->setRange(0, 1);
-		this->zTo->setValue(this->settings.value("zTo", 1).toDouble());
+		this->zTo->setValue(this->settings->value("zTo", 1).toDouble());
 		this->zTo->setDecimals(3);
 		this->zTo->setSingleStep(0.01);
-		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange(double)));
+		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
 		this->resetButton = new QPushButton(tr("Reset All"));
 		QObject::connect(this->resetButton, SIGNAL(clicked()), this, SLOT(resetBounds()));
 		this->boundsLayout = new QGridLayout();
@@ -116,6 +116,22 @@ namespace ct {
 		this->boundsLayout->setColumnStretch(3, 1);
 		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
 		this->boundsGroupBox->setLayout(this->boundsLayout);
+
+		this->cudaSettingsDialog = new CudaSettingsDialog(this->settings, volume.getCudaDeviceList(), this);
+		QObject::connect(this->cudaSettingsDialog, SIGNAL(dialogConfirmed()), this, SLOT(updateInfo()));
+		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
+		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
+		QObject::connect(this->cudaCheckBox, SIGNAL(stateChanged(int)), this, SLOT(reactToCudaCheckboxChange()));
+		this->cudaSettingsButton = new QPushButton(tr("CUDA Settings"), this->cudaGroupBox);
+		QObject::connect(this->cudaSettingsButton, SIGNAL(clicked()), this->cudaSettingsDialog, SLOT(show()));
+		this->cudaLayout = new QVBoxLayout();
+		this->cudaLayout->addWidget(this->cudaCheckBox);
+		this->cudaLayout->addWidget(this->cudaSettingsButton);
+		this->cudaGroupBox->setLayout(this->cudaLayout);
+		if (!volume.cudaAvailable()) {
+			this->cudaCheckBox->setEnabled(false);
+			this->cudaSettingsButton->setEnabled(false);
+		}
 
 		this->loadButton = new QPushButton(tr("&Load Configuration File"));
 		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
@@ -151,7 +167,7 @@ namespace ct {
 		this->stopButton = new QPushButton(tr("Stop"));
 		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
-		this->progressLayout = new QHBoxLayout;
+		this->progressLayout = new QHBoxLayout();
 		this->progressLayout->addWidget(this->progressBar, 1);
 		this->progressLayout->addWidget(this->stopButton, 0);
 
@@ -162,6 +178,8 @@ namespace ct {
 		this->leftLayout->addWidget(this->filterGroupBox);
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->boundsGroupBox);
+		this->leftLayout->addSpacing(20);
+		this->leftLayout->addWidget(this->cudaGroupBox);
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->loadButton);
 		this->leftLayout->addWidget(this->reconstructButton);
@@ -188,10 +206,14 @@ namespace ct {
 		setLayout(this->subLayout);
 
 		this->startupState();
-		this->inputFileEdit->setText(this->settings.value("last_path", "").toString());
-		QSize lastSize = this->settings.value("size", QSize(-1, -1)).toSize();
-		QPoint lastPos = this->settings.value("pos", QPoint(-1, -1)).toPoint();
-		bool maximized = this->settings.value("maximized", false).toBool();
+		this->inputFileEdit->setText(this->settings->value("last_path", "").toString());
+		if(volume.cudaAvailable()) this->cudaCheckBox->setChecked(this->settings->value("useCuda", true).toBool());
+		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
+		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
+		bool maximized = this->settings->value("maximized", false).toBool();
+
+		//set volume bounds
+		this->reactToBoundsChange();
 
 		//QPalette p(palette());
 		//p.setColor(QPalette::Background, Qt::white);
@@ -210,6 +232,7 @@ namespace ct {
 		delete this->leftLayout;
 		delete this->filterLayout;
 		delete this->boundsLayout;
+		delete this->cudaLayout;
 		delete this->progressLayout;
 		delete this->rightLayout;
 		delete this->loadLayout;
@@ -236,6 +259,10 @@ namespace ct {
 		delete this->to2;
 		delete this->to3;
 		delete this->resetButton;
+		delete this->cudaLayout;
+		delete this->cudaCheckBox;
+		delete this->cudaSettingsButton;
+		delete this->cudaSettingsDialog;
 		delete this->inputFileEdit;
 		delete this->completer;
 		delete this->browseButton;
@@ -256,7 +283,7 @@ namespace ct {
 	}
 
 	QSize MainInterface::sizeHint() const {
-		return QSize(1053, 570);
+		return QSize(1053, 660);
 	}
 
 	void MainInterface::infoPaintFunction(QPainter& canvas) {
@@ -445,9 +472,9 @@ namespace ct {
 			}
 			return;
 		}
-		this->settings.setValue("size", size());
-		this->settings.setValue("pos", pos());
-		this->settings.setValue("maximized", isMaximized());
+		this->settings->setValue("size", size());
+		this->settings->setValue("pos", pos());
+		this->settings->setValue("maximized", isMaximized());
 		e->accept();
 	}
 
@@ -473,6 +500,8 @@ namespace ct {
 		this->progressBar->setVisible(true);
 		this->stopButton->setVisible(true);
 		this->stopButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(false);
+		this->cudaSettingsButton->setEnabled(false);
 		this->imageView->setFocus();
 	}
 
@@ -499,6 +528,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->browseButton->setFocus();
 	}
 
@@ -527,6 +558,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->loadButton->setFocus();
 	}
 
@@ -551,6 +584,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(true);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
@@ -575,6 +610,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(false);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
@@ -654,22 +691,22 @@ namespace ct {
 		this->statusLabel->setText(text);
 	}
 
-	void MainInterface::setInfo() {
-		size_t xSize = this->volume.getXSize();
-		size_t ySize = this->volume.getYSize();
-		size_t zSize = this->volume.getZSize();
-		size_t width = this->volume.getImageWidth();
-		size_t height = this->volume.getImageHeight();
-		double memory = double(xSize*ySize*zSize + 2 * width*height) / 268435456.0;
-		QString infoText = tr("<p>Memory required: %L1Gb</p>"
-							  "<p>Volume dimensions: %L2x%L3x%L4</p>"
-							  "<p>Projections: %L5</p>");
-		infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
-		this->informationLabel->setText(infoText);
-	}
-
 	void MainInterface::resetInfo() {
 		this->informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
+	}
+
+	void MainInterface::setVolumeSettings() {
+		FilterType type = FilterType::RAMLAK;
+		if (this->shepploganRadioButton->isChecked()) {
+			type = FilterType::SHEPP_LOGAN;
+		} else if (this->hannRadioButton->isChecked()) {
+			type = FilterType::HANN;
+		}
+		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
+		this->volume.setFrequencyFilterType(type);
+		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
+		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
+		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
@@ -678,7 +715,7 @@ namespace ct {
 		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
 			this->fileSelectedState();
 			this->inputFileEdit->setPalette(QPalette());
-			this->settings.setValue("last_path", text);
+			this->settings->setValue("last_path", text);
 		} else {
 			this->startupState();
 			this->inputFileEdit->setFocus();
@@ -709,7 +746,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToBoundsChange(double value) {
+	void MainInterface::reactToBoundsChange() {
 		if (this->xFrom != QObject::sender()) this->xFrom->setMaximum(this->xTo->value());
 		if (this->xTo != QObject::sender()) this->xTo->setMinimum(this->xFrom->value());
 		if (this->yFrom != QObject::sender()) this->yFrom->setMaximum(this->yTo->value());
@@ -717,20 +754,25 @@ namespace ct {
 		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
 		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
 		this->saveBounds();
-		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
 		if (this->volume.getSinogramSize() > 0) {
-			this->setInfo();
+			this->setVolumeSettings();
+			this->updateInfo();
 			this->updateBoundsDisplay();
 		}
 	}
 
+	void MainInterface::reactToCudaCheckboxChange() {
+		this->settings->setValue("useCuda", this->cudaCheckBox->isChecked());
+		this->updateInfo();
+	}
+
 	void MainInterface::saveBounds() {
-		this->settings.setValue("xFrom", this->xFrom->value());
-		this->settings.setValue("xTo", this->xTo->value());
-		this->settings.setValue("yFrom", this->yFrom->value());
-		this->settings.setValue("yTo", this->yTo->value());
-		this->settings.setValue("zFrom", this->zFrom->value());
-		this->settings.setValue("zTo", this->zTo->value());
+		this->settings->setValue("xFrom", this->xFrom->value());
+		this->settings->setValue("xTo", this->xTo->value());
+		this->settings->setValue("yFrom", this->yFrom->value());
+		this->settings->setValue("yTo", this->yTo->value());
+		this->settings->setValue("zFrom", this->zFrom->value());
+		this->settings->setValue("zTo", this->zTo->value());
 	}
 
 	void MainInterface::resetBounds() {
@@ -744,11 +786,26 @@ namespace ct {
 
 	void MainInterface::saveFilterType() {
 		if (this->ramlakRadioButton->isChecked()) {
-			this->settings.setValue("filterType", "ramLak");
+			this->settings->setValue("filterType", "ramLak");
 		} else if(this->shepploganRadioButton->isChecked()) {
-			this->settings.setValue("filterType", "sheppLogan");
+			this->settings->setValue("filterType", "sheppLogan");
 		} else {
-			this->settings.setValue("filterType", "hann");
+			this->settings->setValue("filterType", "hann");
+		}
+	}
+
+	void MainInterface::updateInfo() {
+		if (this->volume.getSinogramSize() > 0) {
+			this->setVolumeSettings();
+			size_t xSize = this->volume.getXSize();
+			size_t ySize = this->volume.getYSize();
+			size_t zSize = this->volume.getZSize();
+			double memory = double(this->volume.getRequiredMemoryUpperBound()) / 1024 / 1024 / 1024;
+			QString infoText = tr("<p>Memory required: %L1Gb</p>"
+								  "<p>Volume dimensions: %L2x%L3x%L4</p>"
+								  "<p>Projections: %L5</p>");
+			infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
+			this->informationLabel->setText(infoText);
 		}
 	}
 
@@ -770,15 +827,10 @@ namespace ct {
 		this->taskbarProgress->show();
 #endif
 		this->timer.reset();
-		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
-		FilterType type = FilterType::RAMLAK;
-		if (this->shepploganRadioButton->isChecked()) {
-			type = FilterType::SHEPP_LOGAN;
-		} else if (this->hannRadioButton->isChecked()) {
-			type = FilterType::HANN;
-		}
+		this->predictionTimerSet = false;
 		this->reconstructionActive = true;
-		std::thread(&CtVolume::reconstructVolume, &this->volume, type).detach();
+		this->setVolumeSettings();
+		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
 	void MainInterface::reactToSaveButtonClick() {
@@ -883,11 +935,21 @@ namespace ct {
 				if (this->yTo->value() != 1) stream << " --ymax " << this->yTo->value();
 				if (this->zFrom->value() != 0) stream << " --zmin " << this->zFrom->value();
 				if (this->zTo->value() != 1) stream << " --zmax " << this->zTo->value();
+				if (volume.cudaAvailable()) {
+					if (!this->cudaCheckBox->isChecked()) stream << " -n";
+					QStringList devices;
+					std::vector<int> deviceIds = volume.getActiveCudaDevices();
+					for (int& deviceId : deviceIds) {
+						devices.append(QString::number(deviceId));
+					}
+					stream << " -d " << devices.join(',');
+					stream << " -m " << this->settings->value("gpuSpareMemory", 200).toLongLong();
+				}
 				file.close();
 				this->setStatus(status);
 			}
-			}
-			}
+		}
+	}
 
 	void MainInterface::reactToLoadProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
@@ -905,7 +967,7 @@ namespace ct {
 		if (status.successful) {
 			double time = this->timer.getTime();
 			this->setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
-			this->setInfo();
+			this->updateInfo();
 			if (this->runAll) {
 				this->reactToReconstructButtonClick();
 			} else {
@@ -931,15 +993,21 @@ namespace ct {
 #ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
 #endif
-		if (percentage > 1.0) {
-			double remaining = this->timer.getTime() * ((100.0 - percentage) / percentage);
+		if (percentage >= 1 && !this->predictionTimerSet) {
+			this->predictionTimer.reset();
+			this->predictionTimerSet = true;
+		}
+		if (percentage >= 3.0 && this->predictionTimerSet) {
+			double remaining = double(this->predictionTimer.getTime()) * ((100.0 - percentage) / (percentage - 1.0));
 			int mins = std::floor(remaining / 60.0);
 			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
 			this->setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
 		}
-		cv::Mat normalized;
-		cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		this->imageView->setImage(normalized);
+		if (crossSection.data) {
+			cv::Mat normalized;
+			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			this->imageView->setImage(normalized);
+		}
 	}
 
 	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {

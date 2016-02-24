@@ -51,9 +51,11 @@ void parseDoubleArgument(int argc, char* argv[], int index, double& output) {
 }
 
 int main(int argc, char* argv[]) {
+	ct::CtVolume volume;
 	bool inputProvided = false;
 	bool outputProvided = false;
 	bool lowerPriority = false;
+	bool useCuda = volume.cudaAvailable();
 	ct::FilterType filterType = ct::FilterType::RAMLAK;
 	std::string filterTypeString = "Ram-Lak";
 	std::string input;
@@ -71,19 +73,25 @@ int main(int argc, char* argv[]) {
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-f [option] \tOptional. Sets the preprocessing filter. Options are\n\t\t\t'ramlak', 'shepplogan' and 'hann'. Long: --filter." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-n \t\tOptional. Disables CUDA. Long: --nocuda." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-d 0,1,..,n \tOptional. Sets the cuda devices that shall be used.\n\t\t\tOption is a list of device ids seperated by comma. Long: --cudadevices." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+			std::cout << "\t-d [number] \tOptional. Sets the amount of VRAM to spare in Mb. \n\t\t\tOption is a positive integer. Long: --cudasparememory." << std::endl;
+			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 			std::cout << "\t-h \t\tDisplay this help. Long: --help." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--xmin [0..1]\tOptional. The lower x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--xmin 0..1\tOptional. The lower x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--xmax [0..1]\tOptional. The upper x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--xmax 0..1\tOptional. The upper x bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--ymin [0..1]\tOptional. The lower y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--ymin 0..1\tOptional. The lower y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--ymax [0..1]\tOptional. The upper y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--ymax 0..1\tOptional. The upper y bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--zmin [0..1]\tOptional. The lower z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--zmin 0..1\tOptional. The lower z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 			std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-			std::cout << "\t--zmax [0..1]\tOptional. The upper z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
+			std::cout << "\t--zmax 0..1\tOptional. The upper z bound of the part of the volume\n\t\t\tthat will be reconstructed as float between 0 and 1." << std::endl;
 		} else {
 			for (int i = 1; i < argc; ++i) {
 				if (std::string(argv[i]).compare("--xmin") == 0) {
@@ -122,6 +130,21 @@ int main(int argc, char* argv[]) {
 					}
 				} else if (std::string(argv[i]).compare("-b") == 0 || std::string(argv[i]).compare("--background") == 0) {
 					lowerPriority = true;
+				} else if (std::string(argv[i]).compare("-n") == 0 || std::string(argv[i]).compare("--nocuda") == 0) {
+					useCuda = false;
+				} else if (std::string(argv[i]).compare("-d") == 0 || std::string(argv[i]).compare("--cudadevices") == 0) {
+					if (++i < argc) {
+						QStringList devices = QString(argv[i]).split(",");
+						std::vector<int> cudaDeviceList;
+						for (QString& device : devices) {
+							cudaDeviceList.push_back(device.toInt());
+						}
+						volume.setActiveCudaDevices(cudaDeviceList);
+					}
+				}else if(std::string(argv[i]).compare("-m") == 0 || std::string(argv[i]).compare("--cudasparememory") == 0){
+					double spareMemory = 200;
+					parseDoubleArgument(argc, argv, ++i, spareMemory);
+					volume.setGpuSpareMemory(spareMemory);
 				} else {
 					std::cout << "Unknown or misplaced parameter " << argv[i] << "." << std::endl;
 					return 1;
@@ -136,20 +159,30 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #endif
+				std::vector<std::string> cudaDeviceNames = volume.getCudaDeviceList();
+				QVector<int> activeCudaDevices = QVector<int>::fromStdVector(volume.getActiveCudaDevices());
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
 				std::cout << "\tInput:\t\t\t" << input << std::endl;
 				std::cout << "\tOutput:\t\t\t" << output << std::endl;
 				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
+				std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
+				if (volume.cudaAvailable()) {
+						std::cout << "\tCUDA devices:" << std::endl;
+					for (int i = 0; i < cudaDeviceNames.size(); ++i) {
+						std::cout << "\t\t" << "[" << (activeCudaDevices.indexOf(i) >= 0 && useCuda ? "X" : " ") << "] " << cudaDeviceNames[i] << std::endl;
+					}
+				}
 				std::cout << "\tVolume bounds:";
 				std::cout << "\t\tx: [" << std::to_string(xmin) << " .. " << std::to_string(xmax) << "]" << std::endl;;
 				std::cout << "\t\t\t\ty: [" << std::to_string(ymin) << " .. " << std::to_string(ymax) << "]" << std::endl;
 				std::cout << "\t\t\t\tz: [" << std::to_string(zmin) << " .. " << std::to_string(zmax) << "]" << std::endl;
 				std::cout << std::endl;
-				ct::CtVolume myVolume(input);
-				myVolume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
-				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << myVolume.getXSize() << "x" << myVolume.getYSize() << "x" << myVolume.getZSize() << " (x:y:z)" << std::endl << std::endl;
-				myVolume.reconstructVolume(filterType);
-				myVolume.saveVolumeToBinaryFile(output);
+				volume.sinogramFromImages(input);
+				volume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
+				std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << volume.getXSize() << "x" << volume.getYSize() << "x" << volume.getZSize() << " (x:y:z)" << std::endl << std::endl;
+				volume.setFrequencyFilterType(filterType);
+				volume.reconstructVolume();
+				volume.saveVolumeToBinaryFile(output);
 			} else {
 				std::cout << "You must provide a file path to the config file as input as well as a file path for the output." << std::endl;
 				return 1;
@@ -159,9 +192,5 @@ int main(int argc, char* argv[]) {
 		std::cout << "Launching in GUI mode." << std::endl;
 		return init(argc, argv);
 	}
-	//CtVolume myVolume("G:/Desktop/Turnschuh_1200/angles.csv", CtVolume::RAMLAK);
-	//myVolume.displaySinogram(true);	
-	//myVolume.reconstructVolume(CtVolume::MULTITHREADED);
-	//myVolume.saveVolumeToBinaryFile("G:/Desktop/volume.raw");
 	return 0;
 }

@@ -3,6 +3,7 @@
 
 #include <future>
 #include <cmath>
+#include <memory>
 
 //Qt
 #include <QtWidgets/QtWidgets>
@@ -12,6 +13,7 @@
 #endif
 
 #include "ImageView.h"
+#include "CudaSettingsDialog.h"
 #include "CtVolume.h"
 #include "Timer.h"
 
@@ -45,8 +47,8 @@ namespace ct {
 		void setPreviousSlice();
 		void updateBoundsDisplay();
 		void setStatus(QString text);
-		void setInfo();
 		void resetInfo();
+		void setVolumeSettings();
 
 		CtVolume volume;
 		std::atomic<bool> sinogramDisplayActive{ false };
@@ -60,13 +62,16 @@ namespace ct {
 		QString savingPath;
 		size_t currentIndex;
 		hb::Timer timer;
-		QSettings settings;
+		hb::Timer predictionTimer;
+		bool predictionTimerSet;
+		std::shared_ptr<QSettings> settings;
 
 		//interface widgets
 		QHBoxLayout* subLayout;
 		QVBoxLayout* leftLayout;
 		QVBoxLayout* filterLayout;
 		QGridLayout* boundsLayout;
+		QVBoxLayout* cudaLayout;
 		QHBoxLayout* progressLayout;
 		QVBoxLayout* rightLayout;
 		QVBoxLayout* loadLayout;
@@ -93,6 +98,10 @@ namespace ct {
 		QLabel* to2;
 		QLabel* to3;
 		QPushButton* resetButton;
+		QGroupBox* cudaGroupBox;
+		QCheckBox* cudaCheckBox;
+		QPushButton* cudaSettingsButton;
+		ct::CudaSettingsDialog* cudaSettingsDialog;
 		QLineEdit* inputFileEdit;
 		QCompleter* completer;
 		QPushButton* browseButton;
@@ -114,10 +123,12 @@ namespace ct {
 		private slots:
 		void reactToTextChange(QString text);
 		void reactToBrowseButtonClick();
-		void reactToBoundsChange(double value);
+		void reactToBoundsChange();
+		void reactToCudaCheckboxChange();
 		void saveBounds();
 		void resetBounds();
 		void saveFilterType();
+		void updateInfo();
 		void reactToLoadButtonClick();
 		void reactToReconstructButtonClick();
 		void reactToSaveButtonClick();
