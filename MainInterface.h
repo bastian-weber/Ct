@@ -62,6 +62,8 @@ namespace ct {
 		QString savingPath;
 		size_t currentIndex;
 		hb::Timer timer;
+		hb::Timer predictionTimer;
+		bool predictionTimerSet;
 		std::shared_ptr<QSettings> settings;
 
 		//interface widgets
