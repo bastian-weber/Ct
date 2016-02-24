@@ -1,5 +1,6 @@
 #include "CtVolume.h"
 
+
 namespace ct {
 
 	//data type projection visible to the outside
@@ -378,19 +379,26 @@ namespace ct {
 			}
 			if (result) {
 				//now fill the corners around the cylinder with the lowest density value
+				double smallestValue = std::numeric_limits<double>::infinity();
 				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
-					double smallestValue;
-					smallestValue = this->volume[0][0][0];
+#pragma omp parallel
+				{
+					double threadMin = std::numeric_limits<double>::infinity();
+#pragma omp for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
 							for (int z = 0; z < this->zMax; ++z) {
-								if (this->volume[x][y][z] < smallestValue) {
-									smallestValue = this->volume[x][y][z];
+								if (this->volume[x][y][z] < threadMin) {
+									threadMin = this->volume[x][y][z];
 								}
 							}
 						}
 					}
-
+#pragma omp critical(compareLocalMinimums)
+					{
+						if (threadMin < smallestValue) smallestValue = threadMin;
+					}
+				}
 #pragma omp parallel for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
