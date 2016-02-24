@@ -998,8 +998,6 @@ namespace ct {
 				this->lastCudaErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
 				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
 				stopCudaThreads = true;
-				//just try to free memory, we don't know if anything was allocated
-				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 				return false;
 			}
 
