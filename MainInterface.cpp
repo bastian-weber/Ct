@@ -827,6 +827,7 @@ namespace ct {
 		this->taskbarProgress->show();
 #endif
 		this->timer.reset();
+		this->predictionTimerSet = false;
 		this->reconstructionActive = true;
 		this->setVolumeSettings();
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
@@ -992,8 +993,12 @@ namespace ct {
 #ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
 #endif
-		if (percentage > 1.0) {
-			double remaining = this->timer.getTime() * ((100.0 - percentage) / percentage);
+		if (percentage >= 1 && !this->predictionTimerSet) {
+			this->predictionTimer.reset();
+			this->predictionTimerSet = true;
+		}
+		if (percentage >= 3.0 && this->predictionTimerSet) {
+			double remaining = double(this->predictionTimer.getTime()) * ((100.0 - percentage) / (percentage - 1.0));
 			int mins = std::floor(remaining / 60.0);
 			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
 			this->setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
