@@ -946,6 +946,8 @@ namespace ct {
 		double imageUpperBoundV = this->matToImageV(0);
 		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
+		const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, unsigned long long(1));
+
 		//first upload two images, so the memory used will be taken into consideration
 		//prepare and upload image 1
 		cv::Mat image;
@@ -1017,10 +1019,12 @@ namespace ct {
 				}
 
 				//emit progress update
-				double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
-				double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
-				double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
-				if (projection%10 == 0) emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+				if (projection % progressUpdateRate == 0) {
+					double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
+					double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+					double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+					emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+				}
 
 				{
 					cv::cuda::GpuMat tmp = gpuCurrentImage;
