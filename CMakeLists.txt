@@ -3,7 +3,7 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs")
+set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
 #Qt modules
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 #these modules will only be linked on windows
@@ -20,12 +20,21 @@ project(Ct)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp")
+file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp"  "*.cu")
 
 if(WIN32)
 	#add application icon ressource
 	list(APPEND SOURCEFILES "${CMAKE_CURRENT_SOURCE_DIR}/ct.rc")
 endif()
+
+#CUDA
+#use dynamic linking
+set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+find_package(CUDA)
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_20,code=compute_20")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=compute_52")
+list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 
 #OpenCV
 set(OpenCV_STATIC OFF)
@@ -38,6 +47,11 @@ ask_for_path("OpenCV" "" "/usr/local" OPENCV_FILES OPENCV_PATH_HINTS)
 if(OPENCV_ROOT_FOUND)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_OPENCV_ROOT})
 	find_package(OpenCV 3.0 REQUIRED)
+endif()
+
+if(OPENCV_ROOT_FOUND)
+	#adds the opencv include dirs to nvcc
+	CUDA_INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 endif()
 
 #Qt
@@ -67,7 +81,7 @@ endif()
 
 ################################################ Configuration ################################################
 
-add_executable(Ct ${SOURCEFILES})
+cuda_add_executable(Ct ${SOURCEFILES})
 
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)
@@ -97,7 +111,7 @@ add_dependencies(Ct COPY_RESSOURCES)
 
 ########################################### OpenCV Libs ###########################################
 
-if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
+if(DEFINED OPENCV_ROOT_FOUND)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
@@ -106,6 +120,14 @@ if((DEFINED OPENCV_ROOT_FOUND) OR UNIX)
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
 		copydlls(OPENCV_MODULES_ALL)
+
+		#copy cuda dlls for opencv
+		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
+			#only 64bit dlls are copied, might not work with 32bit projects
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		endif()	
+
 	endif(MSVC)
 endif()
 
@@ -134,6 +156,6 @@ IF(DEFINED QT_ROOT_FOUND)
 
 ENDIF(DEFINED QT_ROOT_FOUND)
 
-IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND)
+IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
 ENDIF()

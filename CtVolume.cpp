@@ -1,5 +1,6 @@
 #include "CtVolume.h"
 
+
 namespace ct {
 
 	//data type projection visible to the outside
@@ -7,8 +8,7 @@ namespace ct {
 	Projection::Projection() { }
 
 	Projection::Projection(cv::Mat image, double angle, double heightOffset) : image(image), angle(angle), heightOffset(heightOffset) { }
-
-
+	
 	//internal data type projection
 
 	CtVolume::Projection::Projection() { }
@@ -28,8 +28,17 @@ namespace ct {
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
-	CtVolume::CtVolume(std::string csvFile) {
+	CtVolume::CtVolume() : activeCudaDevices({ 0 }) {
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+	}
+
+	CtVolume::CtVolume(std::string csvFile) : activeCudaDevices({ 0 }) {
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 		this->sinogramFromImages(csvFile);
+	}
+
+	bool CtVolume::cudaAvailable() {
+		return (cv::cuda::getCudaEnabledDeviceCount() > 0);
 	}
 
 	void CtVolume::sinogramFromImages(std::string csvFile) {
@@ -256,6 +265,52 @@ namespace ct {
 		return this->crossSectionAxis;
 	}
 
+	bool CtVolume::getUseCuda() const {
+		return this->useCuda;
+	}
+
+	std::vector<int> CtVolume::getActiveCudaDevices() const {
+		return this->activeCudaDevices;
+	}
+
+	std::vector<std::string> CtVolume::getCudaDeviceList() const {
+		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		//return an empty vector if there are no cuda devices
+		if(deviceCnt < 1) return std::vector<std::string>();
+		std::vector<std::string> result(deviceCnt);
+		for (int i = 0; i < deviceCnt; ++i) {
+			result[i] = ct::cuda::getDeviceName(i);
+		}
+		return result;
+	}
+
+	size_t CtVolume::getGpuSpareMemory() const {
+		return this->gpuSpareMemory;
+	}
+
+	size_t CtVolume::getRequiredMemoryUpperBound() const {
+		//size of volume
+		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
+		if (this->useCuda) {
+			//images in RAM
+			std::vector<int> devices = this->getActiveCudaDevices();
+			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * devices.size();
+			for (int& device : devices) {
+				cudaSetDevice(device);
+				size_t maxSlices = this->getMaxChunkSize();
+				//upper bounded by zMax
+				//assume the volume is equally divided amonst gpus for simplicity
+				maxSlices = std::min(maxSlices, size_t(std::ceil(double(this->zMax)/double(devices.size()))));
+				//add extra memory required during download
+				requiredMemory += this->xMax * this->yMax * maxSlices * sizeof(float);
+			}
+		} else {
+			//images in RAM
+			requiredMemory += this->imageWidth*this->imageHeight*sizeof(float) * 2;
+		}
+		return requiredMemory;
+	}
+
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
@@ -267,32 +322,84 @@ namespace ct {
 		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
-	void CtVolume::reconstructVolume(FilterType filterType) {
+	void CtVolume::setUseCuda(bool value) {
+		this->useCuda = value;
+	}
+
+	void CtVolume::setActiveCudaDevices(std::vector<int> devices) {
+		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		for (std::vector<int>::iterator i = devices.begin(); i != devices.end();) {
+			if (*i >= deviceCnt) {
+				i = devices.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (devices.size() > 0) {
+			this->activeCudaDevices = devices;
+		} else {
+			std::cout << "Active CUDA devices were not set because vector did not contain any valid device ID." << std::endl;
+		}
+	}
+
+	void CtVolume::setGpuSpareMemory(size_t amount) {
+		this->gpuSpareMemory = amount;
+	}
+
+	void CtVolume::setFrequencyFilterType(FilterType filterType) {
+		this->filterType = filterType;
+	}
+
+	void CtVolume::reconstructVolume() {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+
 		this->stopActiveProcess = false;
 		if (this->sinogram.size() > 0) {
 			//clear potential old volume
 			this->volume.clear();
+			try {
 			//resize the volume to the correct size
-			this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
+				this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
+			} catch (...) {
+				std::cout << "The memory allocation for the volume failed. Maybe there is not enought free RAM." << std::endl;
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("The memory allocation for the volume failed. Maybe there is not enought free RAM.")));
+				return;
+			}
 			//mesure time
 			clock_t start = clock();
 			//fill the volume
-			if (reconstructionCore(filterType)) {
+			bool result = false;
+			if (this->useCuda && !this->cudaAvailable()) {
+				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
+			}
+			if (this->useCuda && this->cudaAvailable()) {
+				result = this->launchCudaThreads();
+			} else {
+				result = this->reconstructionCore();
+			}
+			if (result) {
 				//now fill the corners around the cylinder with the lowest density value
+				double smallestValue = std::numeric_limits<double>::infinity();
 				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
-					double smallestValue;
-					smallestValue = this->volume[0][0][0];
+#pragma omp parallel
+				{
+					double threadMin = std::numeric_limits<double>::infinity();
+#pragma omp for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
 							for (int z = 0; z < this->zMax; ++z) {
-								if (this->volume[x][y][z] < smallestValue) {
-									smallestValue = this->volume[x][y][z];
+								if (this->volume[x][y][z] < threadMin) {
+									threadMin = this->volume[x][y][z];
 								}
 							}
 						}
 					}
-
+#pragma omp critical(compareLocalMinimums)
+					{
+						if (threadMin < smallestValue) smallestValue = threadMin;
+					}
+				}
+#pragma omp parallel for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
 							if (sqrt(this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y)) >= ((double)this->xSize / 2) - 3) {
@@ -306,10 +413,11 @@ namespace ct {
 
 				//mesure time
 				clock_t end = clock();
-				std::cout << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
+				std::cout << std::endl << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
 				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
 			} else {
 				this->volume.clear();
+
 			}
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
@@ -357,6 +465,7 @@ namespace ct {
 					unsigned int number = 1;
 					do {
 						infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(QString::number(number)).append(".txt"));
+						++number;
 					} while (QFileInfo(infoFileName).exists());
 				}
 				QFile file(infoFileName);
@@ -380,7 +489,7 @@ namespace ct {
 				out << "[Volume dimensions]" << endl;
 				out << "X size:\t\t\t" << this->xMax << endl;
 				out << "Y size:\t\t\t" << this->yMax << endl;
-				out << "Z size:\t\t\t" << this->zMax<<endl<<endl;
+				out << "Z size:\t\t\t" << this->zMax << endl << endl;
 				out << "[Data format]" << endl;
 				out << "Data type:\t\t32bit IEEE 754 float" << endl;
 				out << "Endianness:\t\tLittle Endian" << endl;
@@ -604,18 +713,18 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	cv::Mat CtVolume::prepareProjection(size_t index, FilterType filterType) const {
+	cv::Mat CtVolume::prepareProjection(size_t index) const {
 		cv::Mat image = this->sinogram[index].getImage();
 		if (image.data) {
 			convertTo32bit(image);
-			this->preprocessImage(image, filterType);
+			this->preprocessImage(image);
 		}
 		return image;
 	}
 
-	void CtVolume::preprocessImage(cv::Mat& image, FilterType filterType) const {
+	void CtVolume::preprocessImage(cv::Mat& image) const {
 		applyLogScaling(image);
-		applyFourierFilter(image, filterType);
+		applyFourierFilter(image, this->filterType);
 		this->applyFeldkampWeight(image);
 	}
 
@@ -633,6 +742,7 @@ namespace ct {
 		CV_Assert(image.depth() == CV_32F);
 
 		float* ptr;
+#pragma omp parallel for private(ptr)
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
@@ -641,15 +751,20 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType type) {
+	inline double CtVolume::W(double D, double u, double v) {
+		return D / sqrt(D*D + u*u + v*v);
+	}
+
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType filterType) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
 		cv::Vec2f* ptr;
+#pragma omp parallel for private(ptr)
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (int column = 0; column < nyquist; ++column) {
-				switch (type) {
+				switch (filterType) {
 					case FilterType::RAMLAK:
 						ptr[column] *= ramLakWindowFilter(column, nyquist);
 						break;
@@ -689,7 +804,24 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	bool CtVolume::reconstructionCore(FilterType filterType) {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream& stream, bool& success) const {
+		success = true;
+		cv::cuda::GpuMat tmp1;
+		cv::cuda::GpuMat tmp2;
+		image.convertTo(tmp1, CV_32FC1, stream);
+		cv::cuda::log(tmp1, tmp1, stream);
+		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
+		bool successLocal;
+		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
+		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		success = success && successLocal;
+		return image;
+	}
+
+	bool CtVolume::reconstructionCore() {
 		double imageLowerBoundU = this->matToImageU(0);
 		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
 		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
@@ -714,7 +846,7 @@ namespace ct {
 				return false;
 			}
 			//output percentage
-			double percentage = floor((double)projection / (double)this->sinogram.size() * 100 + 0.5);
+			double percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
 			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionIndex)));
 			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
@@ -723,12 +855,12 @@ namespace ct {
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
-				image = this->prepareProjection(projection, filterType);
+				image = this->prepareProjection(projection);
 			} else {
 				image = future.get();
 			}
 			if (projection + 1 != this->sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1, filterType);
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1);
 			}
 			//check if the image is good
 			if (!image.data) {
@@ -797,8 +929,312 @@ namespace ct {
 		return (1.0 - v)*v0 + v*v1;
 	}
 
-	inline double CtVolume::W(double D, double u, double v) {
-		return D / sqrt(D*D + u*u + v*v);
+	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
+
+		cudaSetDevice(deviceId);
+		//for cuda error handling
+		bool success;
+
+		//precomputing some values
+		double imageLowerBoundU = this->matToImageU(0);
+		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
+		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
+		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+		//inversed because of inversed v axis in mat/image coordinate system
+		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+		double imageUpperBoundV = this->matToImageV(0);
+		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
+		const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
+
+		//first upload two images, so the memory used will be taken into consideration
+		//prepare and upload image 1
+		cv::Mat image;
+		cv::cuda::GpuMat gpuPrefetchedImage;
+		cv::cuda::GpuMat gpuCurrentImage;
+		image = this->sinogram[0].getImage();
+		cv::cuda::Stream gpuPreprocessingStream;
+		try {
+			gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+			gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+			gpuPreprocessingStream.waitForCompletion();
+		} catch (...) {
+			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+			stopCudaThreads = true;
+			return false;
+		}
+		if (!success) {
+			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+			stopCudaThreads = true;
+			return false;
+		}
+
+		size_t sliceCnt = getMaxChunkSize();
+		size_t currentSlice = threadZMin;
+
+		if (sliceCnt < 1) {
+			//too little memory
+			this->lastCudaErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
+			std::cout << this->lastCudaErrorMessage << std::endl;
+			//stop also the other cuda threads
+			stopCudaThreads = true;
+			return false;
+		}
+
+		while (currentSlice < threadZMax) {
+
+			size_t const lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+			size_t const xDimension = this->xMax;
+			size_t const yDimension = this->yMax;
+			size_t const zDimension = lastSlice - currentSlice;
+
+			std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
+
+			//allocate volume part memory on gpu
+			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
+
+			if (!success) {
+				this->lastCudaErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				stopCudaThreads = true;
+				return false;
+			}
+
+			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+
+				//if user interrupts
+				if (this->stopActiveProcess) {
+					std::cout << std::endl << "User interrupted. Stopping." << std::endl;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					return false;
+				}
+
+				//if this thread shall be stopped (probably because an error in another thread occured)
+				if (this->stopCudaThreads) {
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					return false;
+				}
+
+				//emit progress update
+				if (projection % progressUpdateRate == 0) {
+					double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
+					double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+					double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+					emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+				}
+
+				{
+					cv::cuda::GpuMat tmp = gpuCurrentImage;
+					gpuCurrentImage = gpuPrefetchedImage;
+					gpuPrefetchedImage = tmp;
+				}
+
+				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+				double sine = sin(beta_rad);
+				double cosine = cos(beta_rad);
+
+				//start reconstruction with current image
+				ct::cuda::startReconstruction(gpuCurrentImage,
+											  gpuVolumePtr,
+											  xDimension,
+											  yDimension,
+											  zDimension,
+											  currentSlice,
+											  radiusSquared,
+											  sine,
+											  cosine,
+											  this->sinogram[projection].heightOffset,
+											  this->uOffset,
+											  this->SD,
+											  imageLowerBoundU,
+											  imageUpperBoundU,
+											  imageLowerBoundV,
+											  imageUpperBoundV,
+											  this->volumeToWorldXPrecomputed,
+											  this->volumeToWorldYPrecomputed,
+											  this->volumeToWorldZPrecomputed,
+											  this->imageToMatUPrecomputed,
+											  this->imageToMatVPrecomputed,
+											  success);
+
+				if (!success) {
+					this->lastCudaErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+					stopCudaThreads = true;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+					std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+					return false;
+				}
+
+				//prepare and upload next image
+				if (projection < this->sinogram.size() - 1) {
+					image = this->sinogram[projection + 1].getImage();
+					if (!image.data) {
+						this->lastCudaErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						return false;
+					}
+					try {
+						gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+						gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+						gpuPreprocessingStream.waitForCompletion();
+					} catch (...) {
+						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						return false;
+					}
+					if (!success) {
+						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						return false;
+					}
+				}
+			}
+
+			//donload the reconstructed volume part
+			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
+
+			if (!success) {
+				this->lastCudaErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
+				stopCudaThreads = true;
+				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+				if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				return false;
+			}
+
+			//copy volume part to vector
+			this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
+
+			//free volume part memory on gpu
+			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+
+			if (!success) {
+				this->lastCudaErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
+				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				stopCudaThreads = true;
+				return false;
+			}
+
+			currentSlice += sliceCnt;
+		}
+
+		std::cout << std::endl;
+		std::cout << "GPU" << deviceId << " finished." << std::endl;
+
+		emit(this->cudaThreadProgressUpdate(1, deviceId, true));
+
+		return true;
+	}
+
+	bool CtVolume::launchCudaThreads() {
+		this->stopCudaThreads = false;
+		//default error message
+		this->lastCudaErrorMessage = "An error during the CUDA reconstruction occured.";
+
+		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
+
+		//clear progress
+		this->cudaThreadProgress.clear();
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			this->cudaThreadProgress.insert(std::make_pair(activeCudaDevices[i], 0));
+		}
+
+		//create vector to store threads
+		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
+		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
+		size_t currentSlice = 0;
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			size_t sliceCnt = std::round(scalingFactors[this->activeCudaDevices[i]] * double(zMax));
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
+			currentSlice += sliceCnt;
+		}
+		//wait for threads to finish
+		bool result = true;
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			result = result && threads[i].get();
+		}
+
+		if (!result) {
+			if (this->stopActiveProcess) {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+			} else {
+				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(this->lastCudaErrorMessage.c_str())));
+			}
+		}
+
+		return result;
+	}
+
+	std::map<int, double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
+		//get amount of multiprocessors per GPU
+		std::map<int, int> multiprocessorCnt;
+		size_t totalMultiprocessorsCnt = 0;
+		std::map<int, int> busWidth;
+		size_t totalBusWidth = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			multiprocessorCnt[devices[i]] = ct::cuda::getMultiprocessorCnt(devices[i]);
+			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
+			busWidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i]);
+			totalBusWidth += busWidth[devices[i]];
+			std::cout << "GPU" << devices[i] << std::endl;
+			cudaSetDevice(devices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
+		}
+		std::map<int, double> scalingFactors;
+		double scalingFactorSum = 0;
+		for (int i = 0; i < devices.size(); ++i) {
+			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
+			double busWidthScalingFactor = (double(busWidth[devices[i]]) / double(totalBusWidth));
+			scalingFactors[devices[i]] = multiprocessorScalingFactor*busWidthScalingFactor;
+			scalingFactorSum += scalingFactors[devices[i]];
+		}
+		for (int i = 0; i < devices.size(); ++i) {
+			scalingFactors[devices[i]] /= scalingFactorSum;
+		}
+		return scalingFactors;
+	}
+
+	size_t CtVolume::getMaxChunkSize() const {
+		if (this->sinogram.size() < 1) return 0;
+		long long freeMemory = ct::cuda::getFreeMemory();
+		//spare some VRAM for other applications
+		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
+		//spare memory for intermediate images and dft result
+		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
+
+		if (freeMemory < 0) return 0;
+
+		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
+		if (sliceSize == 0) return 0;
+		size_t sliceCnt = freeMemory / sliceSize;
+
+		return sliceCnt;
+	}
+
+	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
+#pragma omp parallel for schedule(dynamic)
+		for (int x = 0; x < this->xMax; ++x) {
+			for (int y = 0; y < this->yMax; ++y) {
+				for (int z = 0; z < zSize; ++z) {
+					//xSize * ySize * zCoord + xSize * yChoord + xCoord
+					volume[x][y][z + zOffset] = arrayPtr.get()[z * this->xMax * this->yMax + y * this->xMax + x];
+				}
+			}
+		}
 	}
 
 	void CtVolume::updateBoundaries() {
@@ -825,8 +1261,12 @@ namespace ct {
 		this->worldToVolumeYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
 		this->worldToVolumeZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
 		this->volumeToWorldXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
+		this->volumeToWorldYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
+		this->volumeToWorldZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
 		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
 		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
+		this->matToImageUPreprocessed = double(this->imageWidth) / 2.0;
+		this->matToImageVPreprocessed = double(this->imageHeight / 2.0);
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
@@ -846,11 +1286,11 @@ namespace ct {
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - (double(this->ySize) / 2.0) + double(this->yFrom);
+		return yCoord - this->volumeToWorldYPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - (double(this->zSize) / 2.0) + double(this->zFrom);
+		return zCoord - this->volumeToWorldZPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
@@ -863,17 +1303,32 @@ namespace ct {
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {
-		return uCoord - ((double)this->imageWidth / 2.0);
+		return uCoord - this->matToImageUPreprocessed;
 	}
 
 	inline double CtVolume::matToImageV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*(vCoord - ((double)this->imageHeight / 2.0));
+		return (-1)*vCoord + this->matToImageVPreprocessed;
 	}
 
-	int CtVolume::fftCoordToIndex(int coord, int size) {
-		if (coord < 0)return size + coord;
-		return coord;
+	//============================================== PRIVATE SLOTS ==============================================\\
+
+	void CtVolume::emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection) {
+		this->cudaThreadProgress[deviceId] = percentage;
+		double totalProgress = 0;
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]];
+		}
+		totalProgress /= this->cudaThreadProgress.size();
+		totalProgress *= 100;
+		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
+		if (this->emitSignals) {
+			if (emitCrossSection) {
+				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionIndex)));
+			} else {
+				emit(reconstructionProgress(totalProgress, cv::Mat()));
+			}
+		}
 	}
 
 }

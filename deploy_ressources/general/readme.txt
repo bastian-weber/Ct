@@ -21,10 +21,18 @@ The command line options are:
 	-o [filepath] 		Specifies the file where the output volume shall be saved. Long: --output
 	-b 					Optional. Runs with background priority. Long: --background
 	-f [option] 		Optional. Sets the preprocessing filter. Options are 'ramlak', 'shepplogan' and 'hann'. Long: --filter
-	--xmin [0..1] 		Optional. The lower x bound of the volume part that will be reconstructed.
-	--xmax [0..1] 		Optional. The upper x bound of the volume part that will be reconstructed.
-	--ymin [0..1] 		Optional. The lower y bound of the volume part that will be reconstructed.
-	--ymax [0..1] 		Optional. The upper y bound of the volume part that will be reconstructed.
-	--zmin [0..1] 		Optional. The lower z bound of the volume part that will be reconstructed.
-	--zmax [0..1] 		Optional. The upper z bound of the volume part that will be reconstructed.
+	-n 					Optional. Disables CUDA. Long: --nocuda.
+	-d 0,1,..,n 		Optional. Sets the cuda devices that shall be used. Option is a list of device ids seperated by comma.
+						Long: --cudadevices.
+	-d [number] 		Optional. Sets the amount of VRAM to spare in Mb. Option is a positive integer. Long: --cudasparememory.
+	--xmin 0..1 		Optional. The lower x bound of the volume part that will be reconstructed.
+	--xmax 0..1 		Optional. The upper x bound of the volume part that will be reconstructed.
+	--ymin 0..1 		Optional. The lower y bound of the volume part that will be reconstructed.
+	--ymax 0..1 		Optional. The upper y bound of the volume part that will be reconstructed.
+	--zmin 0..1 		Optional. The lower z bound of the volume part that will be reconstructed.
+	--zmax 0..1 		Optional. The upper z bound of the volume part that will be reconstructed.
 	-h 					Displays help. Long: --help
+
+===================================================== Contact ======================================================
+
+If you wish to contact the author, please write to the e-mail address bastian.weber@uni-weimar.de.
