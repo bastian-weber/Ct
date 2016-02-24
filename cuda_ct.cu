@@ -137,6 +137,8 @@ namespace ct {
 				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
+			//if something went wrong try to deallocate memory
+			if (!success) cudaFree(ptr.ptr);
 			return ptr;
 		}
 
