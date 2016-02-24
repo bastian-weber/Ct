@@ -796,7 +796,7 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream stream, bool& success) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream& stream, bool& success) const {
 		success = true;
 		cv::cuda::GpuMat tmp1;
 		cv::cuda::GpuMat tmp2;
@@ -808,7 +808,7 @@ namespace ct {
 		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
 		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
-		ct::cuda::applyFeldkampWeightFiltering(image, SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
 		return image;
 	}
@@ -946,8 +946,8 @@ namespace ct {
 		image = this->sinogram[0].getImage();
 		cv::cuda::Stream gpuPreprocessingStream;
 		try {
-			gpuPrefetchedImage.upload(image);
-			this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+			gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+			gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 			gpuPreprocessingStream.waitForCompletion();
 		} catch (...) {
 			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
