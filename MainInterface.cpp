@@ -500,6 +500,8 @@ namespace ct {
 		this->progressBar->setVisible(true);
 		this->stopButton->setVisible(true);
 		this->stopButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(false);
+		this->cudaSettingsButton->setEnabled(false);
 		this->imageView->setFocus();
 	}
 
@@ -526,6 +528,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->browseButton->setFocus();
 	}
 
@@ -554,6 +558,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->loadButton->setFocus();
 	}
 
@@ -578,6 +584,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(true);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
@@ -602,6 +610,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(false);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
+		this->cudaCheckBox->setEnabled(true);
+		this->cudaSettingsButton->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
