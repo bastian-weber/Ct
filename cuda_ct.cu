@@ -45,10 +45,10 @@ namespace ct {
 
 		__device__ float sheppLoganWindowFilter(float n, float N) {
 			if (n == 0) {
-				return 0;
+				return 0.0f;
 			} else {
 				float rl = ramLakWindowFilter(n, N);
-				return (rl)* (sin(rl*0.5*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
+				return (rl)* (sin(rl*0.5f*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
 			}
 
 		}
