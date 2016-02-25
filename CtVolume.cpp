@@ -353,6 +353,9 @@ namespace ct {
 	void CtVolume::reconstructVolume() {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 
+		//default error message
+		this->lastErrorMessage = "An error during the reconstruction occured.";
+
 		this->stopActiveProcess = false;
 		if (this->sinogram.size() > 0) {
 			//clear potential old volume
@@ -417,7 +420,15 @@ namespace ct {
 				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
 			} else {
 				this->volume.clear();
-
+				if (this->stopActiveProcess) {
+					//user interrupted
+					std::cout << std::endl << "User interrupted. Stopping." << std::endl;
+					if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
+				} else {
+					//there was an error
+					std::cout << std::endl << this->lastErrorMessage << std::endl;
+					if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(this->lastErrorMessage.c_str())));
+				}
 			}
 		} else {
 			std::cout << "Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first." << std::endl;
@@ -839,8 +850,6 @@ namespace ct {
 
 		for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 			if (this->stopActiveProcess) {
-				std::cout << std::endl << "User interrupted. Stopping." << std::endl;
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
 				return false;
 			}
 			//output percentage
@@ -862,9 +871,7 @@ namespace ct {
 			}
 			//check if the image is good
 			if (!image.data) {
-				std::string msg = "The image " + this->sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
-				std::cout << std::endl << msg << std::endl;
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(msg.c_str())));
+				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				return false;
 			}
 			//copy some member variables to local variables, performance is better this way
@@ -958,14 +965,12 @@ namespace ct {
 			gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 			gpuPreprocessingStream.waitForCompletion();
 		} catch (...) {
-			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+			this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 			stopCudaThreads = true;
 			return false;
 		}
 		if (!success) {
-			this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-			std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+			this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 			stopCudaThreads = true;
 			return false;
 		}
@@ -975,8 +980,7 @@ namespace ct {
 
 		if (sliceCnt < 1) {
 			//too little memory
-			this->lastCudaErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
-			std::cout << this->lastCudaErrorMessage << std::endl;
+			this->lastErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
 			//stop also the other cuda threads
 			stopCudaThreads = true;
 			return false;
@@ -995,8 +999,7 @@ namespace ct {
 			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
 
 			if (!success) {
-				this->lastCudaErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
-				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
 				stopCudaThreads = true;
 				return false;
 			}
@@ -1005,7 +1008,6 @@ namespace ct {
 
 				//if user interrupts
 				if (this->stopActiveProcess) {
-					std::cout << std::endl << "User interrupted. Stopping." << std::endl;
 					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 					return false;
 				}
@@ -1059,11 +1061,10 @@ namespace ct {
 											  success);
 
 				if (!success) {
-					this->lastCudaErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+					this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
 					stopCudaThreads = true;
 					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-					std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+					if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 					return false;
 				}
 
@@ -1071,11 +1072,10 @@ namespace ct {
 				if (projection < this->sinogram.size() - 1) {
 					image = this->sinogram[projection + 1].getImage();
 					if (!image.data) {
-						this->lastCudaErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+						this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 						return false;
 					}
 					try {
@@ -1083,19 +1083,17 @@ namespace ct {
 						gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
 						gpuPreprocessingStream.waitForCompletion();
 					} catch (...) {
-						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 						return false;
 					}
 					if (!success) {
-						this->lastCudaErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 						stopCudaThreads = true;
 						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 						return false;
 					}
 				}
@@ -1105,11 +1103,10 @@ namespace ct {
 			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
 
 			if (!success) {
-				this->lastCudaErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
+				this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
 				stopCudaThreads = true;
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-				if (!success) this->lastCudaErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 				return false;
 			}
 
@@ -1120,8 +1117,7 @@ namespace ct {
 			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 
 			if (!success) {
-				this->lastCudaErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
-				std::cout << std::endl << this->lastCudaErrorMessage << std::endl;
+				this->lastErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
 				stopCudaThreads = true;
 				return false;
 			}
@@ -1139,8 +1135,6 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-		//default error message
-		this->lastCudaErrorMessage = "An error during the CUDA reconstruction occured.";
 
 		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
@@ -1163,14 +1157,6 @@ namespace ct {
 		bool result = true;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
-		}
-
-		if (!result) {
-			if (this->stopActiveProcess) {
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::interrupted()));
-			} else {
-				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(this->lastCudaErrorMessage.c_str())));
-			}
 		}
 
 		return result;

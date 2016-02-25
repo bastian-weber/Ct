@@ -236,7 +236,7 @@ namespace ct {
 		std::map<int, double> cudaThreadProgress;							//for keeping track of the progress on multithread CUDA execution
 		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently
 		mutable std::atomic<bool> stopCudaThreads{ false };					//this will be set to true if all cuda threads shall be stopped
-		std::string lastCudaErrorMessage;									//if a cuda error in one of the threads occurs, it will be saved here
+		std::string lastErrorMessage;										//if an error in one of the threads occurs, it will be saved here
 
 		//variables for precomputed parts of coordinate transformations
 		double worldToVolumeXPrecomputed;
