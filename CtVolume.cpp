@@ -936,201 +936,215 @@ namespace ct {
 
 	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
 
-		cudaSetDevice(deviceId);
-		//for cuda error handling
-		bool success;
-
-		//precomputing some values
-		double imageLowerBoundU = this->matToImageU(0);
-		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
-		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
-		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
-		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
-		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
-		double imageUpperBoundV = this->matToImageV(0);
-		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
-
-		const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
-
-		//first upload two images, so the memory used will be taken into consideration
-		//prepare and upload image 1
-		cv::Mat image;
-		cv::cuda::GpuMat gpuPrefetchedImage;
-		cv::cuda::GpuMat gpuCurrentImage;
-		image = this->sinogram[0].getImage();
-		cv::cuda::Stream gpuPreprocessingStream;
 		try {
-			gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-			gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-			gpuPreprocessingStream.waitForCompletion();
-		} catch (...) {
-			this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-			stopCudaThreads = true;
-			return false;
-		}
-		if (!success) {
-			this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-			stopCudaThreads = true;
-			return false;
-		}
 
-		size_t sliceCnt = getMaxChunkSize();
-		size_t currentSlice = threadZMin;
+			cudaSetDevice(deviceId);
+			//for cuda error handling
+			bool success;
 
-		if (sliceCnt < 1) {
-			//too little memory
-			this->lastErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
-			//stop also the other cuda threads
-			stopCudaThreads = true;
-			return false;
-		}
+			//precomputing some values
+			double imageLowerBoundU = this->matToImageU(0);
+			//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
+			//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
+			//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
+			double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+			//inversed because of inversed v axis in mat/image coordinate system
+			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+			double imageUpperBoundV = this->matToImageV(0);
+			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
-		while (currentSlice < threadZMax) {
+			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
 
-			size_t const lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
-			size_t const xDimension = this->xMax;
-			size_t const yDimension = this->yMax;
-			size_t const zDimension = lastSlice - currentSlice;
+			//first upload two images, so the memory used will be taken into consideration
+			//prepare and upload image 1
+			cv::Mat image;
+			cv::cuda::GpuMat gpuPrefetchedImage;
+			cv::cuda::GpuMat gpuCurrentImage;
+			image = this->sinogram[0].getImage();
+			try {
+				cv::cuda::Stream gpuPreprocessingStream;
+			} catch (...) {
 
-			std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
-
-			//allocate volume part memory on gpu
-			cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
-
+			}
+			try {
+				gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+				gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+				gpuPreprocessingStream.waitForCompletion();
+			} catch (...) {
+				this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+				stopCudaThreads = true;
+				return false;
+			}
 			if (!success) {
-				this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 				stopCudaThreads = true;
 				return false;
 			}
 
-			for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+			size_t sliceCnt = getMaxChunkSize();
+			size_t currentSlice = threadZMin;
 
-				//if user interrupts
-				if (this->stopActiveProcess) {
-					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					return false;
-				}
+			if (sliceCnt < 1) {
+				//too little memory
+				this->lastErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
+				//stop also the other cuda threads
+				stopCudaThreads = true;
+				return false;
+			}
 
-				//if this thread shall be stopped (probably because an error in another thread occured)
-				if (this->stopCudaThreads) {
-					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-					return false;
-				}
+			while (currentSlice < threadZMax) {
 
-				//emit progress update
-				if (projection % progressUpdateRate == 0) {
-					double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
-					double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
-					double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
-					emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
-				}
+				size_t const lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+				size_t const xDimension = this->xMax;
+				size_t const yDimension = this->yMax;
+				size_t const zDimension = lastSlice - currentSlice;
 
-				{
-					cv::cuda::GpuMat tmp = gpuCurrentImage;
-					gpuCurrentImage = gpuPrefetchedImage;
-					gpuPrefetchedImage = tmp;
-				}
+				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
-				double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-				double sine = sin(beta_rad);
-				double cosine = cos(beta_rad);
-
-				//start reconstruction with current image
-				ct::cuda::startReconstruction(gpuCurrentImage,
-											  gpuVolumePtr,
-											  xDimension,
-											  yDimension,
-											  zDimension,
-											  currentSlice,
-											  radiusSquared,
-											  sine,
-											  cosine,
-											  this->sinogram[projection].heightOffset,
-											  this->uOffset,
-											  this->SD,
-											  imageLowerBoundU,
-											  imageUpperBoundU,
-											  imageLowerBoundV,
-											  imageUpperBoundV,
-											  this->volumeToWorldXPrecomputed,
-											  this->volumeToWorldYPrecomputed,
-											  this->volumeToWorldZPrecomputed,
-											  this->imageToMatUPrecomputed,
-											  this->imageToMatVPrecomputed,
-											  success);
+				//allocate volume part memory on gpu
+				cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
 
 				if (!success) {
-					this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+					this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+					stopCudaThreads = true;
+					return false;
+				}
+
+				for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+
+					//if user interrupts
+					if (this->stopActiveProcess) {
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						return false;
+					}
+
+					//if this thread shall be stopped (probably because an error in another thread occured)
+					if (this->stopCudaThreads) {
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						return false;
+					}
+
+					//emit progress update
+					if (projection % progressUpdateRate == 0) {
+						double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
+						double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+						double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+					}
+
+					{
+						cv::cuda::GpuMat tmp = gpuCurrentImage;
+						gpuCurrentImage = gpuPrefetchedImage;
+						gpuPrefetchedImage = tmp;
+					}
+
+					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+					double sine = sin(beta_rad);
+					double cosine = cos(beta_rad);
+
+					//start reconstruction with current image
+					ct::cuda::startReconstruction(gpuCurrentImage,
+												  gpuVolumePtr,
+												  xDimension,
+												  yDimension,
+												  zDimension,
+												  currentSlice,
+												  radiusSquared,
+												  sine,
+												  cosine,
+												  this->sinogram[projection].heightOffset,
+												  this->uOffset,
+												  this->SD,
+												  imageLowerBoundU,
+												  imageUpperBoundU,
+												  imageLowerBoundV,
+												  imageUpperBoundV,
+												  this->volumeToWorldXPrecomputed,
+												  this->volumeToWorldYPrecomputed,
+												  this->volumeToWorldZPrecomputed,
+												  this->imageToMatUPrecomputed,
+												  this->imageToMatVPrecomputed,
+												  success);
+
+					if (!success) {
+						this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+
+					//prepare and upload next image
+					if (projection < this->sinogram.size() - 1) {
+						image = this->sinogram[projection + 1].getImage();
+						if (!image.data) {
+							this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+							stopCudaThreads = true;
+							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+							return false;
+						}
+						try {
+							gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+							gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+							gpuPreprocessingStream.waitForCompletion();
+						} catch (...) {
+							this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
+							stopCudaThreads = true;
+							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+							return false;
+						}
+						if (!success) {
+							this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+							stopCudaThreads = true;
+							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+							return false;
+						}
+					}
+				}
+
+				//donload the reconstructed volume part
+				std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
+
+				if (!success) {
+					this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
 					stopCudaThreads = true;
 					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 					if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 					return false;
 				}
 
-				//prepare and upload next image
-				if (projection < this->sinogram.size() - 1) {
-					image = this->sinogram[projection + 1].getImage();
-					if (!image.data) {
-						this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
-						stopCudaThreads = true;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						return false;
-					}
-					try {
-						gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-						gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-						gpuPreprocessingStream.waitForCompletion();
-					} catch (...) {
-						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
-						stopCudaThreads = true;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						return false;
-					}
-					if (!success) {
-						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-						stopCudaThreads = true;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						return false;
-					}
-				}
-			}
+				//copy volume part to vector
+				this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
 
-			//donload the reconstructed volume part
-			std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
-
-			if (!success) {
-				this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
-				stopCudaThreads = true;
+				//free volume part memory on gpu
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-				if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-				return false;
+
+				if (!success) {
+					this->lastErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
+					stopCudaThreads = true;
+					return false;
+				}
+
+				currentSlice += sliceCnt;
 			}
 
-			//copy volume part to vector
-			this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
+			std::cout << std::endl;
+			std::cout << "GPU" << deviceId << " finished." << std::endl;
 
-			//free volume part memory on gpu
-			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+			emit(this->cudaThreadProgressUpdate(1, deviceId, true));
 
-			if (!success) {
-				this->lastErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
-				stopCudaThreads = true;
-				return false;
-			}
+			return true;
 
-			currentSlice += sliceCnt;
+		} catch (cv::Exception& e) {
+			this->lastErrorMessage = std::string("An OpenCV error occured during the reconstruction: ") + e.what();
+			return false;
+		} catch (...) {
+			this->lastErrorMessage = "An unidentified error occured during the CUDA reconstruction.";
+			return false;
 		}
-
-		std::cout << std::endl;
-		std::cout << "GPU" << deviceId << " finished." << std::endl;
-
-		emit(this->cudaThreadProgressUpdate(1, deviceId, true));
-
-		return true;
 	}
 
 	bool CtVolume::launchCudaThreads() {
