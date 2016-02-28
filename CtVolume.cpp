@@ -961,11 +961,7 @@ namespace ct {
 			cv::cuda::GpuMat gpuPrefetchedImage;
 			cv::cuda::GpuMat gpuCurrentImage;
 			image = this->sinogram[0].getImage();
-			try {
-				cv::cuda::Stream gpuPreprocessingStream;
-			} catch (...) {
-
-			}
+			cv::cuda::Stream gpuPreprocessingStream;
 			try {
 				gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
 				gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);

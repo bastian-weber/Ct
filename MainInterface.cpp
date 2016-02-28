@@ -528,8 +528,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(true);
-		this->cudaSettingsButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
+		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
 		this->browseButton->setFocus();
 	}
 
@@ -558,8 +558,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(true);
-		this->cudaSettingsButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
+		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
 		this->loadButton->setFocus();
 	}
 
@@ -584,8 +584,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(true);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(true);
-		this->cudaSettingsButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
+		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
 		this->imageView->setFocus();
 	}
 
@@ -610,8 +610,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(false);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(true);
-		this->cudaSettingsButton->setEnabled(true);
+		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
+		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
 		this->imageView->setFocus();
 	}
 
