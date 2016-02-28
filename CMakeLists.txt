@@ -31,9 +31,15 @@ endif()
 #use dynamic linking
 set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 find_package(CUDA)
-list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_20,code=compute_20")
-list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30")
-list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=compute_52")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_20,code=sm_20")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=sm_30")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_32,code=sm_32")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_35,code=sm_35")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_50,code=sm_50")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=sm_52")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_53,code=sm_53")
+list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_53,code=compute_53")
+
 list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 
 #OpenCV
@@ -125,7 +131,13 @@ if(DEFINED OPENCV_ROOT_FOUND)
 		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
 			#only 64bit dlls are copied, might not work with 32bit projects
 			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
 			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
 		endif()	
 
 	endif(MSVC)
