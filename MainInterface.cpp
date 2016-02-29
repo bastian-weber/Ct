@@ -8,14 +8,14 @@ namespace ct {
 		setAcceptDrops(true);
 
 		this->volume.setEmitSignals(true);
-		qRegisterMetaType<CtVolume::CompletionStatus>("CtVolume::CompletionStatus");
+		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
-		QObject::connect(&this->volume, SIGNAL(loadingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToLoadCompletion(CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");
 		QObject::connect(&this->volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
-		QObject::connect(&this->volume, SIGNAL(reconstructionFinished(cv::Mat, CtVolume::CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(reconstructionFinished(cv::Mat, CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CompletionStatus)));
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
-		QObject::connect(&this->volume, SIGNAL(savingFinished(CtVolume::CompletionStatus)), this, SLOT(reactToSaveCompletion(CtVolume::CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SLOT(reactToSaveCompletion(CompletionStatus)));
 
 		this->inputFileEdit = new QLineEdit;
 		this->inputFileEdit->setPlaceholderText("Configuration File");
@@ -958,7 +958,7 @@ namespace ct {
 #endif
 	}
 
-	void MainInterface::reactToLoadCompletion(CtVolume::CompletionStatus status) {
+	void MainInterface::reactToLoadCompletion(CompletionStatus status) {
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
@@ -1010,7 +1010,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status) {
+	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CompletionStatus status) {
 		this->reconstructionActive = false;
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
@@ -1050,7 +1050,7 @@ namespace ct {
 #endif
 	}
 
-	void MainInterface::reactToSaveCompletion(CtVolume::CompletionStatus status) {
+	void MainInterface::reactToSaveCompletion(CompletionStatus status) {
 		this->savingActive = false;
 		this->progressBar->reset();
 #ifdef Q_OS_WIN

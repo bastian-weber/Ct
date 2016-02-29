@@ -362,7 +362,8 @@ namespace ct {
 			this->volume.clear();
 			try {
 			//resize the volume to the correct size
-				this->volume = std::vector<std::vector<std::vector<float>>>(this->xMax, std::vector<std::vector<float>>(this->yMax, std::vector<float>(this->zMax, 0)));
+				this->volume.reinitialise(this->xMax, this->yMax, this->zMax, 0);
+				this->volume.saveToBinaryFile("sy");
 			} catch (...) {
 				std::cout << "The memory allocation for the volume failed. Maybe there is not enought free RAM." << std::endl;
 				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("The memory allocation for the volume failed. Maybe there is not enought free RAM.")));
