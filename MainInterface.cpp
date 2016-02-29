@@ -644,7 +644,7 @@ namespace ct {
 	void MainInterface::setSlice(size_t index) {
 		if (index >= 0 && index < this->volume.getCrossSectionSize()) {
 			this->volume.setCrossSectionIndex(index);
-			cv::Mat crossSection = this->volume.getVolumeCrossSection(index);
+			cv::Mat crossSection = this->volume.getVolumeCrossSection(this->volume.getCrossSectionAxis(), index);
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			this->imageView->setImage(normalized);

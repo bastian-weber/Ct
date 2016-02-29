@@ -176,58 +176,8 @@ namespace ct {
 		return this->SD;
 	}
 
-	cv::Mat CtVolume::getVolumeCrossSection(size_t index) const {
-		if (this->volume.size() == 0) return cv::Mat();
-		//copy to local variable because member variable might change during execution
-		Axis axis = this->crossSectionAxis;
-		if (index >= 0 && (axis == Axis::X && index < this->xMax) || (axis == Axis::Y && index < this->yMax) || (axis == Axis::Z && index < this->zMax)) {
-			if (this->volume.size() > 0 && this->volume[0].size() > 0 && this->volume[0][0].size() > 0) {
-				size_t uSize;
-				size_t vSize;
-				if (axis == Axis::X) {
-					uSize = this->yMax;
-					vSize = this->zMax;
-				} else if (axis == Axis::Y) {
-					uSize = this->xMax;
-					vSize = this->zMax;
-				} else {
-					uSize = this->xMax;
-					vSize = this->yMax;
-				}
-
-				cv::Mat result(vSize, uSize, CV_32FC1);
-				float* ptr;
-				if (axis == Axis::X) {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->volume[index][column][result.rows - 1 - row];
-						}
-					}
-				} else if (axis == Axis::Y) {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->volume[column][index][result.rows - 1 - row];
-						}
-					}
-				} else {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = this->volume[column][row][index];
-						}
-					}
-				}
-				return result;
-			}
-			return cv::Mat();
-		} else {
-			throw std::out_of_range("Index out of bounds.");
-		}
+	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
+		return this->volume.getVolumeCrossSection(axis, index);
 	}
 
 	void CtVolume::setCrossSectionIndex(size_t index) {
@@ -421,7 +371,7 @@ namespace ct {
 				//mesure time
 				clock_t end = clock();
 				std::cout << std::endl << "Volume successfully reconstructed (" << (double)(end - start) / CLOCKS_PER_SEC << "s)" << std::endl;
-				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionIndex)));
+				if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
 			} else {
 				this->volume.clear();
 				if (this->stopActiveProcess) {
@@ -824,7 +774,7 @@ namespace ct {
 			//output percentage
 			double percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
-			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionIndex)));
+			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
 			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 			double sine = sin(beta_rad);
 			double cosine = cos(beta_rad);
@@ -1287,7 +1237,7 @@ namespace ct {
 		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
 		if (this->emitSignals) {
 			if (emitCrossSection) {
-				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionIndex)));
+				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
 			} else {
 				emit(reconstructionProgress(totalProgress, cv::Mat()));
 			}

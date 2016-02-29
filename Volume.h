@@ -5,12 +5,21 @@
 
 #include <atomic>
 
+//OpenCV
+#include <opencv2/core/core.hpp>				//core functionality of OpenCV
+
 //Qt
 #include <QtCore/QtCore>
 
 #include "CompletionStatus.h"
 
 namespace ct {
+
+	enum class Axis {
+		X,
+		Y,
+		Z
+	};
 
 	//base class for signals (signals do not work in template class)
 	class VolumeSignalsSlots : public QObject {
@@ -26,13 +35,22 @@ namespace ct {
 		Volume() = default;
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
 		Volume& operator=(Volume const& other) = delete;
-		void reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
-		bool saveToBinaryFile(std::string const& filename) const;
-		void stop();
-		void setEmitSignals(bool value);
+		void reinitialise(size_t xSize,											//resizes the volume to the given dimensions and sets all elements to the given value
+						  size_t ySize, 
+						  size_t zSize, 
+						  T defaultValue = 0);
+		bool saveToBinaryFile(std::string const& filename) const;				//saves the volume to a binary file with the given filename
+		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
+		void stop();															//stops the saving function
+		//getters
 		bool getEmitSignals() const;
+		size_t xSize() const;
+		size_t ySize() const;
+		size_t zSize() const;
+		//setters
+		void setEmitSignals(bool value);
 	private:
-		bool emitSignals = true;											//if true the object emits qt signals in certain functions
+		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
 
@@ -54,8 +72,29 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline bool Volume<T>::getEmitSignals() const {
+	bool Volume<T>::getEmitSignals() const {
 		return this->emitSignals;
+	}
+
+	template<typename T>
+	size_t Volume<T>::xSize() const {
+		return this->size();
+	}
+
+	template<typename T>
+	size_t Volume<T>::ySize() const {
+		if (this->size() != 0) {
+			return (*this)[0].size();
+		}
+		return 0;
+	}
+
+	template<typename T>
+	size_t Volume<T>::zSize() const {
+		if (this->size() != 0 && (*this)[0].size()) {
+			return (*this)[0][0].size();
+		}
+		return 0;
 	}
 
 	template <typename T>
@@ -105,6 +144,62 @@ namespace ct {
 			if (this->emitSignals) emit(savingFinished());
 		}
 		return true;
+	}
+
+	template<typename T>
+	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index) const {
+		if (this->size() == 0) return cv::Mat();
+		size_t xMax = this->size();
+		size_t yMax = (*this)[0].size();
+		size_t zMax = (*this)[0][0].size();
+		if (index >= 0 && ((axis == Axis::X && index < xMax) || (axis == Axis::Y && index < yMax) || (axis == Axis::Z && index < zMax))) {
+			if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
+				size_t uSize;
+				size_t vSize;
+				if (axis == Axis::X) {
+					uSize = yMax;
+					vSize = zMax;
+				} else if (axis == Axis::Y) {
+					uSize = xMax;
+					vSize = zMax;
+				} else {
+					uSize = xMax;
+					vSize = yMax;
+				}
+
+				cv::Mat result(vSize, uSize, CV_32FC1);
+				float* ptr;
+				if (axis == Axis::X) {
+#pragma omp parallel for private(ptr)
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = static_cast<float>((*this)[index][column][result.rows - 1 - row]);
+						}
+					}
+				} else if (axis == Axis::Y) {
+#pragma omp parallel for private(ptr)
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = static_cast<float>((*this)[column][index][result.rows - 1 - row]);
+						}
+					}
+				} else {
+#pragma omp parallel for private(ptr)
+					for (int row = 0; row < result.rows; ++row) {
+						ptr = result.ptr<float>(row);
+						for (int column = 0; column < result.cols; ++column) {
+							ptr[column] = static_cast<float>((*this)[column][row][index]);
+						}
+					}
+				}
+				return result;
+			}
+			return cv::Mat();
+		} else {
+			throw std::out_of_range("Index out of bounds.");
+		}
 	}
 
 	template<typename T>
