@@ -136,11 +136,11 @@ namespace ct {
 		void reactToStopButtonClick();
 		void reactToBatchFileAction();
 		void reactToLoadProgressUpdate(double percentage);
-		void reactToLoadCompletion(CtVolume::CompletionStatus status);
+		void reactToLoadCompletion(CompletionStatus status);
 		void reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection);
-		void reactToReconstructionCompletion(cv::Mat crossSection, CtVolume::CompletionStatus status);
+		void reactToReconstructionCompletion(cv::Mat crossSection, CompletionStatus status);
 		void reactToSaveProgressUpdate(double percentage);
-		void reactToSaveCompletion(CtVolume::CompletionStatus status);
+		void reactToSaveCompletion(CompletionStatus status);
 		void askForDeletionOfIncompleteFile();
 	};
 

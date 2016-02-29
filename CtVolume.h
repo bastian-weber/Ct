@@ -28,6 +28,7 @@
 #include <cuda_runtime.h>
 
 #include "Volume.h"
+#include "CompletionStatus.h"
 #include "cuda_ct.h"
 
 //undefines some macros of VC++ that cause naming conflicts
@@ -112,17 +113,6 @@ namespace ct {
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
-	
-		struct CompletionStatus {
-			CompletionStatus() : successful(true), userInterrupted(false) { };
-			CompletionStatus(bool successful, bool userInterrupted, QString const& errorMessage = QString()) : successful(successful), userInterrupted(userInterrupted), errorMessage(errorMessage) { }
-			static CompletionStatus success() { return CompletionStatus(true, false); }
-			static CompletionStatus interrupted() { return CompletionStatus(false, true); }
-			static CompletionStatus error(QString const& errorMessage) { return CompletionStatus(false, false, errorMessage); }
-			bool successful;
-			bool userInterrupted;
-			QString errorMessage;
-		};
 
 	private:
 
@@ -227,7 +217,7 @@ namespace ct {
 		double zFrom_float = 0, zTo_float = 1;
 
 		//variables that are only internally used
-		std::vector<std::vector<std::vector<float>>> volume;				//holds the reconstructed volume
+		Volume<float> volume;												//holds the reconstructed volume
 		size_t xFrom = 0, xTo = 0;											//the volume ROI in actual volume coordinates, calculated from the float ROI
 		size_t yFrom = 0, yTo = 0;
 		size_t zFrom = 0, zTo = 0;
@@ -253,11 +243,11 @@ namespace ct {
 		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:
 		void loadingProgress(double percentage) const;
-		void loadingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
+		void loadingFinished(CompletionStatus status = CompletionStatus::success()) const;
 		void reconstructionProgress(double percentage, cv::Mat crossSection) const;
-		void reconstructionFinished(cv::Mat crossSection, CtVolume::CompletionStatus status = CompletionStatus::success()) const;
+		void reconstructionFinished(cv::Mat crossSection, CompletionStatus status = CompletionStatus::success()) const;
 		void savingProgress(double percentage) const;
-		void savingFinished(CtVolume::CompletionStatus status = CompletionStatus::success()) const;
+		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
 		void cudaThreadProgressUpdate(double percentage, int deviceId, bool emitCrossSection);
 	};
 
