@@ -29,11 +29,11 @@ namespace ct {
 
 	//constructor
 	CtVolume::CtVolume() : activeCudaDevices({ 0 }) {
-		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+		this->initialise();
 	}
 
 	CtVolume::CtVolume(std::string csvFile) : activeCudaDevices({ 0 }) {
-		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+		this->initialise();
 		this->sinogramFromImages(csvFile);
 	}
 
@@ -530,6 +530,12 @@ namespace ct {
 	}
 
 	//============================================== PRIVATE ==============================================\\
+
+	void CtVolume::initialise() {
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
+		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
+	}
 
 	void CtVolume::readParameters(std::ifstream& stream, std::string& path, std::string& rotationDirection) {
 		//variables for the values that shall be read
