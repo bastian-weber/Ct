@@ -53,12 +53,6 @@ namespace ct {
 		HANN
 	};
 
-	enum class Axis {
-		X,
-		Y,
-		Z
-	};
-
 	//The actual reconstruction class
 	class CtVolume : public QObject {
 		Q_OBJECT
@@ -83,7 +77,7 @@ namespace ct {
 		double getPixelSize() const;
 		double getSO() const;
 		double getSD() const;
-		cv::Mat getVolumeCrossSection(size_t index) const;
+		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
