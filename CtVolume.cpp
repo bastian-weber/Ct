@@ -265,6 +265,10 @@ namespace ct {
 		return this->crossSectionAxis;
 	}
 
+	bool CtVolume::getEmitSignals() const {
+		return this->emitSignals;
+	}
+
 	bool CtVolume::getUseCuda() const {
 		return this->useCuda;
 	}
@@ -363,7 +367,6 @@ namespace ct {
 			try {
 			//resize the volume to the correct size
 				this->volume.reinitialise(this->xMax, this->yMax, this->zMax, 0);
-				this->volume.saveToBinaryFile("sy");
 			} catch (...) {
 				std::cout << "The memory allocation for the volume failed. Maybe there is not enought free RAM." << std::endl;
 				if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("The memory allocation for the volume failed. Maybe there is not enought free RAM.")));
@@ -440,98 +443,57 @@ namespace ct {
 	void CtVolume::saveVolumeToBinaryFile(std::string filename) const {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
-		if (this->volume.size() > 0 && this->volume[0].size() > 0 && this->volume[0][0].size() > 0) {
-			{
-				//write binary file
-				QFile file(filename.c_str());
-				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-					if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
-					return;
-				}
-				QDataStream out(&file);
-				out.setFloatingPointPrecision(QDataStream::SinglePrecision);
-				out.setByteOrder(QDataStream::LittleEndian);
-				//iterate through the volume
-				for (int x = 0; x < this->xMax; ++x) {
-					if (this->stopActiveProcess) break;
-					if (this->emitSignals) {
-						double percentage = floor(double(x) / double(this->volume.size()) * 100 + 0.5);
-						emit(savingProgress(percentage));
-					}
-					for (int y = 0; y < this->yMax; ++y) {
-						for (int z = 0; z < this->zMax; ++z) {
-							//save one float of data
-							out << this->volume[x][y][z];
-						}
-					}
-				}
-				file.close();
-			}
-			{
-				//write information file
-				QFileInfo fileInfo(filename.c_str());
-				QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
-				//to circumvent naming conflicts with existing files
-				if (QFileInfo(infoFileName).exists()) {
-					unsigned int number = 1;
-					do {
-						infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(QString::number(number)).append(".txt"));
-						++number;
-					} while (QFileInfo(infoFileName).exists());
-				}
-				QFile file(infoFileName);
-				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-					std::cout << "Could not write the info file." << std::endl;
-					if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
-					return;
-				}
-				QTextStream out(&file);
-				out << fileInfo.fileName() << endl << endl;
-				out << "[Image dimensions]" << endl;
-				out << "U resolution:\t" << this->imageWidth << endl;
-				out << "V resolution:\t" << this->imageHeight << endl << endl;
-				out << "[Reconstruction parameters]" << endl;
-				out << "SD:\t\t\t\t" << this->SD << endl;
-				out << "Pixel size:\t\t" << this->pixelSize << endl;
-				out << "U offset:\t\t" << this->uOffset << endl;
-				out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-				out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-				out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
-				out << "[Volume dimensions]" << endl;
-				out << "X size:\t\t\t" << this->xMax << endl;
-				out << "Y size:\t\t\t" << this->yMax << endl;
-				out << "Z size:\t\t\t" << this->zMax << endl << endl;
-				out << "[Data format]" << endl;
-				out << "Data type:\t\t32bit IEEE 754 float" << endl;
-				out << "Endianness:\t\tLittle Endian" << endl;
-				out << "Index order:\tZ fastest";
-				file.close();
-			}
-			if (this->stopActiveProcess) {
-				std::cout << "User interrupted. Stopping." << std::endl;
-				if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
-				return;
-			}
-			std::cout << "Volume successfully saved." << std::endl;
-			if (this->emitSignals) emit(savingFinished());
-		} else {
-			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
+
+		//write information file
+		QFileInfo fileInfo(filename.c_str());
+		QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
+		QFile file(infoFileName);
+		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+			std::cout << "Could not write the info file." << std::endl;
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
+			return;
 		}
+		QTextStream out(&file);
+		out << fileInfo.fileName() << endl << endl;
+		out << "[Image dimensions]" << endl;
+		out << "U resolution:\t" << this->imageWidth << endl;
+		out << "V resolution:\t" << this->imageHeight << endl << endl;
+		out << "[Reconstruction parameters]" << endl;
+		out << "SD:\t\t\t\t" << this->SD << endl;
+		out << "Pixel size:\t\t" << this->pixelSize << endl;
+		out << "U offset:\t\t" << this->uOffset << endl;
+		out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+		out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+		out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+		out << "[Volume dimensions]" << endl;
+		out << "X size:\t\t\t" << this->xMax << endl;
+		out << "Y size:\t\t\t" << this->yMax << endl;
+		out << "Z size:\t\t\t" << this->zMax << endl << endl;
+		out << "[Data format]" << endl;
+		out << "Data type:\t\t32bit IEEE 754 float" << endl;
+		out << "Endianness:\t\tLittle Endian" << endl;
+		out << "Index order:\tZ fastest";
+		file.close();
+
+		//write binary file
+		this->volume.saveToBinaryFile(filename);
+
 	}
 
 	void CtVolume::stop() {
 		this->stopActiveProcess = true;
+		this->volume.stop();
 	}
 
 	void CtVolume::setEmitSignals(bool value) {
 		this->emitSignals = value;
+		this->volume.setEmitSignals(value);
 	}
 
 	//============================================== PRIVATE ==============================================\\
 
 	void CtVolume::initialise() {
+		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
