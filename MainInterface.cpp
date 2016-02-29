@@ -8,7 +8,6 @@ namespace ct {
 		setAcceptDrops(true);
 
 		this->volume.setEmitSignals(true);
-		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");

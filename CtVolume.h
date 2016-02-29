@@ -130,6 +130,7 @@ namespace ct {
 		//=========================================== PRIVATE FUNCTIONS ===========================================\\
 		
 		//related to parsing of config file
+		void initialise();
 		void readParameters(std::ifstream& stream,
 							std::string& path,
 							std::string& rotationDirection);
