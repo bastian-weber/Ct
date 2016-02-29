@@ -27,7 +27,7 @@
 //CUDA
 #include <cuda_runtime.h>
 
-//CUDA functions
+#include "Volume.h"
 #include "cuda_ct.h"
 
 //undefines some macros of VC++ that cause naming conflicts
