@@ -87,6 +87,7 @@ namespace ct {
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
+		bool getEmitSignals() const;
 		bool getUseCuda() const;
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
@@ -206,7 +207,7 @@ namespace ct {
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
-		bool emitSignals = false;											//if true the object emits qt signals in certain functions
+		bool emitSignals = true;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
 		bool useCuda = true;												//enables or disables the use of cuda

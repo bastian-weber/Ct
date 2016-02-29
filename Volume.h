@@ -27,8 +27,12 @@ namespace ct {
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
 		Volume& operator=(Volume const& other) = delete;
 		void reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
-		bool saveToBinaryFile(std::string const& filename);
+		bool saveToBinaryFile(std::string const& filename) const;
+		void stop();
+		void setEmitSignals(bool value);
+		bool getEmitSignals() const;
 	private:
+		bool emitSignals = true;											//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
 
@@ -44,8 +48,18 @@ namespace ct {
 		this->resize(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue)));
 	}
 
+	template<typename T>
+	void Volume<T>::setEmitSignals(bool value) {
+		this->emitSignals = value;
+	}
+
+	template<typename T>
+	inline bool Volume<T>::getEmitSignals() const {
+		return this->emitSignals;
+	}
+
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(std::string const& filename) {
+	bool Volume<T>::saveToBinaryFile(std::string const& filename) const {
 		this->stopActiveProcess = false;
 		if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
 			{
@@ -53,7 +67,7 @@ namespace ct {
 				QFile file(filename.c_str());
 				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
 					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-					emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+					if(this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
 					return false;
 				}
 				QDataStream out(&file);
@@ -67,7 +81,7 @@ namespace ct {
 				for (int x = 0; x < this->size(); ++x) {
 					if (this->stopActiveProcess) break;
 					double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
-					emit(savingProgress(percentage));
+					if (this->emitSignals) emit(savingProgress(percentage));
 					for (int y = 0; y < (*this)[0].size(); ++y) {
 						for (int z = 0; z < (*this)[0][0].size(); ++z) {
 							//save one T of data
@@ -79,15 +93,23 @@ namespace ct {
 			}
 		} else {
 			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
 			return false;
 		}
 		if (this->stopActiveProcess) {
 			std::cout << "User interrupted. Stopping." << std::endl;
-			emit(savingFinished(CompletionStatus::interrupted()));
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 			return false;
+		} else {
+			std::cout << "Volume successfully saved." << std::endl;
+			if (this->emitSignals) emit(savingFinished());
 		}
 		return true;
+	}
+
+	template<typename T>
+	inline void Volume<T>::stop() {
+		this->stopActiveProcess = true;
 	}
 
 }

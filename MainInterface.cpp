@@ -8,6 +8,7 @@ namespace ct {
 		setAcceptDrops(true);
 
 		this->volume.setEmitSignals(true);
+		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");
@@ -704,7 +705,7 @@ namespace ct {
 		this->volume.setVolumeBounds(this->xFrom->value(), this->xTo->value(), this->yFrom->value(), this->yTo->value(), this->zFrom->value(), this->zTo->value());
 		this->volume.setFrequencyFilterType(type);
 		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
-		this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
+		if(this->cudaCheckBox->isChecked()) this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
 		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
 	}
 
@@ -1080,7 +1081,10 @@ namespace ct {
 		msgBox.setText(tr("The saving process was stopped. The file is probably unusable. Shall it be deleted?"));
 		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
 		if (QMessageBox::Yes == msgBox.exec()) {
+			QFileInfo fileInfo(this->savingPath);
+			QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
 			QFile::remove(this->savingPath);
+			QFile::remove(infoFileName);
 		}
 	}
 
