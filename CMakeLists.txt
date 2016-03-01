@@ -3,13 +3,13 @@ cmake_minimum_required (VERSION 3.0.2)
 #=======================================================================#
 
 #Opencv modules
-set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
+set(OPENCV_MODULES_CT "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
 set(OPENCV_MODULES_CTVIEWER "opencv_core")
 #Qt modules
-set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
+set(QT_MODULES_CT "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 set(QT_MODULES_CTVIEWER "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 #these modules will only be linked on windows
-set(QT_MODULES_CV_WIN "Qt5::WinExtras")
+set(QT_MODULES_CT_WIN "Qt5::WinExtras")
 set(QT_MODULES_CTVIEWER_WIN "Qt5::WinExtras")
 
 set(PROJECT_NAME Ct)
@@ -19,7 +19,7 @@ set(EXECUTABLE_NAME_2 "CtViewer")
 #=======================================================================#
 
 if(WIN32)
-	list(APPEND QT_MODULES_CV ${QT_MODULES_CV_WIN})
+	list(APPEND QT_MODULES_CT ${QT_MODULES_CT_WIN})
 	list(APPEND QT_MODULES_CTVIEWER ${QT_MODULES_CTVIEWER_WIN})
 endif()
 
@@ -60,7 +60,7 @@ list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 #OpenCV
 set(OpenCV_STATIC OFF)
 set(OPENCV_MODULES_ALL)
-list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CV} ${OPENCV_MODULES_CTVIEWER})
+list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CT} ${OPENCV_MODULES_CTVIEWER})
 list(REMOVE_DUPLICATES OPENCV_MODULES_ALL)
 set(OPENCV_FILES "OpenCVConfig.cmake")
 set(OPENCV_PATH_HINTS "." "./build" "./.." "./../.." "./../../.." "./share/OpenCV")
@@ -77,7 +77,7 @@ endif()
 
 #Qt
 set(QT_MODULES_ALL)
-list(APPEND QT_MODULES_ALL ${QT_MODULES_CV} ${QT_MODULES_CTVIEWER})
+list(APPEND QT_MODULES_ALL ${QT_MODULES_CT} ${QT_MODULES_CTVIEWER})
 list(REMOVE_DUPLICATES QT_MODULES_ALL)
 set(QT_FILES "lib/cmake/Qt5/Qt5Config.cmake")
 set(QT_PATH_HINTS "." "./../../.." "./../.." "./..")
@@ -139,7 +139,7 @@ if(DEFINED OPENCV_ROOT_FOUND)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
-	target_link_libraries(${EXECUTABLE_NAME_1} ${OPENCV_MODULES_CV})
+	target_link_libraries(${EXECUTABLE_NAME_1} ${OPENCV_MODULES_CT})
 	target_link_libraries(${EXECUTABLE_NAME_2} ${OPENCV_MODULES_CTVIEWER})
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
@@ -166,7 +166,7 @@ endif()
 
 IF(DEFINED QT_ROOT_FOUND)
 
-	target_link_libraries(${EXECUTABLE_NAME_1} ${QT_MODULES_CV} )
+	target_link_libraries(${EXECUTABLE_NAME_1} ${QT_MODULES_CT} )
 	target_link_libraries(${EXECUTABLE_NAME_2} ${QT_MODULES_CTVIEWER})
 
 	#copy the dlls
