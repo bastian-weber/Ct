@@ -110,10 +110,12 @@ namespace ct {
 					return false;
 				}
 				QDataStream out(&file);
-				if (std::is_same<T, double>::value || std::is_same<T, long double>::value) {
-					out.setFloatingPointPrecision(QDataStream::DoublePrecision);
-				} else {
-					out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+				if (std::is_floating_point<T>::value) {
+					if (sizeof(T) > 4) {
+						out.setFloatingPointPrecision(QDataStream::DoublePrecision);
+					} else {
+						out.setFloatingPointPrecision(QDataStream::SinglePrecision);
+					}
 				}
 				out.setByteOrder(QDataStream::LittleEndian);
 				//iterate through the volume
