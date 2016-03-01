@@ -4,27 +4,42 @@ cmake_minimum_required (VERSION 3.0.2)
 
 #Opencv modules
 set(OPENCV_MODULES_CV "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
+set(OPENCV_MODULES_CTVIEWER "opencv_core")
 #Qt modules
 set(QT_MODULES_CV "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
+set(QT_MODULES_CTVIEWER "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 #these modules will only be linked on windows
 set(QT_MODULES_CV_WIN "Qt5::WinExtras")
+set(QT_MODULES_CTVIEWER_WIN "Qt5::WinExtras")
+
+set(PROJECT_NAME Ct)
+set(EXECUTABLE_NAME_1 "Ct")
+set(EXECUTABLE_NAME_2 "CtViewer")
 
 #=======================================================================#
+
+if(WIN32)
+	list(APPEND QT_MODULES_CV ${QT_MODULES_CV_WIN})
+	list(APPEND QT_MODULES_CTVIEWER ${QT_MODULES_CTVIEWER_WIN})
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(Macros)
 
-project(Ct)
+project(${PROJECT_NAME})
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-file(GLOB SOURCEFILES "*.h"  "*.hpp"  "*.cpp"  "*.cu")
-
+file(GLOB SOURCEFILES_CT "./Ct/*.h"  "./Ct/*.hpp"  "./Ct/*.cpp"  "./Ct/*.cu")
+file(GLOB SOURCEFILES_CTVIEWER "./CtViewer/*.h"  "./CtViewer/*.hpp"  "./CtViewer/*.cpp"  "./CtViewer/*.cu")
+file(GLOB SOURCEFILES_COMMON "./Common/*.h"  "./Common/*.hpp"  "./Common/*.cpp"  "./Common/*.cu")
+list(APPEND SOURCEFILES_CT ${SOURCEFILES_COMMON})
+list(APPEND SOURCEFILES_CTVIEWER ${SOURCEFILES_COMMON})
 if(WIN32)
 	#add application icon ressource
-	list(APPEND SOURCEFILES "${CMAKE_CURRENT_SOURCE_DIR}/ct.rc")
+	list(APPEND SOURCEFILES_CT "${CMAKE_CURRENT_SOURCE_DIR}/Ct/ct.rc")
 endif()
 
 #CUDA
@@ -45,7 +60,7 @@ list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 #OpenCV
 set(OpenCV_STATIC OFF)
 set(OPENCV_MODULES_ALL)
-list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CV})
+list(APPEND OPENCV_MODULES_ALL ${OPENCV_MODULES_CV} ${OPENCV_MODULES_CTVIEWER})
 list(REMOVE_DUPLICATES OPENCV_MODULES_ALL)
 set(OPENCV_FILES "OpenCVConfig.cmake")
 set(OPENCV_PATH_HINTS "." "./build" "./.." "./../.." "./../../.." "./share/OpenCV")
@@ -62,10 +77,7 @@ endif()
 
 #Qt
 set(QT_MODULES_ALL)
-list(APPEND QT_MODULES_ALL ${QT_MODULES_CV})
-if(WIN32)
-	list(APPEND QT_MODULES_ALL ${QT_MODULES_CV_WIN})
-endif()
+list(APPEND QT_MODULES_ALL ${QT_MODULES_CV} ${QT_MODULES_CTVIEWER})
 list(REMOVE_DUPLICATES QT_MODULES_ALL)
 set(QT_FILES "lib/cmake/Qt5/Qt5Config.cmake")
 set(QT_PATH_HINTS "." "./../../.." "./../.." "./..")
@@ -87,12 +99,17 @@ endif()
 
 ################################################ Configuration ################################################
 
-cuda_add_executable(Ct ${SOURCEFILES})
+cuda_add_executable(${EXECUTABLE_NAME_1} ${SOURCEFILES_CT})
+add_executable(${EXECUTABLE_NAME_2} ${SOURCEFILES_CTVIEWER})
+
+include_directories("./Common")
 
 #set entry point in case windows subsystem is used and enable whole program optimization
 if(MSVC)
-	set_target_properties(Ct PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
-	set_target_properties(Ct PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
+	set_target_properties(${EXECUTABLE_NAME_1} PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
+	set_target_properties(${EXECUTABLE_NAME_1} PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
+	set_target_properties(${EXECUTABLE_NAME_2} PROPERTIES LINK_FLAGS "/ENTRY:\"mainCRTStartup\"")
+	set_target_properties(${EXECUTABLE_NAME_2} PROPERTIES LINK_FLAGS_RELEASE "/LTCG")
 	set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
 endif(MSVC)
 
@@ -111,7 +128,8 @@ elseif (UNIX)
 	add_custom_command(TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
 					   TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
 endif()
-add_dependencies(Ct COPY_RESSOURCES)
+add_dependencies(${EXECUTABLE_NAME_1} COPY_RESSOURCES)
+add_dependencies(${EXECUTABLE_NAME_2} COPY_RESSOURCES)
 
 #add lib files and copy dlls
 
@@ -121,7 +139,8 @@ if(DEFINED OPENCV_ROOT_FOUND)
 	if(MSVC)
 		message("Copying dlls, please wait.")
 	endif()
-	target_link_libraries(Ct ${OPENCV_MODULES_CV})
+	target_link_libraries(${EXECUTABLE_NAME_1} ${OPENCV_MODULES_CV})
+	target_link_libraries(${EXECUTABLE_NAME_2} ${OPENCV_MODULES_CTVIEWER})
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
@@ -147,7 +166,8 @@ endif()
 
 IF(DEFINED QT_ROOT_FOUND)
 
-	target_link_libraries(Ct ${QT_MODULES_ALL})
+	target_link_libraries(${EXECUTABLE_NAME_1} ${QT_MODULES_CV} )
+	target_link_libraries(${EXECUTABLE_NAME_2} ${QT_MODULES_CTVIEWER})
 
 	#copy the dlls
 	IF(MSVC)
