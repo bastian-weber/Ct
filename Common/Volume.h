@@ -41,6 +41,7 @@ namespace ct {
 						  T defaultValue = 0);
 		bool saveToBinaryFile(std::string const& filename) const;				//saves the volume to a binary file with the given filename
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
+		size_t getSizeAlongDimension(Axis axis) const;									//returns the size along the axis axis
 		void stop();															//stops the saving function
 		//getters
 		bool getEmitSignals() const;
@@ -205,7 +206,20 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline void Volume<T>::stop() {
+	size_t Volume<T>::getSizeAlongDimension(Axis axis) const {
+		if (this->size() != 0) {
+			if (axis == Axis::X) {
+				return this->xSize();
+			} else if (axis == Axis::Y) {
+				return this->ySize();
+			} else {
+				return this->zSize();
+			}
+		}
+	}
+
+	template<typename T>
+	void Volume<T>::stop() {
 		this->stopActiveProcess = true;
 	}
 
