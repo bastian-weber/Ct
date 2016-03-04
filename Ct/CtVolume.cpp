@@ -338,15 +338,18 @@ namespace ct {
 				//now fill the corners around the cylinder with the lowest density value
 				double smallestValue = std::numeric_limits<double>::infinity();
 				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
+					double radiusSquared = std::pow(((double)this->xSize / 2) - 3, 2);
 #pragma omp parallel
 				{
 					double threadMin = std::numeric_limits<double>::infinity();
 #pragma omp for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
-							for (int z = 0; z < this->zMax; ++z) {
-								if (this->volume[x][y][z] < threadMin) {
-									threadMin = this->volume[x][y][z];
+							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) <= radiusSquared) {
+								for (int z = 0; z < this->zMax; ++z) {
+									if (this->volume[x][y][z] < threadMin) {
+										threadMin = this->volume[x][y][z];
+									}
 								}
 							}
 						}
@@ -359,7 +362,7 @@ namespace ct {
 #pragma omp parallel for schedule(dynamic)
 					for (int x = 0; x < this->xMax; ++x) {
 						for (int y = 0; y < this->yMax; ++y) {
-							if (sqrt(this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y)) >= ((double)this->xSize / 2) - 3) {
+							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) >= radiusSquared) {
 								for (int z = 0; z < this->zMax; ++z) {
 									this->volume[x][y][z] = smallestValue;
 								}
