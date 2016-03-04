@@ -36,14 +36,19 @@ namespace ct {
 		void showEvent(QShowEvent* e);
 		void closeEvent(QCloseEvent* e);
 	private:
-		void setCurrentSlice();
+		void updateImage();
 		void setNextSlice();
 		void setPreviousSlice();
+		size_t getCurrentSliceOfCurrentAxis() const;
+		void setCurrentSliceOfCurrentAxis(size_t value);
+		bool loadVolume(QString filename);
 
 		Volume<float> volume;
 		std::atomic<bool> volumeLoaded{ false };
 		Axis currentAxis = Axis::Z;
-		size_t currentSlice = 0;
+		size_t currentSliceX = 0;
+		size_t currentSliceY = 0;
+		size_t currentSliceZ = 0;
 		hb::Timer timer;
 		std::shared_ptr<QSettings> settings;
 
