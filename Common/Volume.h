@@ -41,6 +41,13 @@ namespace ct {
 						  size_t ySize, 
 						  size_t zSize, 
 						  T defaultValue = 0);
+		template <typename U>
+		bool loadFromBinaryFile(std::string const& filename,					//reads a volume from a binary file
+								size_t xSize,
+								size_t ySize,
+								size_t zSize,
+								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
+								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian);
 		bool saveToBinaryFile(std::string const& filename,						//saves the volume to a binary file with the given filename
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
@@ -100,6 +107,38 @@ namespace ct {
 			return (*this)[0][0].size();
 		}
 		return 0;
+	}
+
+	template <typename T>
+	template <typename U>
+	bool Volume<T>::loadFromBinaryFile(std::string const & filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+		this->reinitialise(xSize, ySize, zSize);
+		QFile file(filename.c_str());
+		if (!file.open(QIODevice::ReadOnly)) {
+			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
+			//if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+			return false;
+		}
+		QDataStream in(&file);
+		in.setFloatingPointPrecision(floatingPointPrecision);
+		in.setByteOrder(byteOrder);
+		//iterate through the volume
+		U tmp;
+		for (int x = 0; x < this->size(); ++x) {
+			if (this->stopActiveProcess) break;
+			double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
+			//if (this->emitSignals) emit(savingProgress(percentage));
+			std::cout << percentage << std::endl;
+			for (int y = 0; y < (*this)[0].size(); ++y) {
+				for (int z = 0; z < (*this)[0][0].size(); ++z) {
+					//load one U of data
+					in >> tmp;
+					(*this)[x][y][z] = static_cast<T>(tmp);
+				}
+			}
+		}
+		file.close();
+		return true;
 	}
 
 	template <typename T>
