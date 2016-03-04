@@ -41,7 +41,9 @@ namespace ct {
 						  size_t ySize, 
 						  size_t zSize, 
 						  T defaultValue = 0);
-		bool saveToBinaryFile(std::string const& filename) const;				//saves the volume to a binary file with the given filename
+		bool saveToBinaryFile(std::string const& filename,						//saves the volume to a binary file with the given filename
+							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
+							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
 		size_t getSizeAlongDimension(Axis axis) const;							//returns the size along the axis axis
 		void stop();															//stops the saving function
@@ -101,7 +103,7 @@ namespace ct {
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(std::string const& filename) const {
+	bool Volume<T>::saveToBinaryFile(std::string const& filename, QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const {
 		this->stopActiveProcess = false;
 		if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
 			{
@@ -113,14 +115,8 @@ namespace ct {
 					return false;
 				}
 				QDataStream out(&file);
-				if (std::is_floating_point<T>::value) {
-					if (sizeof(T) > 4) {
-						out.setFloatingPointPrecision(QDataStream::DoublePrecision);
-					} else {
-						out.setFloatingPointPrecision(QDataStream::SinglePrecision);
-					}
-				}
-				out.setByteOrder(QDataStream::LittleEndian);
+				out.setFloatingPointPrecision(floatingPointPrecision);
+				out.setByteOrder(byteOrder);
 				//iterate through the volume
 				for (int x = 0; x < this->size(); ++x) {
 					if (this->stopActiveProcess) break;
