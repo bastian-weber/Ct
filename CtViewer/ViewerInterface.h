@@ -5,6 +5,9 @@
 #include <cmath>
 #include <memory>
 
+//OpenCV
+#include <opencv2/highgui.hpp>
+
 //Qt
 #include <QtWidgets/QtWidgets>
 #ifdef Q_OS_WIN
@@ -33,7 +36,7 @@ namespace ct {
 		void showEvent(QShowEvent* e);
 		void closeEvent(QCloseEvent* e);
 	private:
-		void setSlice(size_t index);
+		void setCurrentSlice();
 		void setNextSlice();
 		void setPreviousSlice();
 

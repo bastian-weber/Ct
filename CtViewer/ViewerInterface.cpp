@@ -41,6 +41,10 @@ namespace ct {
 			if (lastSize != QSize(-1, -1)) resize(lastSize);
 			if (lastPos != QPoint(-1, -1)) move(lastPos);
 		}
+
+		this->volume.loadFromBinaryFile<float>("E:/Reconstructions/test.raw", 224, 224, 256);
+		this->volumeLoaded = true;
+		this->setCurrentSlice();
 	}
 
 	ViewerInterface::~ViewerInterface() {
@@ -115,13 +119,13 @@ namespace ct {
 				this->setPreviousSlice();
 			} else if (e->key() == Qt::Key_X) {
 				this->currentAxis = Axis::X;
-				this->setSlice(this->currentSlice);
+				this->setCurrentSlice();
 			} else if (e->key() == Qt::Key_Y) {
 				this->currentAxis = Axis::Y;
-				this->setSlice(this->currentSlice);
+				this->setCurrentSlice();
 			} else if (e->key() == Qt::Key_Z) {
 				this->currentAxis = Axis::Z;
-				this->setSlice(this->currentSlice);
+				this->setCurrentSlice();
 			} else {
 				e->ignore();
 				return;
@@ -139,7 +143,8 @@ namespace ct {
 				long nextSlice = this->currentSlice + ((this->volume.getSizeAlongDimension(this->currentAxis) / 10) * signum);
 				if (nextSlice < 0) nextSlice = 0;
 				if (nextSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume.getSizeAlongDimension(this->currentAxis) - 1;
-				this->setSlice(nextSlice);
+				this->currentSlice = nextSlice;
+				this->setCurrentSlice();
 				e->accept();
 			} else {
 				e->ignore();
@@ -162,26 +167,29 @@ namespace ct {
 		e->accept();
 	}
 
-	void ViewerInterface::setSlice(size_t index) {
-		if (index >= 0 && index < this->volume.getSizeAlongDimension(this->currentAxis)) {
-			cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, index);
-			cv::Mat normalized;
-			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-			this->imageView->setImage(normalized);
+	void ViewerInterface::setCurrentSlice() {
+		if (this->currentSlice < 0 || this->currentSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) {
+			this->currentSlice = volume.getSizeAlongDimension(this->currentAxis) / 2;
 		}
+		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->currentSlice);
+		cv::Mat normalized;
+		cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		this->imageView->setImage(normalized);
 	}
 
 	void ViewerInterface::setNextSlice() {
 		size_t nextSlice = this->currentSlice + 1;
 		if (nextSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume.getSizeAlongDimension(this->currentAxis) - 1;
-		this->setSlice(nextSlice);
+		this->currentSlice = nextSlice;
+		this->setCurrentSlice();
 	}
 
 	void ViewerInterface::setPreviousSlice() {
 		size_t previousSlice;
 		if (this->currentSlice != 0) {
 			previousSlice = this->currentSlice - 1;
-			this->setSlice(previousSlice);
+			this->currentSlice = previousSlice;
+			this->setCurrentSlice();
 		}
 	}
 
