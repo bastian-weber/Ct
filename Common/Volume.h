@@ -24,6 +24,8 @@ namespace ct {
 	//base class for signals (signals do not work in template class)
 	class VolumeSignalsSlots : public QObject {
 		Q_OBJECT
+	public:
+		virtual ~VolumeSignalsSlots() = default;
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
@@ -41,7 +43,7 @@ namespace ct {
 						  T defaultValue = 0);
 		bool saveToBinaryFile(std::string const& filename) const;				//saves the volume to a binary file with the given filename
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
-		size_t getSizeAlongDimension(Axis axis) const;									//returns the size along the axis axis
+		size_t getSizeAlongDimension(Axis axis) const;							//returns the size along the axis axis
 		void stop();															//stops the saving function
 		//getters
 		bool getEmitSignals() const;
