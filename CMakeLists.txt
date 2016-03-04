@@ -67,7 +67,7 @@ set(OPENCV_PATH_HINTS "." "./build" "./.." "./../.." "./../../.." "./share/OpenC
 ask_for_path("OpenCV" "" "/usr/local" OPENCV_FILES OPENCV_PATH_HINTS)
 if(OPENCV_ROOT_FOUND)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_OPENCV_ROOT})
-	find_package(OpenCV 3.0 REQUIRED)
+	find_package(OpenCV 3.1 REQUIRED)
 endif()
 
 if(OPENCV_ROOT_FOUND)
@@ -86,7 +86,7 @@ if(QT_ROOT_FOUND)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_QT_ROOT})
 	foreach(module ${QT_MODULES_ALL})
 		string(REGEX REPLACE "::" "" MODULE_NAME ${module})
-		find_package(${MODULE_NAME} 5.5 REQUIRED)
+		find_package(${MODULE_NAME} 5.5.1 REQUIRED)
 	endforeach(module ${QT_MODULES_ALL})
 endif(QT_ROOT_FOUND)
 
