@@ -112,6 +112,7 @@ namespace ct {
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::loadFromBinaryFile(std::string const & filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+		//check if filesize fits size!
 		this->reinitialise(xSize, ySize, zSize);
 		QFile file(filename.c_str());
 		if (!file.open(QIODevice::ReadOnly)) {
@@ -128,7 +129,6 @@ namespace ct {
 			if (this->stopActiveProcess) break;
 			double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
 			//if (this->emitSignals) emit(savingProgress(percentage));
-			std::cout << percentage << std::endl;
 			for (int y = 0; y < (*this)[0].size(); ++y) {
 				for (int z = 0; z < (*this)[0][0].size(); ++z) {
 					//load one U of data
