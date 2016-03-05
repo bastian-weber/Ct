@@ -44,13 +44,13 @@ namespace ct {
 						  size_t zSize, 
 						  T defaultValue = 0);
 		template <typename U>
-		bool loadFromBinaryFile(std::string const& filename,					//reads a volume from a binary file
+		bool loadFromBinaryFile(std::string filename,					//reads a volume from a binary file
 								size_t xSize,
 								size_t ySize,
 								size_t zSize,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian);
-		bool saveToBinaryFile(std::string const& filename,						//saves the volume to a binary file with the given filename
+		bool saveToBinaryFile(std::string filename,						//saves the volume to a binary file with the given filename
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
@@ -113,7 +113,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(std::string const & filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+	bool Volume<T>::loadFromBinaryFile(std::string filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
 			if (floatingPointPrecision == QDataStream::SinglePrecision) {
@@ -126,7 +126,6 @@ namespace ct {
 		}
 		size_t totalFileSize = xSize * ySize * zSize * voxelSize;
 		size_t actualFileSize = QFileInfo(filename.c_str()).size();
-		this->reinitialise(xSize, ySize, zSize);
 		QFile file(filename.c_str());
 		if (!file.open(QIODevice::ReadOnly)) {
 			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
@@ -139,6 +138,7 @@ namespace ct {
 			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
 			return false;
 		}
+		this->reinitialise(xSize, ySize, zSize);
 		QDataStream in(&file);
 		in.setFloatingPointPrecision(floatingPointPrecision);
 		in.setByteOrder(byteOrder);
@@ -157,11 +157,12 @@ namespace ct {
 			}
 		}
 		file.close();
+		if (this->emitSignals) emit(loadingFinished());
 		return true;
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(std::string const& filename, QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const {
+	bool Volume<T>::saveToBinaryFile(std::string filename, QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const {
 		this->stopActiveProcess = false;
 		if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
 			{

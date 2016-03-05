@@ -10,6 +10,8 @@ namespace ct {
 		this->volume.setEmitSignals(true);
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		qRegisterMetaType<cv::Mat>("cv::Mat");
+		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 
 #ifdef Q_OS_WIN
 		this->taskbarButton = new QWinTaskbarButton(this);
@@ -270,16 +272,30 @@ namespace ct {
 			std::cout << "Volume could not be loaded because the volume dimensions are invalid." << std::endl;
 			return false;
 		}
-		if (this->volume.loadFromBinaryFile<float>(filename.toStdString(), xSize, ySize, zSize)) {
+		std::string f = filename.toStdString();
+		std::function<bool()> call = [=]() { 
+			return this->volume.loadFromBinaryFile<float>(filename.toStdString(), xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian); 
+		};
+		this->loadVolumeThread = std::async(std::launch::async, call);
+		return true;
+	}
+
+	void ViewerInterface::reactToLoadProgressUpdate(double percentage) {
+
+	}
+
+	void ViewerInterface::reactToLoadCompletion(CompletionStatus status) {
+		loadVolumeThread.get();
+		if (status.successful) {
 			this->currentSliceX = this->volume.getSizeAlongDimension(Axis::X) / 2;
 			this->currentSliceY = this->volume.getSizeAlongDimension(Axis::Y) / 2;
 			this->currentSliceZ = this->volume.getSizeAlongDimension(Axis::Z) / 2;
 			this->volumeLoaded = true;
 			this->updateImage();
 		} else {
-			std::cout << "An error occured while trying to read the volume file." << std::endl;
-			return false;
+			if (!status.userInterrupted) {
+				QMessageBox::critical(this, tr("Error"), status.errorMessage, QMessageBox::Close);
+			}
 		}
-		return true;
 	}
 }

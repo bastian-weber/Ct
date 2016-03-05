@@ -51,6 +51,7 @@ namespace ct {
 		size_t currentSliceZ = 0;
 		hb::Timer timer;
 		std::shared_ptr<QSettings> settings;
+		std::future<bool> loadVolumeThread;
 
 		//interface widgets
 		QHBoxLayout* mainLayout;
@@ -61,7 +62,8 @@ namespace ct {
 		QWinTaskbarProgress* taskbarProgress;
 	#endif
 	private slots:
-
+		void reactToLoadProgressUpdate(double percentage);
+		void reactToLoadCompletion(CompletionStatus status);
 	};
 
 }
