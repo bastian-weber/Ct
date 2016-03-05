@@ -29,6 +29,8 @@ namespace ct {
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
+		void loadingProgress(double percentage) const;
+		void loadingFinished(CompletionStatus status = CompletionStatus::success()) const;
 	};
 
 	template <typename T>
@@ -128,11 +130,13 @@ namespace ct {
 		QFile file(filename.c_str());
 		if (!file.open(QIODevice::ReadOnly)) {
 			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
-			//if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
 			return false;
 		}
 		if (actualFileSize != totalFileSize) {
-			std::cout << "The size of the file does not fit the given parameters. Expected filesize: " << totalFileSize << " Actual filesize: " << actualFileSize << std::endl;
+			QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
+			std::cout << message.toStdString() << std::endl;
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
 			return false;
 		}
 		QDataStream in(&file);
@@ -143,7 +147,7 @@ namespace ct {
 		for (int x = 0; x < this->size(); ++x) {
 			if (this->stopActiveProcess) break;
 			double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
-			//if (this->emitSignals) emit(savingProgress(percentage));
+			if (this->emitSignals) emit(loadingProgress(percentage));
 			for (int y = 0; y < (*this)[0].size(); ++y) {
 				for (int z = 0; z < (*this)[0][0].size(); ++z) {
 					//load one U of data
