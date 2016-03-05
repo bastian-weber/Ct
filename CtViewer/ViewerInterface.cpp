@@ -13,6 +13,13 @@ namespace ct {
 		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
 		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 
+		this->progressDialog = new QProgressDialog(tr("Reading volume from disk into RAM..."), tr("Stop"), 0, 100, this, Qt::CustomizeWindowHint | Qt::WindowTitleHint);
+		QObject::connect(this->progressDialog, SIGNAL(canceled()), this, SLOT(stop()));
+		this->progressDialog->setWindowModality(Qt::WindowModal);
+		progressDialog->setMinimumWidth(350);
+		progressDialog->setWindowTitle(tr("Loading..."));
+		progressDialog->setMinimumDuration(100);
+		progressDialog->reset();
 #ifdef Q_OS_WIN
 		this->taskbarButton = new QWinTaskbarButton(this);
 		this->taskbarProgress = this->taskbarButton->progress();
@@ -48,6 +55,7 @@ namespace ct {
 	ViewerInterface::~ViewerInterface() {
 		delete this->mainLayout;
 		delete this->imageView;
+		delete this->progressDialog;
 #ifdef Q_OS_WIN
 		delete this->taskbarButton;
 		delete this->taskbarProgress;
@@ -215,6 +223,9 @@ namespace ct {
 		}
 	}
 	bool ViewerInterface::loadVolume(QString filename) {
+		if (this->loadingActive) return false;
+		this->loadingActive = true;
+		this->reset();
 		QFileInfo fileInfo(filename);
 		QString infoFileName;
 		if (fileInfo.suffix() == "txt") {
@@ -277,15 +288,33 @@ namespace ct {
 			return this->volume.loadFromBinaryFile<float>(filename.toStdString(), xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, call);
+		this->progressDialog->reset();
+#ifdef Q_OS_WIN
+		this->taskbarProgress->show();
+#endif
 		return true;
 	}
 
-	void ViewerInterface::reactToLoadProgressUpdate(double percentage) {
+	void ViewerInterface::reset() {
+		this->volumeLoaded = false;
+		this->imageView->resetImage();
+		this->volume.clear();
+	}
 
+	void ViewerInterface::reactToLoadProgressUpdate(double percentage) {
+		this->progressDialog->setValue(percentage);
+#ifdef Q_OS_WIN
+		this->taskbarProgress->setValue(percentage);
+#endif
 	}
 
 	void ViewerInterface::reactToLoadCompletion(CompletionStatus status) {
 		loadVolumeThread.get();
+		this->progressDialog->reset();
+#ifdef Q_OS_WIN
+		this->taskbarProgress->hide();
+		this->taskbarProgress->reset();
+#endif
 		if (status.successful) {
 			this->currentSliceX = this->volume.getSizeAlongDimension(Axis::X) / 2;
 			this->currentSliceY = this->volume.getSizeAlongDimension(Axis::Y) / 2;
@@ -293,9 +322,15 @@ namespace ct {
 			this->volumeLoaded = true;
 			this->updateImage();
 		} else {
+			this->reset();
 			if (!status.userInterrupted) {
 				QMessageBox::critical(this, tr("Error"), status.errorMessage, QMessageBox::Close);
 			}
 		}
+		this->loadingActive = false;
+	}
+
+	void ViewerInterface::stop() {
+		this->volume.stop();
 	}
 }

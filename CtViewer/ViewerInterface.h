@@ -42,9 +42,11 @@ namespace ct {
 		size_t getCurrentSliceOfCurrentAxis() const;
 		void setCurrentSliceOfCurrentAxis(size_t value);
 		bool loadVolume(QString filename);
+		void reset();
 
 		Volume<float> volume;
 		std::atomic<bool> volumeLoaded{ false };
+		std::atomic<bool> loadingActive{ false };
 		Axis currentAxis = Axis::Z;
 		size_t currentSliceX = 0;
 		size_t currentSliceY = 0;
@@ -56,6 +58,7 @@ namespace ct {
 		//interface widgets
 		QHBoxLayout* mainLayout;
 		hb::ImageView* imageView;
+		QProgressDialog* progressDialog;
 		//For the windows taskbar progress display
 	#ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;
@@ -64,6 +67,9 @@ namespace ct {
 	private slots:
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CompletionStatus status);
+		void stop();
+	signals:
+		void progressUpdate(int progress) const;
 	};
 
 }
