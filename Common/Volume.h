@@ -147,6 +147,7 @@ namespace ct {
 		U tmp;
 		for (int x = 0; x < this->size(); ++x) {
 			if (this->stopActiveProcess) {
+				this->clear();
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 				return false;
@@ -184,7 +185,6 @@ namespace ct {
 				//iterate through the volume
 				for (int x = 0; x < this->size(); ++x) {
 					if (this->stopActiveProcess) {
-						this->clear();
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 						return false;
