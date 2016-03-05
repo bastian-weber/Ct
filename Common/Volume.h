@@ -112,12 +112,27 @@ namespace ct {
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::loadFromBinaryFile(std::string const & filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
-		//check if filesize fits size!
+		size_t voxelSize = 0;
+		if (std::is_floating_point<U>::value) {
+			if (floatingPointPrecision == QDataStream::SinglePrecision) {
+				voxelSize = 4; //32 bit
+			} else {
+				voxelSize = 8; //64 bit
+			}
+		} else {
+			voxelSize = sizeof(U);
+		}
+		size_t totalFileSize = xSize * ySize * zSize * voxelSize;
+		size_t actualFileSize = QFileInfo(filename.c_str()).size();
 		this->reinitialise(xSize, ySize, zSize);
 		QFile file(filename.c_str());
 		if (!file.open(QIODevice::ReadOnly)) {
 			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
 			//if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+			return false;
+		}
+		if (actualFileSize != totalFileSize) {
+			std::cout << "The size of the file does not fit the given parameters. Expected filesize: " << totalFileSize << " Actual filesize: " << actualFileSize << std::endl;
 			return false;
 		}
 		QDataStream in(&file);
