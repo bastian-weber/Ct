@@ -114,6 +114,7 @@ namespace ct {
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::loadFromBinaryFile(std::string filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
 			if (floatingPointPrecision == QDataStream::SinglePrecision) {
@@ -145,7 +146,11 @@ namespace ct {
 		//iterate through the volume
 		U tmp;
 		for (int x = 0; x < this->size(); ++x) {
-			if (this->stopActiveProcess) break;
+			if (this->stopActiveProcess) {
+				std::cout << "User interrupted. Stopping." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+				return false;
+			}
 			double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
 			if (this->emitSignals) emit(loadingProgress(percentage));
 			for (int y = 0; y < (*this)[0].size(); ++y) {
@@ -178,7 +183,12 @@ namespace ct {
 				out.setByteOrder(byteOrder);
 				//iterate through the volume
 				for (int x = 0; x < this->size(); ++x) {
-					if (this->stopActiveProcess) break;
+					if (this->stopActiveProcess) {
+						this->clear();
+						std::cout << "User interrupted. Stopping." << std::endl;
+						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+						return false;
+					}
 					double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
 					if (this->emitSignals) emit(savingProgress(percentage));
 					for (int y = 0; y < (*this)[0].size(); ++y) {
@@ -195,14 +205,8 @@ namespace ct {
 			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
 			return false;
 		}
-		if (this->stopActiveProcess) {
-			std::cout << "User interrupted. Stopping." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
-			return false;
-		} else {
-			std::cout << "Volume successfully saved." << std::endl;
-			if (this->emitSignals) emit(savingFinished());
-		}
+		std::cout << "Volume successfully saved." << std::endl;
+		if (this->emitSignals) emit(savingFinished());
 		return true;
 	}
 
