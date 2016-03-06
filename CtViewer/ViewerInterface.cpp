@@ -124,6 +124,11 @@ namespace ct {
 		if (e->key() == Qt::Key_Escape) {
 			this->exitFullscreen();
 			return;
+		} else if (e->key() == Qt::Key_O) {
+			this->openDialog();
+		} else {
+			e->ignore();
+			return;
 		}
 		if (this->volumeLoaded) {
 			if (e->key() == Qt::Key_Up) {
@@ -353,6 +358,17 @@ namespace ct {
 			this->exitFullscreen();
 		} else {
 			this->enterFullscreen();
+		}
+	}
+
+	void ViewerInterface::openDialog() {
+		QString path = QFileDialog::getOpenFileName(this,
+													tr("Open Volume or Volume Info File"),
+													QDir::rootPath(),
+													"Volume or Info Files (*.raw *.txt);;");
+
+		if (!path.isEmpty()) {
+			this->loadVolume(path);
 		}
 	}
 
