@@ -49,6 +49,7 @@ namespace ct {
 		void enterFullscreen();
 		void exitFullscreen();
 		void toggleFullscreen();
+		void openDialog();
 
 		Volume<float> volume;
 		std::atomic<bool> volumeLoaded{ false };
