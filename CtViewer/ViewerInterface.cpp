@@ -121,6 +121,10 @@ namespace ct {
 	}
 
 	void ViewerInterface::keyPressEvent(QKeyEvent* e) {
+		if (e->key() == Qt::Key_Escape) {
+			this->exitFullscreen();
+			return;
+		}
 		if (this->volumeLoaded) {
 			if (e->key() == Qt::Key_Up) {
 				this->setNextSlice();
@@ -174,6 +178,24 @@ namespace ct {
 		this->settings->setValue("pos", pos());
 		this->settings->setValue("maximized", isMaximized());
 		e->accept();
+	}
+
+	void ViewerInterface::mouseDoubleClickEvent(QMouseEvent* e) {
+		if (e->button() == Qt::LeftButton) {
+			this->toggleFullscreen();
+			e->accept();
+		}
+	}
+
+	void ViewerInterface::changeEvent(QEvent* e) {
+		if (e->type() == QEvent::WindowStateChange) {
+			if (!this->isMinimized() && !this->isFullScreen()) {
+				this->settings->setValue("maximized", this->isMaximized());
+			} else if (this->isFullScreen()) {
+				QWindowStateChangeEvent* windowStateChangeEvent = static_cast<QWindowStateChangeEvent*>(e);
+				this->settings->setValue("maximized", bool(windowStateChangeEvent->oldState() & Qt::WindowMaximized));
+			}
+		}
 	}
 
 	void ViewerInterface::updateImage() {
@@ -312,6 +334,26 @@ namespace ct {
 		this->volumeLoaded = false;
 		this->imageView->resetImage();
 		this->volume.clear();
+	}
+
+	void ViewerInterface::enterFullscreen() {
+		this->showFullScreen();
+	}
+
+	void ViewerInterface::exitFullscreen() {
+		if (this->settings->value("maximized", false).toBool()) {
+			this->showMaximized();
+		} else {
+			this->showNormal();
+		}
+	}
+
+	void ViewerInterface::toggleFullscreen() {
+		if (this->isFullScreen()) {
+			this->exitFullscreen();
+		} else {
+			this->enterFullscreen();
+		}
 	}
 
 	void ViewerInterface::reactToLoadProgressUpdate(double percentage) {

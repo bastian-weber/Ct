@@ -36,6 +36,8 @@ namespace ct {
 		void wheelEvent(QWheelEvent* e);
 		void showEvent(QShowEvent* e);
 		void closeEvent(QCloseEvent* e);
+		void mouseDoubleClickEvent(QMouseEvent* e);
+		void changeEvent(QEvent* e);
 	private:
 		void updateImage();
 		void setNextSlice();
@@ -44,6 +46,9 @@ namespace ct {
 		void setCurrentSliceOfCurrentAxis(size_t value);
 		bool loadVolume(QString filename);
 		void reset();
+		void enterFullscreen();
+		void exitFullscreen();
+		void toggleFullscreen();
 
 		Volume<float> volume;
 		std::atomic<bool> volumeLoaded{ false };
