@@ -39,6 +39,7 @@ namespace ct {
 		this->actualSizeLabel = new QLabel("");
 
 		this->formLayout = new QFormLayout();
+		this->formLayout->setSpacing(10);
 		this->formLayout->addRow(tr("X size:"), this->xSpinBox);
 		this->formLayout->addRow(tr("Y size:"), this->ySpinBox);
 		this->formLayout->addRow(tr("Z size:"), this->zSpinBox);
@@ -47,6 +48,7 @@ namespace ct {
 
 		this->mainLayout = new QVBoxLayout;
 		this->mainLayout->addLayout(this->formLayout);
+		this->mainLayout->addSpacing(10);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
