@@ -18,6 +18,7 @@
 #include "ImageView.h"
 #include "Timer.h"
 #include "Volume.h"
+#include "ImportSettingsDialog.h"
 
 namespace ct {
 
@@ -59,6 +60,7 @@ namespace ct {
 		QHBoxLayout* mainLayout;
 		hb::ImageView* imageView;
 		QProgressDialog* progressDialog;
+		ImportSettingsDialog* settingsDialog;
 		//For the windows taskbar progress display
 	#ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;

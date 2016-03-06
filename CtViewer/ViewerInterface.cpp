@@ -36,6 +36,8 @@ namespace ct {
 
 		setLayout(this->mainLayout);
 
+		this->settingsDialog = new ImportSettingsDialog(this->settings, this);
+
 		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = this->settings->value("maximized", false).toBool();
@@ -55,7 +57,7 @@ namespace ct {
 	ViewerInterface::~ViewerInterface() {
 		delete this->mainLayout;
 		delete this->imageView;
-		delete this->progressDialog;
+		delete this->settingsDialog;
 #ifdef Q_OS_WIN
 		delete this->taskbarButton;
 		delete this->taskbarProgress;
@@ -236,6 +238,7 @@ namespace ct {
 		}
 		if (!QFile::exists(filename)) {
 			std::cout << "The volume file " << filename.toStdString() << " could not be found." << std::endl;
+			this->loadingActive = false;
 			return false;
 		}
 		bool informationFound = false;
@@ -277,10 +280,20 @@ namespace ct {
 			}
 		}
 		if (!QFile::exists(infoFileName) || !informationFound) {
-			//ask
+			//ask for volume parameters
+			QFileInfo volumeFileInfo(filename);
+			if (this->settingsDialog->execForFilesize(volumeFileInfo.size()) != 0) {
+				xSize = this->settingsDialog->getXSize();
+				ySize = this->settingsDialog->getYSize();
+				zSize = this->settingsDialog->getZSize();
+			} else {
+				this->loadingActive = false;
+				return false;
+			}
 		}
 		if (!(xSize > 0 && ySize > 0 && zSize > 0)) {
 			std::cout << "Volume could not be loaded because the volume dimensions are invalid." << std::endl;
+			this->loadingActive = false;
 			return false;
 		}
 		std::string f = filename.toStdString();
