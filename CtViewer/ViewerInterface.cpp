@@ -163,19 +163,21 @@ namespace ct {
 		} else if (e->key() == Qt::Key_O) {
 			this->openDialog();
 		} else {
-			e->ignore();
-			return;
-		}
-		if (this->volumeLoaded) {
-			if (e->key() == Qt::Key_Up) {
-				this->setNextSlice();
-			} else if (e->key() == Qt::Key_Down) {
-				this->setPreviousSlice();
+			if (this->volumeLoaded) {
+				if (e->key() == Qt::Key_Up) {
+					this->setNextSlice();
+				} else if (e->key() == Qt::Key_Down) {
+					this->setPreviousSlice();
+				} else {
+					e->ignore();
+					return;
+				}
 			} else {
 				e->ignore();
 				return;
 			}
 		}
+
 	}
 
 	void ViewerInterface::wheelEvent(QWheelEvent* e) {
