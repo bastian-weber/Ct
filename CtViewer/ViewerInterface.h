@@ -67,6 +67,11 @@ namespace ct {
 		hb::ImageView* imageView;
 		QProgressDialog* progressDialog;
 		ImportSettingsDialog* settingsDialog;
+		QMenu* contextMenu;
+		QActionGroup* axisActionGroup;
+		QAction* xAxisAction;
+		QAction* yAxisAction;
+		QAction* zAxisAction;
 		//For the windows taskbar progress display
 	#ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;
@@ -76,6 +81,8 @@ namespace ct {
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CompletionStatus status);
 		void stop();
+		void showContextMenu(QPoint const& pos);
+		void changeAxis();
 	signals:
 		void progressUpdate(int progress) const;
 	};

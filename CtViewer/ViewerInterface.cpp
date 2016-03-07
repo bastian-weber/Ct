@@ -25,16 +25,47 @@ namespace ct {
 		this->taskbarProgress = this->taskbarButton->progress();
 #endif
 		this->setContentsMargins(0, 0, 0, 0);
+
 		this->imageView = new hb::ImageView;
 		this->imageView->setInterfaceBackgroundColor(Qt::black);
 		this->imageView->setShowInterfaceOutline(false);
 		this->imageView->setExternalPostPaintFunction(this, &ViewerInterface::infoPaintFunction);
+		this->imageView->setRightClickForHundredPercentView(false);
 
 		this->mainLayout = new QHBoxLayout();
 		this->mainLayout->setContentsMargins(0, 0, 0, 0);
 		this->mainLayout->addWidget(this->imageView);
 
 		setLayout(this->mainLayout);
+
+		this->contextMenu = new QMenu(this);
+		this->xAxisAction = new QAction(tr("X Axis"), this->contextMenu);
+		this->xAxisAction->setCheckable(true);
+		this->xAxisAction->setChecked(false);
+		this->xAxisAction->setShortcut(Qt::Key_X);
+		this->addAction(this->xAxisAction);
+		QObject::connect(this->xAxisAction, SIGNAL(triggered()), this, SLOT(changeAxis()));
+		this->yAxisAction = new QAction(tr("Y Axis"), this->contextMenu);
+		this->yAxisAction->setCheckable(true);
+		this->yAxisAction->setChecked(false);
+		this->yAxisAction->setShortcut(Qt::Key_Y);
+		this->addAction(this->yAxisAction);
+		QObject::connect(this->yAxisAction, SIGNAL(triggered()), this, SLOT(changeAxis()));
+		this->zAxisAction = new QAction(tr("Z Axis"), this->contextMenu);
+		this->zAxisAction->setCheckable(true);
+		this->zAxisAction->setChecked(true);
+		this->zAxisAction->setShortcut(Qt::Key_Z);
+		this->addAction(this->zAxisAction);
+		QObject::connect(this->zAxisAction, SIGNAL(triggered()), this, SLOT(changeAxis()));
+		this->contextMenu->addAction(this->xAxisAction);
+		this->contextMenu->addAction(this->yAxisAction);
+		this->contextMenu->addAction(this->zAxisAction);
+		this->axisActionGroup = new QActionGroup(this);
+		this->axisActionGroup->addAction(xAxisAction);
+		this->axisActionGroup->addAction(yAxisAction);
+		this->axisActionGroup->addAction(zAxisAction);
+		this->setContextMenuPolicy(Qt::CustomContextMenu);
+		QObject::connect(this, SIGNAL(customContextMenuRequested(QPoint const&)), this, SLOT(showContextMenu(QPoint const&)));
 
 		this->settingsDialog = new ImportSettingsDialog(this->settings, this);
 
@@ -58,6 +89,11 @@ namespace ct {
 		delete this->mainLayout;
 		delete this->imageView;
 		delete this->settingsDialog;
+		delete this->contextMenu;
+		delete this->axisActionGroup;
+		delete this->xAxisAction;
+		delete this->yAxisAction;
+		delete this->zAxisAction;
 #ifdef Q_OS_WIN
 		delete this->taskbarButton;
 		delete this->taskbarProgress;
@@ -135,15 +171,6 @@ namespace ct {
 				this->setNextSlice();
 			} else if (e->key() == Qt::Key_Down) {
 				this->setPreviousSlice();
-			} else if (e->key() == Qt::Key_X) {
-				this->currentAxis = Axis::X;
-				this->updateImage();
-			} else if (e->key() == Qt::Key_Y) {
-				this->currentAxis = Axis::Y;
-				this->updateImage();
-			} else if (e->key() == Qt::Key_Z) {
-				this->currentAxis = Axis::Z;
-				this->updateImage();
 			} else {
 				e->ignore();
 				return;
@@ -403,5 +430,20 @@ namespace ct {
 
 	void ViewerInterface::stop() {
 		this->volume.stop();
+	}
+
+	void ViewerInterface::showContextMenu(QPoint const& pos) {
+		this->contextMenu->exec(mapToGlobal(pos));
+	}
+
+	void ViewerInterface::changeAxis() {
+		if (this->axisActionGroup->checkedAction() == this->xAxisAction) {
+			this->currentAxis = Axis::X;
+		} else if (this->axisActionGroup->checkedAction() == this->yAxisAction) {
+			this->currentAxis = Axis::Y;
+		} else {
+			this->currentAxis = Axis::Z;
+		}
+		this->updateImage();
 	}
 }
