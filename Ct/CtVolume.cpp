@@ -131,6 +131,69 @@ namespace ct {
 			}
 		}
 
+		//load and check images
+		{
+			size_t cnt = 0;
+			size_t rows, cols;
+			double min = std::numeric_limits<double>::quiet_NaN();
+			double max = std::numeric_limits<double>::quiet_NaN();
+			for (Projection const& projection : this->sinogram) {
+				cv::Mat image = projection.getImage();
+				if (!image.data) {
+					//if there is no image data
+					this->sinogram.clear();
+					QString msg = QString("Error loading the image \"%1\". Maybe it does not exist, permissions are missing or the format is not supported.").arg(projection.imagePath);
+					std::cout << msg.toStdString() << std::endl;
+					if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg)));
+					return false;
+				} else if (image.depth() != CV_8U && image.depth() != CV_16U && image.depth() != CV_32F) {
+					//wrong depth
+					this->sinogram.clear();
+					QString msg = QString("Error loading the image \"%1\". The image depth must be either 8bit, 16bit or 32bit.").arg(projection.imagePath);
+					std::cout << msg.toStdString() << std::endl;
+					if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg)));
+					return false;
+				} else {
+					//make sure that all images have the same size
+					if (cnt == 0) {
+						rows = image.rows;
+						cols = image.cols;
+					} else {
+						if (image.rows != rows || image.cols != cols) {
+							//if the image has a different size than the images before stop and reverse
+							this->sinogram.clear();
+							QString msg = QString("Error loading the image \"%1\", its dimensions differ from the images before.").arg(projection.imagePath);
+							std::cout << msg.toStdString() << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg)));
+							return false;
+						}
+					}
+					//compute the min max values
+					double lMin, lMax;
+					cv::minMaxLoc(image, &lMin, &lMax);
+					if (image.type() == CV_8U) {
+						lMin /= std::pow(2, 8);
+						lMax /= std::pow(2, 8);
+					} else {
+						lMin /= std::pow(2, 16);
+						lMax /= std::pow(2, 16);
+					}
+					if (std::isnan(min) || lMin < min) min = lMin;
+					if (std::isnan(max) || lMax > max) max = lMax;
+					//set image width and image height
+					this->imageWidth = cols;
+					this->imageHeight = rows;
+					//output
+					double percentage = std::round(double(cnt) / double(this->sinogram.size()) * 100);
+					std::cout << "\r" << "Analysing images: " << percentage << "%";
+					if (this->emitSignals) emit(loadingProgress(percentage));
+				}
+				++cnt;
+			}
+			this->minMaxValues = std::make_pair(float(min), float(max));
+			std::cout << std::endl;
+		}
+
 		//make the height offset values realtive
 		this->makeHeightOffsetRelative();
 		//make sure the rotation direction is correct
