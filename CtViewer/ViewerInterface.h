@@ -44,6 +44,8 @@ namespace ct {
 		void mouseDoubleClickEvent(QMouseEvent* e);
 		void changeEvent(QEvent* e);
 	private:
+		void interfaceInitialState();
+		void interfaceVolumeLoadedState();
 		void updateImage();
 		void setNextSlice();
 		void setPreviousSlice();
