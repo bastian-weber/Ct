@@ -44,7 +44,7 @@ namespace ct {
 						  size_t zSize, 
 						  T defaultValue = 0);
 		template <typename U>
-		bool loadFromBinaryFile(std::string filename,					//reads a volume from a binary file
+		bool loadFromBinaryFile(std::string filename,							//reads a volume from a binary file
 								size_t xSize,
 								size_t ySize,
 								size_t zSize,
