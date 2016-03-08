@@ -231,7 +231,7 @@ namespace ct {
 					vSize = yMax;
 				}
 
-				cv::Mat result(vSize, uSize, CV_32FC1);
+				cv::Mat result(static_cast<int>(vSize), static_cast<int>(uSize), CV_32FC1);
 				float* ptr;
 				if (axis == Axis::X) {
 #pragma omp parallel for private(ptr)
@@ -277,6 +277,7 @@ namespace ct {
 				return this->zSize();
 			}
 		}
+		return 0;
 	}
 
 	template<typename T>
