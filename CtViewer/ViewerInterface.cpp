@@ -70,11 +70,12 @@ namespace ct {
 		this->addAction(this->saveImageAction);
 		QObject::connect(this->saveImageAction, SIGNAL(triggered()), this, SLOT(saveImageDialog()));
 
+		this->contextMenu->addAction(this->openDialogAction);
+		this->contextMenu->addSeparator();
 		this->contextMenu->addAction(this->xAxisAction);
 		this->contextMenu->addAction(this->yAxisAction);
 		this->contextMenu->addAction(this->zAxisAction);
 		this->contextMenu->addSeparator();
-		this->contextMenu->addAction(this->openDialogAction);
 		this->contextMenu->addAction(this->saveImageAction);
 
 
@@ -83,14 +84,12 @@ namespace ct {
 
 		this->settingsDialog = new ImportSettingsDialog(this->settings, this);
 
+		this->interfaceInitialState();
+
 		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
 		bool maximized = this->settings->value("maximized", false).toBool();
 
-		//QPalette p(palette());
-		//p.setColor(QPalette::Background, Qt::white);
-		//setAutoFillBackground(true);
-		//setPalette(p);
 		if (maximized) {
 			setWindowState(Qt::WindowMaximized);
 		} else {
@@ -245,6 +244,20 @@ namespace ct {
 		}
 	}
 
+	void ViewerInterface::interfaceInitialState() {
+		this->saveImageAction->setEnabled(false);
+		this->xAxisAction->setEnabled(false);
+		this->yAxisAction->setEnabled(false);
+		this->zAxisAction->setEnabled(false);
+	}
+
+	void ViewerInterface::interfaceVolumeLoadedState() {
+		this->saveImageAction->setEnabled(true);
+		this->xAxisAction->setEnabled(true);
+		this->yAxisAction->setEnabled(true);
+		this->zAxisAction->setEnabled(true);
+	}
+
 	void ViewerInterface::updateImage() {
 		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
 			this->setCurrentSliceOfCurrentAxis(volume.getSizeAlongDimension(this->currentAxis) / 2);
@@ -295,6 +308,7 @@ namespace ct {
 	}
 	bool ViewerInterface::loadVolume(QString filename) {
 		if (this->loadingActive) return false;
+		this->interfaceInitialState();
 		this->loadingActive = true;
 		this->reset();
 		QFileInfo fileInfo(filename);
@@ -423,6 +437,7 @@ namespace ct {
 			this->currentSliceZ = this->volume.getSizeAlongDimension(Axis::Z) / 2;
 			this->volumeLoaded = true;
 			this->updateImage();
+			this->interfaceVolumeLoadedState();
 		} else {
 			this->reset();
 			if (!status.userInterrupted) {
