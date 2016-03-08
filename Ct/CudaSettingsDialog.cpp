@@ -30,21 +30,21 @@ namespace ct {
 
 		//generate the checkboxes for all the devices
 		for (int i = 0; i < devices.size(); ++i) {
-			this->checkboxes[i] = new QCheckBox(devices[i].c_str());
+			this->checkboxes[i] = new QCheckBox(devices[i].c_str(), this);
 			QObject::connect(this->checkboxes[i], SIGNAL(stateChanged(int)), this, SLOT(reactToCheckboxToggle()));
 			devicesLayout->addWidget(this->checkboxes[i]);
 		}
-		this->devicesGroupBox = new QGroupBox(tr("CUDA Devices"));
+		this->devicesGroupBox = new QGroupBox(tr("CUDA Devices"), this);
 		this->devicesGroupBox->setLayout(devicesLayout);
 
-		this->memorySpinBox = new QSpinBox;
+		this->memorySpinBox = new QSpinBox(this);
 		this->memorySpinBox->setMinimum(0);
 		this->memorySpinBox->setMaximum(50000);
 		this->memorySpinBox->setSuffix(tr("Mb"));
 		this->memorySpinBox->setSingleStep(1);
 		this->memoryLayout = new QVBoxLayout;
 		this->memoryLayout->addWidget(this->memorySpinBox, 0, Qt::AlignLeft);
-		this->memoryGroupBox = new QGroupBox(tr("Amount of GPU memory to spare"));
+		this->memoryGroupBox = new QGroupBox(tr("Amount of GPU memory to spare"), this);
 		this->memoryGroupBox->setLayout(this->memoryLayout);
 
 		this->mainLayout = new QVBoxLayout;
@@ -54,21 +54,6 @@ namespace ct {
 
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
-	}
-
-	CudaSettingsDialog::~CudaSettingsDialog() {
-		delete this->mainLayout;
-		delete this->buttonLayout;
-		delete this->devicesLayout;
-		delete this->memoryLayout;
-		delete this->devicesGroupBox;
-		delete this->memoryGroupBox;
-		delete this->memorySpinBox;
-		delete this->okButton;
-		delete this->cancelButton;
-		for (int i = 0; i < this->checkboxes.size(); ++i) {
-			delete this->checkboxes[i];
-		}
 	}
 
 	std::vector<int> CudaSettingsDialog::getActiveCudaDevices() const {

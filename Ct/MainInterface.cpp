@@ -17,12 +17,12 @@ namespace ct {
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SLOT(reactToSaveCompletion(CompletionStatus)));
 
-		this->inputFileEdit = new QLineEdit;
+		this->inputFileEdit = new QLineEdit(this);
 		this->inputFileEdit->setPlaceholderText("Configuration File");
 		QObject::connect(this->inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
-		this->browseButton = new QPushButton(tr("&Browse"));
+		this->browseButton = new QPushButton(tr("&Browse"), this);
 		QObject::connect(this->browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
-		this->completer = new QCompleter;
+		this->completer = new QCompleter(this);
 		QDirModel* model = new QDirModel(this->completer);
 		this->completer->setModel(model);
 		this->inputFileEdit->setCompleter(this->completer);
@@ -30,71 +30,71 @@ namespace ct {
 		this->loadLayout = new QVBoxLayout;
 		this->loadLayout->addWidget(this->inputFileEdit);
 		this->loadLayout->addWidget(this->browseButton, 1, Qt::AlignLeft);
-		this->loadGroupBox = new QGroupBox(tr("Configuration File"));
+		this->loadGroupBox = new QGroupBox(tr("Configuration File"), this);
 		this->loadGroupBox->setLayout(this->loadLayout);
 
-		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"));
+		this->ramlakRadioButton = new QRadioButton(tr("R&am-Lak"), this);
 		if (this->settings->value("filterType", "ramLak").toString() == "ramLak") this->ramlakRadioButton->setChecked(true);
 		QObject::connect(this->ramlakRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
-		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"));
+		this->shepploganRadioButton = new QRadioButton(tr("Sh&epp-Logan"), this);
 		if (this->settings->value("filterType", "ramLak").toString() == "sheppLogan") this->shepploganRadioButton->setChecked(true);
 		QObject::connect(this->shepploganRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
-		this->hannRadioButton = new QRadioButton(tr("&Hann"));
+		this->hannRadioButton = new QRadioButton(tr("&Hann"), this);
 		if (this->settings->value("filterType", "ramLak").toString() == "hann") this->hannRadioButton->setChecked(true);
 		QObject::connect(this->hannRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveFilterType()));
 		this->filterLayout = new QVBoxLayout;
 		this->filterLayout->addWidget(this->ramlakRadioButton);
 		this->filterLayout->addWidget(this->shepploganRadioButton);
 		this->filterLayout->addWidget(this->hannRadioButton);
-		this->filterGroupBox = new QGroupBox(tr("Filter Type"));
+		this->filterGroupBox = new QGroupBox(tr("Filter Type"), this);
 		this->filterGroupBox->setLayout(this->filterLayout);
 
-		this->xLabel = new QLabel("x:");
+		this->xLabel = new QLabel("x:", this);
 		this->xLabel->setStyleSheet("QLabel { color: red; }");
-		this->to1 = new QLabel("to");
-		this->xFrom = new QDoubleSpinBox;
+		this->to1 = new QLabel("to", this);
+		this->xFrom = new QDoubleSpinBox(this);
 		this->xFrom->setRange(0, 1);
 		this->xFrom->setValue(this->settings->value("xFrom", 0).toDouble());
 		this->xFrom->setDecimals(3);
 		this->xFrom->setSingleStep(0.01);
 		QObject::connect(this->xFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->xTo = new QDoubleSpinBox;
+		this->xTo = new QDoubleSpinBox(this);
 		this->xTo->setRange(0, 1);
 		this->xTo->setValue(this->settings->value("xTo", 1).toDouble());
 		this->xTo->setDecimals(3);
 		this->xTo->setSingleStep(0.01);
 		QObject::connect(this->xTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->yLabel = new QLabel("y:");
+		this->yLabel = new QLabel("y:", this);
 		this->yLabel->setStyleSheet("QLabel { color: rgb(0, 160, 0); }");
-		this->to2 = new QLabel("to");
-		this->yFrom = new QDoubleSpinBox;
+		this->to2 = new QLabel("to", this);
+		this->yFrom = new QDoubleSpinBox(this);
 		this->yFrom->setRange(0, 1);
 		this->yFrom->setValue(this->settings->value("yFrom", 0).toDouble());
 		this->yFrom->setDecimals(3);
 		this->yFrom->setSingleStep(0.01);
 		QObject::connect(this->yFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->yTo = new QDoubleSpinBox;
+		this->yTo = new QDoubleSpinBox(this);
 		this->yTo->setRange(0, 1);
 		this->yTo->setValue(this->settings->value("yTo", 1).toDouble());
 		this->yTo->setDecimals(3);
 		this->yTo->setSingleStep(0.01);
 		QObject::connect(this->yTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->zLabel = new QLabel("z:");
+		this->zLabel = new QLabel("z:", this);
 		this->zLabel->setStyleSheet("QLabel { color: blue; }");
-		this->to3 = new QLabel("to");
-		this->zFrom = new QDoubleSpinBox;
+		this->to3 = new QLabel("to", this);
+		this->zFrom = new QDoubleSpinBox(this);
 		this->zFrom->setRange(0, 1);
 		this->zFrom->setValue(this->settings->value("zFrom", 0).toDouble());
 		this->zFrom->setDecimals(3);
 		this->zFrom->setSingleStep(0.01);
 		QObject::connect(this->zFrom, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->zTo = new QDoubleSpinBox;
+		this->zTo = new QDoubleSpinBox(this);
 		this->zTo->setRange(0, 1);
 		this->zTo->setValue(this->settings->value("zTo", 1).toDouble());
 		this->zTo->setDecimals(3);
 		this->zTo->setSingleStep(0.01);
 		QObject::connect(this->zTo, SIGNAL(valueChanged(double)), this, SLOT(reactToBoundsChange()));
-		this->resetButton = new QPushButton(tr("Reset All"));
+		this->resetButton = new QPushButton(tr("Reset All"), this);
 		QObject::connect(this->resetButton, SIGNAL(clicked()), this, SLOT(resetBounds()));
 		this->boundsLayout = new QGridLayout();
 		this->boundsLayout->addWidget(this->xLabel, 0, 0);
@@ -114,12 +114,12 @@ namespace ct {
 		this->boundsLayout->setColumnStretch(1, 1);
 		this->boundsLayout->setColumnStretch(2, 0);
 		this->boundsLayout->setColumnStretch(3, 1);
-		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"));
+		this->boundsGroupBox = new QGroupBox(tr("Reconstruction Bounds"), this);
 		this->boundsGroupBox->setLayout(this->boundsLayout);
 
 		this->cudaSettingsDialog = new CudaSettingsDialog(this->settings, volume.getCudaDeviceList(), this);
 		QObject::connect(this->cudaSettingsDialog, SIGNAL(dialogConfirmed()), this, SLOT(updateInfo()));
-		this->cudaGroupBox = new QGroupBox(tr("CUDA"));
+		this->cudaGroupBox = new QGroupBox(tr("CUDA"), this);
 		this->cudaCheckBox = new QCheckBox(tr("Use CUDA"), this->cudaGroupBox);
 		QObject::connect(this->cudaCheckBox, SIGNAL(stateChanged(int)), this, SLOT(reactToCudaCheckboxChange()));
 		this->cudaSettingsButton = new QPushButton(tr("CUDA Settings"), this->cudaGroupBox);
@@ -133,38 +133,38 @@ namespace ct {
 			this->cudaSettingsButton->setEnabled(false);
 		}
 
-		this->loadButton = new QPushButton(tr("&Load Configuration File"));
+		this->loadButton = new QPushButton(tr("&Load Configuration File"), this);
 		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
-		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"));
+		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"), this);
 		QObject::connect(this->reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
-		this->saveButton = new QPushButton(tr("&Save Volume"));
+		this->saveButton = new QPushButton(tr("&Save Volume"), this);
 		QObject::connect(this->saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
 
-		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"));
+		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"), this);
 		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
-		this->cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"));
+		this->cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"), this);
 		QObject::connect(this->cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
 		this->advancedLayout = new QVBoxLayout;
 		this->advancedLayout->addWidget(this->runAllButton);
 		this->advancedLayout->addWidget(this->cmdButton);
-		this->advancedGroupBox = new QGroupBox(tr("Advanced"));
+		this->advancedGroupBox = new QGroupBox(tr("Advanced"), this);
 		this->advancedGroupBox->setLayout(this->advancedLayout);
 
-		this->informationLabel = new QLabel;
+		this->informationLabel = new QLabel(this);
 		this->infoLayout = new QVBoxLayout;
 		this->infoLayout->addWidget(this->informationLabel);
-		this->infoGroupBox = new QGroupBox(tr("Information"));
+		this->infoGroupBox = new QGroupBox(tr("Information"), this);
 		this->infoGroupBox->setLayout(this->infoLayout);
 
-		this->statusLabel = new QLabel(tr("Load a configuration file"));
+		this->statusLabel = new QLabel(tr("Load a configuration file"), this);
 
-		this->progressBar = new QProgressBar;
+		this->progressBar = new QProgressBar(this);
 		this->progressBar->setAlignment(Qt::AlignCenter);
 #ifdef Q_OS_WIN
 		this->taskbarButton = new QWinTaskbarButton(this);
 		this->taskbarProgress = this->taskbarButton->progress();
 #endif
-		this->stopButton = new QPushButton(tr("Stop"));
+		this->stopButton = new QPushButton(tr("Stop"), this);
 		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
 
 		this->progressLayout = new QHBoxLayout();
@@ -195,7 +195,7 @@ namespace ct {
 		this->rightLayout->addWidget(this->infoGroupBox);
 		this->rightLayout->addStretch(1);
 
-		this->imageView = new hb::ImageView;
+		this->imageView = new hb::ImageView(this);
 		this->imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
 
 		this->subLayout = new QHBoxLayout;
@@ -225,61 +225,6 @@ namespace ct {
 			if (lastSize != QSize(-1, -1)) resize(lastSize);
 			if (lastPos != QPoint(-1, -1)) move(lastPos);
 		}
-	}
-
-	MainInterface::~MainInterface() {
-		delete this->subLayout;
-		delete this->leftLayout;
-		delete this->filterLayout;
-		delete this->boundsLayout;
-		delete this->cudaLayout;
-		delete this->progressLayout;
-		delete this->rightLayout;
-		delete this->loadLayout;
-		delete this->advancedLayout;
-		delete this->infoLayout;
-		delete this->loadGroupBox;
-		delete this->advancedGroupBox;
-		delete this->infoGroupBox;
-		delete this->filterGroupBox;
-		delete this->ramlakRadioButton;
-		delete this->shepploganRadioButton;
-		delete this->hannRadioButton;
-		delete this->boundsGroupBox;
-		delete this->xFrom;
-		delete this->xTo;
-		delete this->yFrom;
-		delete this->yTo;
-		delete this->zFrom;
-		delete this->zTo;
-		delete this->xLabel;
-		delete this->yLabel;
-		delete this->zLabel;
-		delete this->to1;
-		delete this->to2;
-		delete this->to3;
-		delete this->resetButton;
-		delete this->cudaLayout;
-		delete this->cudaCheckBox;
-		delete this->cudaSettingsButton;
-		delete this->cudaSettingsDialog;
-		delete this->inputFileEdit;
-		delete this->completer;
-		delete this->browseButton;
-		delete this->loadButton;
-		delete this->reconstructButton;
-		delete this->saveButton;
-		delete this->runAllButton;
-		delete this->cmdButton;
-		delete this->stopButton;
-		delete this->progressBar;
-		delete this->imageView;
-		delete this->informationLabel;
-		delete this->statusLabel;
-#ifdef Q_OS_WIN
-		delete this->taskbarButton;
-		delete this->taskbarProgress;
-#endif
 	}
 
 	QSize MainInterface::sizeHint() const {
