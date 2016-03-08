@@ -516,9 +516,26 @@ namespace ct {
 			cv::normalize(crossSection, normalized, 0, 65535, cv::NORM_MINMAX, CV_16UC1);
 		}
 		try {
-			cv::imwrite(filename.toStdString(), normalized);
+			std::vector<uchar> buffer;
+
+			cv::imencode(".tif", normalized, buffer);
+#ifdef Q_OS_WIN
+			//wchar for utf-16
+			std::ofstream file(filename.toStdWString(), std::iostream::binary);
+			if (!file.good()) {
+				QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
+				return false;
+			}
+#else
+			//char for utf-8
+			std::ifstream file(path.toStdString(), std::iostream::binary);
+#endif
+			char const* ptr = const_cast<char*>(reinterpret_cast<char*>(buffer.data()));
+			file.write(ptr, buffer.size());
+			file.close();
 		} catch (...) {
 			QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
+			return false;
 		}
 		return true;
 	}

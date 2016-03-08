@@ -4,6 +4,7 @@
 #include <future>
 #include <cmath>
 #include <memory>
+#include <fstream>
 
 //OpenCV
 #include <opencv2/highgui.hpp>
