@@ -19,7 +19,12 @@ int init(int argc, char* argv[]) {
 	icon.addFile("./data/icon_256.png");
 	app.setWindowIcon(icon);
 
-	ct::ViewerInterface* mainInterface = new ct::ViewerInterface();
+	QString openWithFilename;
+	if (QCoreApplication::arguments().size() > 1) {
+		openWithFilename = QCoreApplication::arguments().at(1);
+	}
+
+	ct::ViewerInterface* mainInterface = new ct::ViewerInterface(openWithFilename);
 	mainInterface->show();
 	splash.finish(mainInterface);
 
