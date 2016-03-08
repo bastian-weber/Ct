@@ -384,9 +384,8 @@ namespace ct {
 			this->loadingActive = false;
 			return false;
 		}
-		std::string f = filename.toStdString();
 		std::function<bool()> call = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename.toStdString(), xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian); 
+			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, call);
 		this->progressDialog->reset();
@@ -522,14 +521,14 @@ namespace ct {
 #ifdef Q_OS_WIN
 			//wchar for utf-16
 			std::ofstream file(filename.toStdWString(), std::iostream::binary);
-			if (!file.good()) {
-				QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
-				return false;
-			}
 #else
 			//char for utf-8
 			std::ifstream file(path.toStdString(), std::iostream::binary);
 #endif
+			if (!file.good()) {
+				QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
+				return false;
+			}
 			char const* ptr = const_cast<char*>(reinterpret_cast<char*>(buffer.data()));
 			file.write(ptr, buffer.size());
 			file.close();

@@ -62,7 +62,7 @@ namespace ct {
 
 		//constructors
 		CtVolume();
-		CtVolume(std::string csvFile);
+		CtVolume(QString csvFile);
 		//getters
 		bool cudaAvailable();
 		ct::Projection getProjectionAt(size_t index) const;
@@ -104,9 +104,9 @@ namespace ct {
 		void setFrequencyFilterType(FilterType filterType);
 
 		//control functions
-		void sinogramFromImages(std::string csvFile);							//creates a sinogramm out of images specified in csvFile								
+		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
-		void saveVolumeToBinaryFile(std::string filename) const;				//saves the reconstructed volume to a binary file
+		void saveVolumeToBinaryFile(QString filename) const;					//saves the reconstructed volume to a binary file
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 
 	private:
@@ -114,10 +114,10 @@ namespace ct {
 		//struct for storing one projection internally
 		struct Projection {
 			Projection();
-			Projection(std::string imagePath, double angle, double heightOffset);	//Constructor
+			Projection(QString imagePath, double angle, double heightOffset);	//Constructor
 			cv::Mat getImage() const;
 			ct::Projection getPublicProjection() const;
-			std::string imagePath;
+			QString imagePath;
 			double angle;
 			double heightOffset;													//for random trajectory
 		};
@@ -126,12 +126,6 @@ namespace ct {
 		
 		//related to parsing of config file
 		void initialise();
-		void readParameters(std::ifstream& stream,
-							std::string& path,
-							std::string& rotationDirection);
-		std::string glueRelativePath(std::string const& basePath,
-									 std::string const& potentialRelativePath);
-		bool readImages(std::ifstream& csvStream, std::string path, int imgCnt);
 		void makeHeightOffsetRelative();
 		void correctAngleDirection(std::string rotationDirection);
 		

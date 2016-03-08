@@ -58,8 +58,8 @@ int main(int argc, char* argv[]) {
 	bool useCuda = volume.cudaAvailable();
 	ct::FilterType filterType = ct::FilterType::RAMLAK;
 	std::string filterTypeString = "Ram-Lak";
-	std::string input;
-	std::string output;
+	QString input;
+	QString output;
 	double xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
 
 	if (argc >= 2) {
@@ -120,12 +120,12 @@ int main(int argc, char* argv[]) {
 					}
 				} else if (std::string(argv[i]).compare("-i") == 0 || std::string(argv[i]).compare("--input") == 0) {
 					if (argc > i + 1) {
-						input = argv[++i];
+						input = QCoreApplication::arguments().at(++i);
 						inputProvided = true;
 					}
 				} else if (std::string(argv[i]).compare("-o") == 0 || std::string(argv[i]).compare("--output") == 0) {
 					if (argc > i + 1) {
-						output = argv[++i];
+						output = QCoreApplication::arguments().at(++i);
 						outputProvided = true;
 					}
 				} else if (std::string(argv[i]).compare("-b") == 0 || std::string(argv[i]).compare("--background") == 0) {
@@ -162,8 +162,8 @@ int main(int argc, char* argv[]) {
 				std::vector<std::string> cudaDeviceNames = volume.getCudaDeviceList();
 				QVector<int> activeCudaDevices = QVector<int>::fromStdVector(volume.getActiveCudaDevices());
 				std::cout << std::endl << "Beginning reconstruction." << std::endl;
-				std::cout << "\tInput:\t\t\t" << input << std::endl;
-				std::cout << "\tOutput:\t\t\t" << output << std::endl;
+				std::cout << "\tInput:\t\t\t" << input.toStdString() << std::endl;
+				std::cout << "\tOutput:\t\t\t" << output.toStdString() << std::endl;
 				std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
 				std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
 				if (volume.cudaAvailable()) {
