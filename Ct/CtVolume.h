@@ -28,6 +28,7 @@
 #include <cuda_runtime.h>
 
 #include "Volume.h"
+#include "utility.h"
 #include "CompletionStatus.h"
 #include "cuda_ct.h"
 

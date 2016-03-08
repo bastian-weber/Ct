@@ -18,7 +18,18 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::Projection::getImage() const {
-		return cv::imread(this->imagePath.toStdString(), CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+		cv::Mat image;
+		if (!utility::isCharCompatible(this->imagePath)) {
+			std::shared_ptr<std::vector<char>> buffer = utility::readFileIntoBuffer(this->imagePath);
+			if (buffer->empty()) {
+				return cv::Mat();
+			}
+			image = cv::imdecode(*buffer, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+		} else {
+			image = cv::imread(this->imagePath.toStdString(), CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+		}
+
+		return image;
 	}
 
 	ct::Projection CtVolume::Projection::getPublicProjection() const {
