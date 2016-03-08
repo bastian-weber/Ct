@@ -226,6 +226,7 @@ namespace ct {
 				break;
 		}
 		if (this->emitSignals) emit(loadingFinished());
+		return true;
 	}
 
 	ct::Projection CtVolume::getProjectionAt(size_t index) const {
@@ -655,7 +656,7 @@ namespace ct {
 		cv::Vec2f* ptr;
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
-			for (int column = 0; column < nyquist; ++column) {
+			for (unsigned int column = 0; column < nyquist; ++column) {
 				switch (filterType) {
 					case FilterType::RAMLAK:
 						ptr[column] *= ramLakWindowFilter(column, nyquist);

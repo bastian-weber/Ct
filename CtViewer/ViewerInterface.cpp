@@ -185,8 +185,12 @@ namespace ct {
 				if (e->delta() < 0) {
 					signum = -1;
 				}
-				long nextSlice = this->getCurrentSliceOfCurrentAxis() + ((this->volume.getSizeAlongDimension(this->currentAxis) / 10) * signum);
-				if (nextSlice < 0) nextSlice = 0;
+				size_t value = (this->volume.getSizeAlongDimension(this->currentAxis) / 10);
+				size_t currentSlice = this->getCurrentSliceOfCurrentAxis();
+				size_t nextSlice = this->getCurrentSliceOfCurrentAxis() + value*signum;
+				if (signum < 0 && value > currentSlice) {
+					nextSlice = 0;
+				}
 				if (nextSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume.getSizeAlongDimension(this->currentAxis) - 1;
 				this->setCurrentSliceOfCurrentAxis(nextSlice);
 				this->updateImage();
@@ -280,6 +284,7 @@ namespace ct {
 			case Axis::Z:
 				return this->currentSliceZ;
 		}
+		return 0;
 	}
 
 	void ViewerInterface::setCurrentSliceOfCurrentAxis(size_t value) {
