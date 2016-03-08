@@ -2,10 +2,14 @@
 
 namespace ct {
 
-	ViewerInterface::ViewerInterface(QWidget *parent)
+	ViewerInterface::ViewerInterface(QString const& openWithFilename, QWidget *parent)
 		: QWidget(parent),
 		settings(new QSettings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ctviewer.ini", QSettings::IniFormat)) {
 		setAcceptDrops(true);
+
+		//for "open with"
+		this->openWithFilename = openWithFilename;
+		QObject::connect(this, SIGNAL(windowLoaded()), this, SLOT(loadOpenWithFile()), Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
 
 		this->volume.setEmitSignals(true);
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
@@ -217,6 +221,7 @@ namespace ct {
 #ifdef Q_OS_WIN
 		this->taskbarButton->setWindow(this->windowHandle());
 #endif
+		emit(windowLoaded());
 	}
 
 	void ViewerInterface::closeEvent(QCloseEvent* e) {
@@ -320,7 +325,7 @@ namespace ct {
 			infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
 		}
 		if (!QFile::exists(filename)) {
-			std::cout << "The volume file " << filename.toStdString() << " could not be found." << std::endl;
+			QMessageBox::critical(this, tr("Error"), QString("The volume file %1 could not be found.").arg(filename), QMessageBox::Close);
 			this->loadingActive = false;
 			return false;
 		}
@@ -375,7 +380,7 @@ namespace ct {
 			}
 		}
 		if (!(xSize > 0 && ySize > 0 && zSize > 0)) {
-			std::cout << "Volume could not be loaded because the volume dimensions are invalid." << std::endl;
+			QMessageBox::critical(this, tr("Error"), "Volume could not be loaded because the volume dimensions are invalid.", QMessageBox::Close);
 			this->loadingActive = false;
 			return false;
 		}
@@ -414,6 +419,13 @@ namespace ct {
 			this->exitFullscreen();
 		} else {
 			this->enterFullscreen();
+		}
+	}
+
+	void ViewerInterface::loadOpenWithFile() {
+		if (!this->openWithFilename.isEmpty()) {
+			this->loadVolume(openWithFilename);
+			this->openWithFilename = QString();
 		}
 	}
 
@@ -503,8 +515,11 @@ namespace ct {
 		} else {
 			cv::normalize(crossSection, normalized, 0, 65535, cv::NORM_MINMAX, CV_16UC1);
 		}
+		try {
 			cv::imwrite(filename.toStdString(), normalized);
-
+		} catch (...) {
+			QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
+		}
 		return true;
 	}
 

@@ -30,7 +30,7 @@ namespace ct {
 	class ViewerInterface : public QWidget {
 		Q_OBJECT
 	public:
-		ViewerInterface(QWidget *parent = 0);
+		ViewerInterface(QString const& openWithFilename = QString(), QWidget *parent = 0);
 		~ViewerInterface();
 		QSize sizeHint() const;
 		void infoPaintFunction(QPainter& canvas);
@@ -67,6 +67,7 @@ namespace ct {
 		hb::Timer timer;
 		std::shared_ptr<QSettings> settings;
 		std::future<bool> loadVolumeThread;
+		QString openWithFilename;
 
 		//interface widgets
 		QHBoxLayout* mainLayout;
@@ -81,11 +82,12 @@ namespace ct {
 		QAction* openDialogAction;
 		QAction* saveImageAction;
 		//For the windows taskbar progress display
-	#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;
 		QWinTaskbarProgress* taskbarProgress;
-	#endif
+#endif
 	private slots:
+		void loadOpenWithFile();
 		void reactToLoadProgressUpdate(double percentage);
 		void reactToLoadCompletion(CompletionStatus status);
 		void stop();
@@ -95,6 +97,7 @@ namespace ct {
 		void saveImageDialog();
 		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth);
 	signals:
+		void windowLoaded();
 		void progressUpdate(int progress) const;
 	};
 
