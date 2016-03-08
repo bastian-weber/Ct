@@ -32,7 +32,6 @@ namespace ct {
 		Q_OBJECT
 	public:
 		ViewerInterface(QString const& openWithFilename = QString(), QWidget *parent = 0);
-		~ViewerInterface();
 		QSize sizeHint() const;
 		void infoPaintFunction(QPainter& canvas);
 	protected:

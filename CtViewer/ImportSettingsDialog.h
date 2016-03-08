@@ -16,7 +16,6 @@ namespace ct {
 		Q_OBJECT
 	public:
 		ImportSettingsDialog(std::shared_ptr<QSettings> settings, QWidget* parent = 0);
-		~ImportSettingsDialog();
 		int execForFilesize(size_t requiredSize);
 		size_t getXSize() const;
 		size_t getYSize() const;

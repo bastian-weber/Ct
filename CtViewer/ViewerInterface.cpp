@@ -30,13 +30,13 @@ namespace ct {
 #endif
 		this->setContentsMargins(0, 0, 0, 0);
 
-		this->imageView = new hb::ImageView;
+		this->imageView = new hb::ImageView(this);
 		this->imageView->setInterfaceBackgroundColor(Qt::black);
 		this->imageView->setShowInterfaceOutline(false);
 		this->imageView->setExternalPostPaintFunction(this, &ViewerInterface::infoPaintFunction);
 		this->imageView->setRightClickForHundredPercentView(false);
 
-		this->mainLayout = new QHBoxLayout();
+		this->mainLayout = new QHBoxLayout(this);
 		this->mainLayout->setContentsMargins(0, 0, 0, 0);
 		this->mainLayout->addWidget(this->imageView);
 
@@ -61,7 +61,7 @@ namespace ct {
 		this->zAxisAction->setShortcut(Qt::Key_Z);
 		this->addAction(this->zAxisAction);
 		QObject::connect(this->zAxisAction, SIGNAL(triggered()), this, SLOT(changeAxis()));
-		this->axisActionGroup = new QActionGroup(this);
+		this->axisActionGroup = new QActionGroup(this->contextMenu);
 		this->axisActionGroup->addAction(xAxisAction);
 		this->axisActionGroup->addAction(yAxisAction);
 		this->axisActionGroup->addAction(zAxisAction);
@@ -81,8 +81,6 @@ namespace ct {
 		this->contextMenu->addAction(this->zAxisAction);
 		this->contextMenu->addSeparator();
 		this->contextMenu->addAction(this->saveImageAction);
-
-
 		this->setContextMenuPolicy(Qt::CustomContextMenu);
 		QObject::connect(this, SIGNAL(customContextMenuRequested(QPoint const&)), this, SLOT(showContextMenu(QPoint const&)));
 
@@ -100,22 +98,6 @@ namespace ct {
 			if (lastSize != QSize(-1, -1)) resize(lastSize);
 			if (lastPos != QPoint(-1, -1)) move(lastPos);
 		}
-	}
-
-	ViewerInterface::~ViewerInterface() {
-		delete this->mainLayout;
-		delete this->imageView;
-		delete this->settingsDialog;
-		delete this->contextMenu;
-		delete this->axisActionGroup;
-		delete this->xAxisAction;
-		delete this->yAxisAction;
-		delete this->zAxisAction;
-		delete this->openDialogAction;
-#ifdef Q_OS_WIN
-		delete this->taskbarButton;
-		delete this->taskbarProgress;
-#endif
 	}
 
 	QSize ViewerInterface::sizeHint() const {

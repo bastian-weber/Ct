@@ -23,7 +23,6 @@ namespace ct {
 		Q_OBJECT
 	public:
 		MainInterface(QWidget *parent = 0);
-		~MainInterface();
 		QSize sizeHint() const;
 		void infoPaintFunction(QPainter& canvas);
 	protected:

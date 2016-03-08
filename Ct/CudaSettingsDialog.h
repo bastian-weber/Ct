@@ -16,7 +16,6 @@ namespace ct {
 		Q_OBJECT
 	public:
 		CudaSettingsDialog(std::shared_ptr<QSettings> settings, std::vector<std::string> const& devices, QWidget* parent = 0);
-		~CudaSettingsDialog();
 		std::vector<int> getActiveCudaDevices() const;
 	protected:
 		void showEvent(QShowEvent* e);

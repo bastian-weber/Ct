@@ -14,14 +14,8 @@ namespace ct {
 		this->okButton = new QPushButton(tr("&Ok"), this);
 		this->okButton->setDefault(true);
 		QObject::connect(this->okButton, SIGNAL(clicked()), this, SLOT(accept()));
-
 		this->cancelButton = new QPushButton(tr("&Cancel"), this);
 		QObject::connect(this->cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
-
-		this->buttonLayout = new QHBoxLayout();
-		this->buttonLayout->addStretch(1);
-		this->buttonLayout->addWidget(okButton);
-		this->buttonLayout->addWidget(cancelButton);
 
 		this->xSpinBox = new QSpinBox;
 		this->xSpinBox->setRange(1, std::numeric_limits<int>::max());
@@ -38,6 +32,8 @@ namespace ct {
 		this->requiredSizeLabel = new QLabel("");
 		this->actualSizeLabel = new QLabel("");
 
+		this->mainLayout = new QVBoxLayout(this);
+
 		this->formLayout = new QFormLayout();
 		this->formLayout->setSpacing(10);
 		this->formLayout->addRow(tr("X size:"), this->xSpinBox);
@@ -46,26 +42,17 @@ namespace ct {
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
-		this->mainLayout = new QVBoxLayout;
+		this->buttonLayout = new QHBoxLayout();
+		this->buttonLayout->addStretch(1);
+		this->buttonLayout->addWidget(okButton);
+		this->buttonLayout->addWidget(cancelButton);
+
 		this->mainLayout->addLayout(this->formLayout);
 		this->mainLayout->addSpacing(10);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
-	}
-
-	ImportSettingsDialog::~ImportSettingsDialog() {
-		delete this->mainLayout;
-		delete this->formLayout;
-		delete this->buttonLayout;
-		delete this->okButton;
-		delete this->cancelButton;
-		delete this->xSpinBox;
-		delete this->ySpinBox;
-		delete this->zSpinBox;
-		delete this->actualSizeLabel;
-		delete this->requiredSizeLabel;
 	}
 
 	int ImportSettingsDialog::execForFilesize(size_t requiredSize) {
