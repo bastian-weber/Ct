@@ -18,7 +18,7 @@ namespace ct {
 		this->progressDialog->setWindowModality(Qt::WindowModal);
 		progressDialog->setMinimumWidth(350);
 		progressDialog->setWindowTitle(tr("Loading..."));
-		progressDialog->setMinimumDuration(100);
+		progressDialog->setMinimumDuration(500);
 		progressDialog->reset();
 #ifdef Q_OS_WIN
 		this->taskbarButton = new QWinTaskbarButton(this);
@@ -57,13 +57,27 @@ namespace ct {
 		this->zAxisAction->setShortcut(Qt::Key_Z);
 		this->addAction(this->zAxisAction);
 		QObject::connect(this->zAxisAction, SIGNAL(triggered()), this, SLOT(changeAxis()));
-		this->contextMenu->addAction(this->xAxisAction);
-		this->contextMenu->addAction(this->yAxisAction);
-		this->contextMenu->addAction(this->zAxisAction);
 		this->axisActionGroup = new QActionGroup(this);
 		this->axisActionGroup->addAction(xAxisAction);
 		this->axisActionGroup->addAction(yAxisAction);
 		this->axisActionGroup->addAction(zAxisAction);
+		this->openDialogAction = new QAction(tr("Open Volume"), this->contextMenu);
+		this->openDialogAction->setShortcut(Qt::CTRL + Qt::Key_O);
+		this->addAction(this->openDialogAction);
+		QObject::connect(this->openDialogAction, SIGNAL(triggered()), this, SLOT(openDialog()));
+		this->saveImageAction = new QAction(tr("Save as Image"), this->contextMenu);
+		this->saveImageAction->setShortcut(Qt::CTRL + Qt::Key_S);
+		this->addAction(this->saveImageAction);
+		QObject::connect(this->saveImageAction, SIGNAL(triggered()), this, SLOT(saveImageDialog()));
+
+		this->contextMenu->addAction(this->xAxisAction);
+		this->contextMenu->addAction(this->yAxisAction);
+		this->contextMenu->addAction(this->zAxisAction);
+		this->contextMenu->addSeparator();
+		this->contextMenu->addAction(this->openDialogAction);
+		this->contextMenu->addAction(this->saveImageAction);
+
+
 		this->setContextMenuPolicy(Qt::CustomContextMenu);
 		QObject::connect(this, SIGNAL(customContextMenuRequested(QPoint const&)), this, SLOT(showContextMenu(QPoint const&)));
 
@@ -94,6 +108,7 @@ namespace ct {
 		delete this->xAxisAction;
 		delete this->yAxisAction;
 		delete this->zAxisAction;
+		delete this->openDialogAction;
 #ifdef Q_OS_WIN
 		delete this->taskbarButton;
 		delete this->taskbarProgress;
@@ -160,8 +175,6 @@ namespace ct {
 		if (e->key() == Qt::Key_Escape) {
 			this->exitFullscreen();
 			return;
-		} else if (e->key() == Qt::Key_O) {
-			this->openDialog();
 		} else {
 			if (this->volumeLoaded) {
 				if (e->key() == Qt::Key_Up) {
@@ -390,17 +403,6 @@ namespace ct {
 		}
 	}
 
-	void ViewerInterface::openDialog() {
-		QString path = QFileDialog::getOpenFileName(this,
-													tr("Open Volume or Volume Info File"),
-													QDir::rootPath(),
-													"Volume or Info Files (*.raw *.txt);;");
-
-		if (!path.isEmpty()) {
-			this->loadVolume(path);
-		}
-	}
-
 	void ViewerInterface::reactToLoadProgressUpdate(double percentage) {
 		this->progressDialog->setValue(percentage);
 #ifdef Q_OS_WIN
@@ -448,4 +450,47 @@ namespace ct {
 		}
 		this->updateImage();
 	}
+
+	void ViewerInterface::openDialog() {
+		QString path = QFileDialog::getOpenFileName(this,
+													tr("Open Volume or Volume Info File"),
+													QDir::rootPath(),
+													"Volume or Info Files (*.raw *.txt);;");
+
+		if (!path.isEmpty()) {
+			this->loadVolume(path);
+		}
+	}
+
+	void ViewerInterface::saveImageDialog() {
+		QString path = QFileDialog::getSaveFileName(this, tr("Save Image"), QDir::rootPath(), "Tif Files (*.tif);;");
+		QMessageBox msgBox;
+		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+		msgBox.setWindowTitle(tr("Choose Colour Depth"));
+		msgBox.setText(tr("Please choose the colour depth of the output image."));
+		msgBox.setButtonText(QMessageBox::Yes, tr("16 bit"));
+		msgBox.setButtonText(QMessageBox::No, tr("8 bit"));
+		ImageBitDepth depth = ImageBitDepth::CHANNEL_16_BIT;
+		if (QMessageBox::No == msgBox.exec()) {
+			depth = ImageBitDepth::CHANNEL_8_BIT;
+		}
+		this->saveCurrentSliceAsImage(path, depth);
+	}
+
+	bool ViewerInterface::saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth) {
+		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
+			return false;
+		}
+		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis());
+		cv::Mat normalized;
+		if (bitDepth == ImageBitDepth::CHANNEL_8_BIT) {
+			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		} else {
+			cv::normalize(crossSection, normalized, 0, 65535, cv::NORM_MINMAX, CV_16UC1);
+		}
+			cv::imwrite(filename.toStdString(), normalized);
+
+		return true;
+	}
+
 }
