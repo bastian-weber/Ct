@@ -168,7 +168,7 @@ namespace ct {
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(std::string filename, QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const {
+	bool Volume<T>::saveToBinaryFile(std::string filename, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
 		this->stopActiveProcess = false;
 		if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
 			{
