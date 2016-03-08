@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 3.0.2)
 
 #Opencv modules
 set(OPENCV_MODULES_CT "opencv_core" "opencv_highgui" "opencv_imgproc" "opencv_imgcodecs" "opencv_cudaarithm" "opencv_cudafilters" "opencv_cudaimgproc" "opencv_cudawarping")
-set(OPENCV_MODULES_CTVIEWER "opencv_core" "opencv_highgui" "opencv_imgproc")
+set(OPENCV_MODULES_CTVIEWER "opencv_core" "opencv_imgcodecs" "opencv_highgui" "opencv_imgproc")
 #Qt modules
 set(QT_MODULES_CT "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")
 set(QT_MODULES_CTVIEWER "Qt5::Core" "Qt5::Gui" "Qt5::Widgets")

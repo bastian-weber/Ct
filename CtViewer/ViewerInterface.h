@@ -22,6 +22,11 @@
 
 namespace ct {
 
+	enum class ImageBitDepth {
+		CHANNEL_8_BIT,
+		CHANNEL_16_BIT
+	};
+
 	class ViewerInterface : public QWidget {
 		Q_OBJECT
 	public:
@@ -49,7 +54,6 @@ namespace ct {
 		void enterFullscreen();
 		void exitFullscreen();
 		void toggleFullscreen();
-		void openDialog();
 
 		Volume<float> volume;
 		std::atomic<bool> volumeLoaded{ false };
@@ -72,6 +76,8 @@ namespace ct {
 		QAction* xAxisAction;
 		QAction* yAxisAction;
 		QAction* zAxisAction;
+		QAction* openDialogAction;
+		QAction* saveImageAction;
 		//For the windows taskbar progress display
 	#ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;
@@ -83,6 +89,9 @@ namespace ct {
 		void stop();
 		void showContextMenu(QPoint const& pos);
 		void changeAxis();
+		void openDialog();
+		void saveImageDialog();
+		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth);
 	signals:
 		void progressUpdate(int progress) const;
 	};
