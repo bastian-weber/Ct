@@ -71,11 +71,11 @@ namespace ct {
 	//=========================================== IMPLEMENTATION ===========================================\\
 
 	template <typename T>
-	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0) 
+	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) 
 	: std::vector<std::vector<std::vector<T>>>(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue))) { }
 
 	template <typename T>
-	void Volume<T>::reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0) {
+	void Volume<T>::reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
 		this->clear();
 		this->resize(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue)));
 	}
