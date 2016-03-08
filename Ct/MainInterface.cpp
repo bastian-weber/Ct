@@ -816,7 +816,7 @@ namespace ct {
 		this->taskbarProgress->show();
 #endif
 		this->timer.reset();
-		std::thread(&CtVolume::sinogramFromImages, &this->volume, this->inputFileEdit->text().toStdString()).detach();
+		std::thread(&CtVolume::sinogramFromImages, &this->volume, this->inputFileEdit->text()).detach();
 	}
 
 	void MainInterface::reactToReconstructButtonClick() {
@@ -849,7 +849,7 @@ namespace ct {
 #endif
 			this->setStatus(tr("Writing volume to disk..."));
 			this->timer.reset();
-			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path.toStdString()).detach();
+			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path).detach();
 		}
 	}
 

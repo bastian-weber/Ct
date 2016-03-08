@@ -13,16 +13,16 @@ namespace ct {
 
 	CtVolume::Projection::Projection() { }
 
-	CtVolume::Projection::Projection(std::string imagePath, double angle, double heightOffset) : imagePath(imagePath), angle(angle), heightOffset(heightOffset) {
+	CtVolume::Projection::Projection(QString imagePath, double angle, double heightOffset) : imagePath(imagePath), angle(angle), heightOffset(heightOffset) {
 		//empty
 	}
 
 	cv::Mat CtVolume::Projection::getImage() const {
-		return cv::imread(imagePath, CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
+		return cv::imread(this->imagePath.toStdString(), CV_LOAD_IMAGE_GRAYSCALE | CV_LOAD_IMAGE_ANYDEPTH);
 	}
 
 	ct::Projection CtVolume::Projection::getPublicProjection() const {
-		return ct::Projection(getImage(), angle, heightOffset);
+		return ct::Projection(this->getImage(), angle, heightOffset);
 	}
 
 	//============================================== PUBLIC ==============================================\\
@@ -32,7 +32,7 @@ namespace ct {
 		this->initialise();
 	}
 
-	CtVolume::CtVolume(std::string csvFile) : activeCudaDevices({ 0 }) {
+	CtVolume::CtVolume(QString csvFile) : activeCudaDevices({ 0 }) {
 		this->initialise();
 		this->sinogramFromImages(csvFile);
 	}
@@ -41,79 +41,115 @@ namespace ct {
 		return (cv::cuda::getCudaEnabledDeviceCount() > 0);
 	}
 
-	void CtVolume::sinogramFromImages(std::string csvFile) {
+	bool CtVolume::sinogramFromImages(QString csvFile) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 		this->volume.clear();
 		//delete the contents of the sinogram
 		this->sinogram.clear();
 		//open the csv file
-		std::ifstream stream(csvFile.c_str(), std::ios::in);
-		if (!stream.good()) {
+		QFile file(csvFile);
+		if (!file.open(QIODevice::ReadOnly)) {
 			std::cerr << "Could not open CSV file - terminating" << std::endl;
 			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the config file.")));
-			return;
+			return false;		
 		}
-		//count the lines in the file
-		int lineCnt = std::count(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>(), '\n') + 1;
-		int imgCnt = lineCnt - 8;
+		QTextStream in(&file);
+		QDir imageDir;
+		std::string rotationDirection;
 
-		if (imgCnt <= 0) {
-			std::cout << "CSV file does not contain any images." << std::endl;
-			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
-			return;
-		} else {
-			//resize the sinogram to the correct size
-			this->sinogram.reserve(imgCnt);
-
-			//go back to the beginning of the file
-			stream.seekg(std::ios::beg);
-
-			//read the parameter section of the csv file
-			std::string path;
-			std::string rotationDirection;
-			this->readParameters(stream, path, rotationDirection);
-
-			//the image path might be relative
-			path = this->glueRelativePath(csvFile, path);
-
-			//read the images from the csv file
-			if (!this->readImages(stream, path, imgCnt)) return;
-			if (this->stopActiveProcess) {
-				this->sinogram.clear();
-				std::cout << "User interrupted. Stopping.";
-				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
-				return;
+		//read parameters
+		{
+			bool success;
+			bool totalSuccess = true;
+			imageDir = QDir(in.readLine().section('\t', 0, 0));
+			this->pixelSize = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
+			rotationDirection = in.readLine().section('\t', 0, 0).toStdString();
+			this->uOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
+			this->vOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
+			this->SO = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
+			this->SD = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
+			//leave out one line
+			in.readLine();
+			//convert the distance
+			this->SD /= this->pixelSize;
+			this->SO /= this->pixelSize;
+			//convert uOffset and vOffset
+			this->uOffset /= this->pixelSize;
+			this->vOffset /= this->pixelSize;
+			if (!totalSuccess) {
+				std::cout << "Could not read the parameters from the CSV file successfully." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not read the parameters from the CSV file successfully.")));
+				return false;
 			}
+		}
 
-			if (this->sinogram.size() > 0) {
-				//make the height offset values realtive
-				this->makeHeightOffsetRelative();
-				//make sure the rotation direction is correct
-				this->correctAngleDirection(rotationDirection);
-				//Axes: breadth = x, width = y, height = z
-				this->xSize = this->imageWidth;
-				this->ySize = this->imageWidth;
-				this->zSize = this->imageHeight;
-				this->updateBoundaries();
-				switch (this->crossSectionAxis) {
-					case Axis::X:
-						this->crossSectionIndex = this->xMax / 2;
-						break;
-					case Axis::Y:
-						this->crossSectionIndex = this->yMax / 2;
-						break;
-					case Axis::Z:
-						this->crossSectionIndex = this->zMax / 2;
-						break;
+		//create image path
+		if (imageDir.isRelative()) {
+			imageDir = QDir(QDir::cleanPath(QFileInfo(csvFile).absoluteDir().absoluteFilePath(imageDir.path())));
+		}
+
+		//read images
+		{
+			bool success;
+			bool totalSuccess = true;
+			QString line;
+			QString imageFilename;
+			double angle;
+			double heightOffset;
+			while (!in.atEnd()) {
+				line = in.readLine();
+				QStringList fields = line.split('\t');
+				if (fields.size() >= 2) {
+					imageFilename = fields[0];
+					angle = fields[1].toDouble(&success);
+					totalSuccess = totalSuccess && success;
 				}
-				if (this->stopActiveProcess) {
-					this->sinogram.clear();
-					std::cout << "User interrupted. Stopping.";
-					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
-					return;
+				if (fields.size() >= 3) {
+					heightOffset = fields[2].toDouble(&success);
+					totalSuccess = totalSuccess && success;
+				} else {
+					heightOffset = 0;
 				}
+				//add the image
+				this->sinogram.push_back(Projection(imageDir.absoluteFilePath(imageFilename), angle, heightOffset));
 			}
+			if (!totalSuccess) {
+				std::cout << "Could not read the image parameters from the CSV file successfully." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not read the image parameters from the CSV file successfully.")));
+				return false;
+			}
+			if (this->sinogram.size() == 0) {
+				std::cout << "Apparently the config file does not contain any images." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Apparently the config file does not contain any images.")));
+				return false;
+			}
+		}
+
+		//make the height offset values realtive
+		this->makeHeightOffsetRelative();
+		//make sure the rotation direction is correct
+		this->correctAngleDirection(rotationDirection);
+		//Axes: breadth = x, width = y, height = z
+		this->xSize = this->imageWidth;
+		this->ySize = this->imageWidth;
+		this->zSize = this->imageHeight;
+		this->updateBoundaries();
+		switch (this->crossSectionAxis) {
+			case Axis::X:
+				this->crossSectionIndex = this->xMax / 2;
+				break;
+			case Axis::Y:
+				this->crossSectionIndex = this->yMax / 2;
+				break;
+			case Axis::Z:
+				this->crossSectionIndex = this->zMax / 2;
+				break;
 		}
 		if (this->emitSignals) emit(loadingFinished());
 	}
@@ -393,12 +429,12 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::saveVolumeToBinaryFile(std::string filename) const {
+	void CtVolume::saveVolumeToBinaryFile(QString filename) const {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 
 		//write information file
-		QFileInfo fileInfo(filename.c_str());
+		QFileInfo fileInfo(filename);
 		QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
 		QFile file(infoFileName);
 		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -450,155 +486,6 @@ namespace ct {
 		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
-	}
-
-	void CtVolume::readParameters(std::ifstream& stream, std::string& path, std::string& rotationDirection) {
-		//variables for the values that shall be read
-		std::string line;
-		std::stringstream lineStream;
-		std::string field;
-
-		//manual reading of all the parameters
-		std::getline(stream, path, '\t');
-		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		lineStream >> this->pixelSize;
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		std::getline(lineStream, rotationDirection, '\t');
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		lineStream >> this->uOffset;
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		lineStream >> this->vOffset;
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		lineStream >> this->SO;
-		std::getline(stream, line);
-		lineStream.str(line);
-		lineStream.clear();
-		lineStream >> this->SD;
-		//leave out one line
-		stream.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-
-		//convert the distance
-		this->SD /= this->pixelSize;
-		this->SO /= this->pixelSize;
-		//convert uOffset and vOffset
-		this->uOffset /= this->pixelSize;
-		this->vOffset /= this->pixelSize;
-	}
-
-	std::string CtVolume::glueRelativePath(std::string const& basePath, std::string const& potentialRelativePath) {
-		//handle relative paths
-		std::string resultPath;
-		if (potentialRelativePath.size() > 0 && potentialRelativePath.at(0) == '.') {
-			size_t pos = basePath.find_last_of("/\\");
-			if (pos != std::string::npos) {
-				std::string folder = basePath.substr(0, pos + 1);
-				resultPath = folder + potentialRelativePath;
-			}
-		} else {
-			resultPath = potentialRelativePath;
-		}
-		if (resultPath.size() > 0 && *(resultPath.end() - 1) != '/' && *(resultPath.end() - 1) != '\\') {
-			resultPath = resultPath + std::string("/");
-		}
-		return resultPath;
-	}
-
-	bool CtVolume::readImages(std::ifstream& csvStream, std::string path, int imgCnt) {
-		//now load the actual image files and their parameters
-		std::cout << "Parsing config file" << std::endl;
-		std::stringstream lineStream;
-		std::stringstream conversionStream;
-		std::string line;
-		std::string field;
-		std::string file;
-		double angle;
-		double heightOffset;
-		int cnt = 0;
-		size_t rows;
-		size_t cols;
-		double min = std::numeric_limits<double>::quiet_NaN();
-		double max = std::numeric_limits<double>::quiet_NaN();
-		while (std::getline(csvStream, line) && !this->stopActiveProcess) {
-			lineStream.str(line);
-			lineStream.clear();
-			std::getline(lineStream, file, '\t');
-			std::getline(lineStream, field, '\t');
-			conversionStream.str(field);
-			conversionStream.clear();
-			conversionStream >> angle;
-			std::getline(lineStream, field);
-			conversionStream.str(field);
-			conversionStream.clear();
-			conversionStream >> heightOffset;
-			//load the image
-			this->sinogram.push_back(ct::CtVolume::Projection(path + file, angle, heightOffset));
-			cv::Mat image = this->sinogram[cnt].getImage();
-			//check if everything is ok
-			if (!image.data) {
-				//if there is no image data
-				this->sinogram.clear();
-				std::string msg = "Error loading the image \"" + path + file + "\" (line " + std::to_string(cnt + 9) + "). Maybe it does not exist, permissions are missing or the format is not supported.";
-				std::cout << msg << std::endl;
-				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
-				return false;
-			} else if (image.depth() != CV_8U && image.depth() != CV_16U && image.depth() != CV_32F) {
-				//wrong depth
-				this->sinogram.clear();
-				std::string msg = "Error loading the image \"" + path + file + "\". The image depth must be either 8bit, 16bit or 32bit.";
-				std::cout << msg << std::endl;
-				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
-				return false;
-			} else {
-				//make sure that all images have the same size
-				if (cnt == 0) {
-					rows = image.rows;
-					cols = image.cols;
-				} else {
-					if (image.rows != rows || image.cols != cols) {
-						//if the image has a different size than the images before stop and reverse
-						this->sinogram.clear();
-						std::string msg = "Error loading the image \"" + file + "\", its dimensions differ from the images before.";
-						std::cout << msg << std::endl;
-						if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg.c_str())));
-						return false;
-					}
-				}
-				//compute the min max values
-				double lMin, lMax;
-				cv::minMaxLoc(image, &lMin, &lMax);
-				if (image.type() == CV_8U) {
-					lMin /= std::pow(2, 8);
-					lMax /= std::pow(2, 8);
-				} else {
-					lMin /= std::pow(2, 16);
-					lMax /= std::pow(2, 16);
-				}
-				if (std::isnan(min) || lMin < min) min = lMin;
-				if (std::isnan(max) || lMax > max) max = lMax;
-				//set image width and image height
-				this->imageWidth = cols;
-				this->imageHeight = rows;
-				//output
-				double percentage = floor(double(cnt) / double(imgCnt) * 100 + 0.5);
-				std::cout << "\r" << "Analysing images: " << percentage << "%";
-				if (this->emitSignals) emit(loadingProgress(percentage));
-			}
-			++cnt;
-		}
-		this->minMaxValues = std::make_pair(float(min), float(max));
-		std::cout << std::endl;
-		return true;
 	}
 
 	void CtVolume::makeHeightOffsetRelative() {
@@ -793,7 +680,7 @@ namespace ct {
 			}
 			//check if the image is good
 			if (!image.data) {
-				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				return false;
 			}
 			//copy some member variables to local variables, performance is better this way
@@ -996,7 +883,7 @@ namespace ct {
 					if (projection < this->sinogram.size() - 1) {
 						image = this->sinogram[projection + 1].getImage();
 						if (!image.data) {
-							this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+							this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 							stopCudaThreads = true;
 							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
