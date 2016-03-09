@@ -5,7 +5,8 @@ namespace ct {
 	ViewerInterface::ViewerInterface(QString const& openWithFilename, QWidget *parent)
 		: QWidget(parent),
 		settings(new QSettings(QFileInfo(QCoreApplication::applicationFilePath()).absoluteDir().path() + "/ctviewer.ini", QSettings::IniFormat)) {
-		setAcceptDrops(true);
+		this->setAcceptDrops(true);
+		this->setMouseTracking(true);
 
 		//for "open with"
 		this->openWithFilename = openWithFilename;
@@ -31,6 +32,7 @@ namespace ct {
 		this->setContentsMargins(0, 0, 0, 0);
 
 		this->imageView = new hb::ImageView(this);
+		this->imageView->installEventFilter(this);
 		this->imageView->setInterfaceBackgroundColor(Qt::black);
 		this->imageView->setShowInterfaceOutline(false);
 		this->imageView->setExternalPostPaintFunction(this, &ViewerInterface::infoPaintFunction);
@@ -122,6 +124,14 @@ namespace ct {
 		return QSize(1053, 660);
 	}
 
+	bool ViewerInterface::eventFilter(QObject* object, QEvent* e) {
+		if (e->type() == QEvent::MouseMove) {
+			QMouseEvent* keyEvent = (QMouseEvent*)e;
+			this->mouseMoveEvent(keyEvent);
+		}
+		return false;
+	}
+
 	void ViewerInterface::infoPaintFunction(QPainter& canvas) {
 		canvas.setRenderHint(QPainter::Antialiasing, true);
 		QPalette palette = qApp->palette();
@@ -136,26 +146,71 @@ namespace ct {
 		canvas.setBackground(base);
 		canvas.setBackgroundMode(Qt::OpaqueMode);
 		QFontMetrics metrics(font);
+		int textHeight = metrics.height();
 		if (this->volumeLoaded) {
+
 			//draw slice number
-			int digits = std::ceil(std::log10(this->volume.getSizeAlongDimension(this->currentAxis)));
-			canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(this->getCurrentSliceOfCurrentAxis() + 1, digits, 10, QChar('0')).arg(this->volume.getSizeAlongDimension(this->currentAxis), digits, 10, QChar('0')));
-			//draw axis name
-			QString axisStr;
-			switch (this->currentAxis) {
-				case ct::Axis::X:
-					axisStr = "X";
-					break;
-				case ct::Axis::Y:
-					axisStr = "Y";
-					break;
-				case ct::Axis::Z:
-					axisStr = "Z";
-					break;
+			{
+				int digits = std::ceil(std::log10(this->volume.getSizeAlongDimension(this->currentAxis)));
+				canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(this->getCurrentSliceOfCurrentAxis() + 1, digits, 10, QChar('0')).arg(this->volume.getSizeAlongDimension(this->currentAxis), digits, 10, QChar('0')));
+				//draw axis name
+				QString axisStr;
+				switch (this->currentAxis) {
+					case ct::Axis::X:
+						axisStr = "X";
+						break;
+					case ct::Axis::Y:
+						axisStr = "Y";
+						break;
+					case ct::Axis::Z:
+						axisStr = "Z";
+						break;
+				}
+				QString message = QString("%1-Axis").arg(axisStr);
+				int textWidth = metrics.width(message);
+				canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
 			}
-			QString message = QString("%1-Axis").arg(axisStr);
-			int textWidth = metrics.width(message);
-			canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, canvas.device()->height() - 15), message);
+
+			//draw coordinate at cursor
+			{
+				if (true) {
+					QPointF imageCoordF = this->imageView->mapToImageCoordinates(this->imageView->mapFromGlobal(QCursor::pos()));
+					QPoint imageCoord = QPoint(std::floor(imageCoordF.x()), std::floor(imageCoordF.y()));
+					if (imageCoord != QPointF()) {
+						size_t xCoordinate, yCoordinate, zCoordinate;
+						if (this->currentAxis == Axis::X) {
+							xCoordinate = this->getCurrentSliceOfCurrentAxis();
+							yCoordinate = imageCoord.x();
+							zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+						} else if (this->currentAxis == Axis::Y) {
+							xCoordinate = this->volume.xSize() - 1 - imageCoord.x();
+							yCoordinate = this->getCurrentSliceOfCurrentAxis();
+							zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+						} else {
+							xCoordinate = imageCoord.y();
+							yCoordinate = imageCoord.x();
+							zCoordinate = this->getCurrentSliceOfCurrentAxis();
+						}
+						float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
+						float span = this->maxValue - this->minValue;
+						float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
+						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
+						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
+						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5\u2006%)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
+						canvas.drawText(QPoint(20, 15 + textHeight), valueText);
+					}
+				}
+			}
+
+			//draw normalisation hint
+			{
+				QString normHint = "Local normalisation";
+				if (this->globalNormalisation) {
+					normHint = "Global normalisation";
+				}
+				int textWidth = metrics.width(normHint);
+				canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, 15 + textHeight), normHint);
+			}
 		}
 	}
 
@@ -181,9 +236,9 @@ namespace ct {
 		} else {
 			if (this->volumeLoaded) {
 				if (e->key() == Qt::Key_Up) {
-					this->setNextSlice();
-				} else if (e->key() == Qt::Key_Down) {
 					this->setPreviousSlice();
+				} else if (e->key() == Qt::Key_Down) {
+					this->setNextSlice();
 				} else {
 					e->ignore();
 					return;
@@ -200,7 +255,7 @@ namespace ct {
 		if (this->volumeLoaded) {
 			if (e->modifiers() & Qt::AltModifier) {
 				int signum = 1;
-				if (e->delta() < 0) {
+				if (e->delta() > 0) {
 					signum = -1;
 				}
 				size_t value = (this->volume.getSizeAlongDimension(this->currentAxis) / 10);
@@ -250,6 +305,12 @@ namespace ct {
 				QWindowStateChangeEvent* windowStateChangeEvent = static_cast<QWindowStateChangeEvent*>(e);
 				this->settings->setValue("maximized", bool(windowStateChangeEvent->oldState() & Qt::WindowMaximized));
 			}
+		}
+	}
+
+	void ViewerInterface::mouseMoveEvent(QMouseEvent* e) {
+		if (this->volumeLoaded) {
+			this->imageView->update();
 		}
 	}
 

@@ -50,6 +50,7 @@ namespace hb {
 		void setImageWithPrecomputedPreview(const cv::Mat& image, const cv::Mat& downscaledImage);
 		void resetImage();
 		bool imageAssigned() const;
+		QPointF mapToImageCoordinates(QPointF pointInWidgetCoordinates) const;
 
 		double getCurrentPreviewScalingFactor() const;
 		void setUseHighQualityDownscaling(bool value);
