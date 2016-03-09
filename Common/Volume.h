@@ -49,7 +49,9 @@ namespace ct {
 								size_t ySize,
 								size_t zSize,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
-								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian);
+								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
+								T* minValue = nullptr,
+								T* maxValue = nullptr);
 		bool saveToBinaryFile(QString const& filename,						//saves the volume to a binary file with the given filename
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
@@ -113,7 +115,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -144,7 +146,10 @@ namespace ct {
 		in.setFloatingPointPrecision(floatingPointPrecision);
 		in.setByteOrder(byteOrder);
 		//iterate through the volume
+		T min = std::numeric_limits<T>::max();
+		T max = std::numeric_limits<T>::lowest();
 		U tmp;
+		T converted;
 		for (int x = 0; x < this->size(); ++x) {
 			if (this->stopActiveProcess) {
 				this->clear();
@@ -158,11 +163,16 @@ namespace ct {
 				for (int z = 0; z < (*this)[0][0].size(); ++z) {
 					//load one U of data
 					in >> tmp;
-					(*this)[x][y][z] = static_cast<T>(tmp);
+					converted = static_cast<T>(tmp);
+					if (converted < min) min = converted;
+					if (converted > max) max = converted;
+					(*this)[x][y][z] = converted;
 				}
 			}
 		}
 		file.close();
+		if (minValue != nullptr) *minValue = min;
+		if (maxValue != nullptr) *maxValue = max;
 		if (this->emitSignals) emit(loadingFinished());
 		return true;
 	}
