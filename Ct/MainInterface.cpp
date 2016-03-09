@@ -337,9 +337,9 @@ namespace ct {
 			}
 		} else if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
 			if (e->key() == Qt::Key_Up) {
-				this->setNextSlice();
-			} else if (e->key() == Qt::Key_Down) {
 				this->setPreviousSlice();
+			} else if (e->key() == Qt::Key_Down) {
+				this->setNexzSlice();
 			} else if (e->key() == Qt::Key_X) {
 				this->volume.setCrossSectionAxis(Axis::X);
 				this->setSlice(this->volume.getCrossSectionIndex());
@@ -360,7 +360,7 @@ namespace ct {
 		if (this->crossSectionDisplayActive || this->reconstructionActive || this->savingActive) {
 			if (e->modifiers() & Qt::AltModifier) {
 				int signum = 1;
-				if (e->delta() < 0) {
+				if (e->delta() > 0) {
 					signum = -1;
 				}
 				long nextSlice = this->volume.getCrossSectionIndex() + ((this->volume.getCrossSectionSize() / 10) * signum);

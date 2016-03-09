@@ -237,8 +237,8 @@ namespace ct {
 					uSize = xMax;
 					vSize = zMax;
 				} else {
-					uSize = xMax;
-					vSize = yMax;
+					uSize = yMax;
+					vSize = xMax;
 				}
 
 				cv::Mat result(static_cast<int>(vSize), static_cast<int>(uSize), CV_32FC1);
@@ -256,7 +256,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = static_cast<float>((*this)[column][index][result.rows - 1 - row]);
+							ptr[column] = static_cast<float>((*this)[result.cols - 1 - column][index][result.rows - 1 - row]);
 						}
 					}
 				} else {
@@ -264,7 +264,7 @@ namespace ct {
 					for (int row = 0; row < result.rows; ++row) {
 						ptr = result.ptr<float>(row);
 						for (int column = 0; column < result.cols; ++column) {
-							ptr[column] = static_cast<float>((*this)[column][row][index]);
+							ptr[column] = static_cast<float>((*this)[row][column][index]);
 						}
 					}
 				}

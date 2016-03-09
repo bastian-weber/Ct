@@ -230,6 +230,18 @@ namespace hb {
 		return _imageAssigned;
 	}
 
+	///Maps a point in widget coordinates to image coordinates of the currently assigned image
+	QPointF ImageView::mapToImageCoordinates(QPointF pointInWidgetCoordinates) const {
+		if (_imageAssigned) {
+			QPointF result = getTransform().inverted().map(pointInWidgetCoordinates);
+			if (result.x() >= 0 && result.y() >= 0 && result.x() <= _image.width() && result.y() <= _image.height()) {
+				return result;
+			}
+			return QPointF();
+		}
+		return QPointF();
+	}
+
 	///Returns the magnification factor at which the image is dispayed, 1 means the image is at a 100% view and one image pixel corresponds to one pixel of the display.
 	double ImageView::getCurrentPreviewScalingFactor() const {
 		if (_imageAssigned) {

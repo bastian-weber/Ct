@@ -35,6 +35,7 @@ namespace ct {
 		QSize sizeHint() const;
 		void infoPaintFunction(QPainter& canvas);
 	protected:
+		bool eventFilter(QObject* object, QEvent* e);
 		void dragEnterEvent(QDragEnterEvent* e);
 		void dropEvent(QDropEvent* e);
 		void keyPressEvent(QKeyEvent* e);
@@ -43,6 +44,7 @@ namespace ct {
 		void closeEvent(QCloseEvent* e);
 		void mouseDoubleClickEvent(QMouseEvent* e);
 		void changeEvent(QEvent* e);
+		void mouseMoveEvent(QMouseEvent* e);
 	private:
 		void interfaceInitialState();
 		void interfaceVolumeLoadedState();
