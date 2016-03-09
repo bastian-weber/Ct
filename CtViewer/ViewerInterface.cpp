@@ -73,12 +73,30 @@ namespace ct {
 		this->saveImageAction->setShortcut(Qt::CTRL + Qt::Key_S);
 		this->addAction(this->saveImageAction);
 		QObject::connect(this->saveImageAction, SIGNAL(triggered()), this, SLOT(saveImageDialog()));
+		this->localNormAction = new QAction(tr("Local Normalisation"), this->contextMenu);
+		this->localNormAction->setCheckable(true);
+		this->localNormAction->setChecked(true);
+		this->localNormAction->setShortcut(Qt::Key_L);
+		this->addAction(this->localNormAction);
+		QObject::connect(this->localNormAction, SIGNAL(triggered()), this, SLOT(changeNormalisation()));
+		this->globalNormAction = new QAction(tr("Global Normalisation"), this->contextMenu);
+		this->globalNormAction->setCheckable(true);
+		this->globalNormAction->setChecked(false);
+		this->globalNormAction->setShortcut(Qt::Key_G);
+		this->addAction(this->globalNormAction);
+		QObject::connect(this->globalNormAction, SIGNAL(triggered()), this, SLOT(changeNormalisation()));
+		this->normActionGroup = new QActionGroup(this->contextMenu);
+		this->normActionGroup->addAction(this->localNormAction);
+		this->normActionGroup->addAction(this->globalNormAction);
 
 		this->contextMenu->addAction(this->openDialogAction);
 		this->contextMenu->addSeparator();
 		this->contextMenu->addAction(this->xAxisAction);
 		this->contextMenu->addAction(this->yAxisAction);
 		this->contextMenu->addAction(this->zAxisAction);
+		this->contextMenu->addSeparator();
+		this->contextMenu->addAction(this->localNormAction);
+		this->contextMenu->addAction(this->globalNormAction);
 		this->contextMenu->addSeparator();
 		this->contextMenu->addAction(this->saveImageAction);
 		this->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -237,26 +255,44 @@ namespace ct {
 
 	void ViewerInterface::interfaceInitialState() {
 		this->saveImageAction->setEnabled(false);
-		this->xAxisAction->setEnabled(false);
-		this->yAxisAction->setEnabled(false);
-		this->zAxisAction->setEnabled(false);
+		this->axisActionGroup->setEnabled(false);
+		this->normActionGroup->setEnabled(false);
 	}
 
 	void ViewerInterface::interfaceVolumeLoadedState() {
 		this->saveImageAction->setEnabled(true);
-		this->xAxisAction->setEnabled(true);
-		this->yAxisAction->setEnabled(true);
-		this->zAxisAction->setEnabled(true);
+		this->axisActionGroup->setEnabled(true);
+		this->normActionGroup->setEnabled(true);
+	}
+
+	cv::Mat ViewerInterface::getNormalisedCrossSection() const {
+		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis());
+		cv::Mat normalized;
+		if (this->globalNormalisation) {
+			double min, max;
+			cv::minMaxLoc(crossSection, &min, &max);
+			float span = this->maxValue - this->minValue;
+			float minGrey, maxGrey;
+			if (span != 0) {
+				minGrey = ((min - this->minValue) / span) * 255;
+				maxGrey = ((max - this->minValue) / span) * 255;
+			} else {
+				minGrey = 0;
+				maxGrey = 255;
+			}
+			cv::normalize(crossSection, normalized, minGrey, maxGrey, cv::NORM_MINMAX, CV_8UC1);
+		} else {
+			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+		}
+		return normalized;
 	}
 
 	void ViewerInterface::updateImage() {
 		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
 			this->setCurrentSliceOfCurrentAxis(volume.getSizeAlongDimension(this->currentAxis) / 2);
 		}
-		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis());
-		cv::Mat normalized;
-		cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		this->imageView->setImage(normalized);
+		cv::Mat crossSection = this->getNormalisedCrossSection();
+		this->imageView->setImage(crossSection);
 	}
 
 	void ViewerInterface::setNextSlice() {
@@ -372,7 +408,7 @@ namespace ct {
 			return false;
 		}
 		std::function<bool()> call = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian); 
+			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian, &this->minValue, &this->maxValue); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, call);
 		this->progressDialog->reset();
@@ -464,6 +500,15 @@ namespace ct {
 		this->updateImage();
 	}
 
+	void ViewerInterface::changeNormalisation() {
+		if (this->localNormAction->isChecked()) {
+			this->globalNormalisation = false;
+		} else {
+			this->globalNormalisation = true;
+		}
+		this->updateImage();
+	}
+
 	void ViewerInterface::openDialog() {
 		QString path = QFileDialog::getOpenFileName(this,
 													tr("Open Volume or Volume Info File"),
@@ -494,17 +539,11 @@ namespace ct {
 		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
 			return false;
 		}
-		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis());
-		cv::Mat normalized;
-		if (bitDepth == ImageBitDepth::CHANNEL_8_BIT) {
-			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-		} else {
-			cv::normalize(crossSection, normalized, 0, 65535, cv::NORM_MINMAX, CV_16UC1);
-		}
+		cv::Mat crossSection = this->getNormalisedCrossSection();
 		try {
 			std::vector<uchar> buffer;
 
-			cv::imencode(".tif", normalized, buffer);
+			cv::imencode(".tif", crossSection, buffer);
 #ifdef Q_OS_WIN
 			//wchar for utf-16
 			std::ofstream file(filename.toStdWString(), std::iostream::binary);

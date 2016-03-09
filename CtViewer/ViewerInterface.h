@@ -46,6 +46,7 @@ namespace ct {
 	private:
 		void interfaceInitialState();
 		void interfaceVolumeLoadedState();
+		cv::Mat getNormalisedCrossSection() const;
 		void updateImage();
 		void setNextSlice();
 		void setPreviousSlice();
@@ -58,8 +59,11 @@ namespace ct {
 		void toggleFullscreen();
 
 		Volume<float> volume;
+		float minValue = 1;
+		float maxValue = 1;
 		std::atomic<bool> volumeLoaded{ false };
 		std::atomic<bool> loadingActive{ false };
+		bool globalNormalisation = false;
 		Axis currentAxis = Axis::Z;
 		size_t currentSliceX = 0;
 		size_t currentSliceY = 0;
@@ -76,11 +80,14 @@ namespace ct {
 		ImportSettingsDialog* settingsDialog;
 		QMenu* contextMenu;
 		QActionGroup* axisActionGroup;
+		QActionGroup* normActionGroup;
 		QAction* xAxisAction;
 		QAction* yAxisAction;
 		QAction* zAxisAction;
 		QAction* openDialogAction;
 		QAction* saveImageAction;
+		QAction* localNormAction;
+		QAction* globalNormAction;
 		//For the windows taskbar progress display
 #ifdef Q_OS_WIN
 		QWinTaskbarButton* taskbarButton;
@@ -93,6 +100,7 @@ namespace ct {
 		void stop();
 		void showContextMenu(QPoint const& pos);
 		void changeAxis();
+		void changeNormalisation();
 		void openDialog();
 		void saveImageDialog();
 		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth);
