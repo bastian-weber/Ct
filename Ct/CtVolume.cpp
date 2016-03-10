@@ -288,7 +288,7 @@ namespace ct {
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
-		return this->volume.getVolumeCrossSection(axis, index);
+		return this->volume.getVolumeCrossSection(axis, index, CoordinateSystemOrientation::LEFT_HANDED);
 	}
 
 	void CtVolume::setCrossSectionIndex(size_t index) {
