@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0.2)
+cmake_minimum_required (VERSION 3.5)
 
 #=======================================================================#
 
@@ -134,6 +134,8 @@ add_dependencies(${EXECUTABLE_NAME_2} COPY_RESSOURCES)
 
 #add lib files and copy dlls
 
+set(COPY_COMMAND "-E copy_if_different ")
+
 ########################################### OpenCV Libs ###########################################
 
 if(DEFINED OPENCV_ROOT_FOUND)
@@ -145,11 +147,11 @@ if(DEFINED OPENCV_ROOT_FOUND)
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
-		copydlls(OPENCV_MODULES_ALL)
+		copydlls(COPY_COMMAND OPENCV_MODULES_ALL)
 
 		#copy cuda dlls for opencv
 		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
-			#only 64bit dlls are copied, might not work with 32bit projects
+			#only 64bit dlls are copied, might not work with 32bit project
 			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
 			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
 			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
@@ -173,7 +175,7 @@ IF(DEFINED QT_ROOT_FOUND)
 	#copy the dlls
 	IF(MSVC)
 
-		copydlls(QT_MODULES_ALL)	
+		copydlls(COPY_COMMAND QT_MODULES_ALL)	
 
 		file(COPY ${PATH_QT_ROOT}/bin/icudt54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
 		file(COPY ${PATH_QT_ROOT}/bin/icuin54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
@@ -188,6 +190,11 @@ IF(DEFINED QT_ROOT_FOUND)
 	ENDIF(MSVC)
 
 ENDIF(DEFINED QT_ROOT_FOUND)
+
+message(${COPY_COMMAND})
+
+add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND})
+add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND})
 
 IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
