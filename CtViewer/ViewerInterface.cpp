@@ -173,32 +173,30 @@ namespace ct {
 
 			//draw coordinate at cursor
 			{
-				if (true) {
-					QPointF imageCoordF = this->imageView->mapToImageCoordinates(this->imageView->mapFromGlobal(QCursor::pos()));
-					QPoint imageCoord = QPoint(std::floor(imageCoordF.x()), std::floor(imageCoordF.y()));
-					if (imageCoord != QPointF()) {
-						size_t xCoordinate, yCoordinate, zCoordinate;
-						if (this->currentAxis == Axis::X) {
-							xCoordinate = this->getCurrentSliceOfCurrentAxis();
-							yCoordinate = imageCoord.x();
-							zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
-						} else if (this->currentAxis == Axis::Y) {
-							xCoordinate = this->volume.xSize() - 1 - imageCoord.x();
-							yCoordinate = this->getCurrentSliceOfCurrentAxis();
-							zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
-						} else {
-							xCoordinate = imageCoord.y();
-							yCoordinate = imageCoord.x();
-							zCoordinate = this->getCurrentSliceOfCurrentAxis();
-						}
-						float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
-						float span = this->maxValue - this->minValue;
-						float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
-						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
-						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
-						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5\u2006%)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
-						canvas.drawText(QPoint(20, 15 + textHeight), valueText);
+				QPointF imageCoordF = this->imageView->mapToImageCoordinates(this->imageView->mapFromGlobal(QCursor::pos()));
+				QPoint imageCoord = QPoint(std::floor(imageCoordF.x()), std::floor(imageCoordF.y()));
+				if (imageCoord != QPointF()) {
+					size_t xCoordinate, yCoordinate, zCoordinate;
+					if (this->currentAxis == Axis::X) {
+						xCoordinate = this->getCurrentSliceOfCurrentAxis();
+						yCoordinate = imageCoord.x();
+						zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+					} else if (this->currentAxis == Axis::Y) {
+						xCoordinate = this->volume.xSize() - 1 - imageCoord.x();
+						yCoordinate = this->getCurrentSliceOfCurrentAxis();
+						zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+					} else {
+						xCoordinate = imageCoord.y();
+						yCoordinate = imageCoord.x();
+						zCoordinate = this->getCurrentSliceOfCurrentAxis();
 					}
+					float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
+					float span = this->maxValue - this->minValue;
+					float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
+					int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
+					int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
+					QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5\u2006%)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
+					canvas.drawText(QPoint(20, 15 + textHeight), valueText);
 				}
 			}
 
@@ -211,6 +209,39 @@ namespace ct {
 				int textWidth = metrics.width(normHint);
 				canvas.drawText(QPoint(canvas.device()->width() - 20 - textWidth, 15 + textHeight), normHint);
 			}
+
+			//draw axes
+			{
+				canvas.setBackgroundMode(Qt::TransparentMode);
+				QPointF center(30, 85);
+				int axisLength = 20;
+				if (this->currentAxis == Axis::Z) center -= QPointF(0, axisLength);
+				if(this->currentAxis == Axis::Y)center += QPointF(axisLength, 0);
+				auto drawAxis = [&center, &canvas, &metrics] (QPen pen, QPointF delta, QString axisName) {
+					canvas.setPen(pen);
+					canvas.drawLine(center, center + delta);
+					QString xString(axisName);
+					QVector2D xVec(delta);
+					xVec += xVec.normalized() * 9;
+					double xWidth = metrics.width(xString);
+					canvas.drawText(center + xVec.toPointF() + QPointF(-xWidth / 2.0, 4), xString);
+				};
+
+				if (this->currentAxis == Axis::X) {
+					drawAxis(QPen(QColor(0, 160, 0), 2), QPointF(axisLength, 0), "y");
+					drawAxis(QPen(Qt::blue, 2), QPointF(0, -axisLength), "z");
+				} else if (this->currentAxis == Axis::Y) {
+					drawAxis(QPen(Qt::red, 2), QPointF(-axisLength, 0), "x");
+					drawAxis(QPen(Qt::blue, 2), QPointF(0, -axisLength), "z");
+				} else {
+					drawAxis(QPen(QColor(0, 160, 0), 2), QPointF(axisLength, 0), "y");
+					drawAxis(QPen(Qt::red, 2), QPointF(0, axisLength), "x");
+				}
+				canvas.setPen(Qt::NoPen);
+				canvas.setBrush(Qt::darkGray);
+				canvas.drawEllipse(center, 3, 3);
+			}
+
 		}
 	}
 

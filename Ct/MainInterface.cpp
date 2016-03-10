@@ -339,7 +339,7 @@ namespace ct {
 			if (e->key() == Qt::Key_Up) {
 				this->setPreviousSlice();
 			} else if (e->key() == Qt::Key_Down) {
-				this->setNexzSlice();
+				this->setNextSlice();
 			} else if (e->key() == Qt::Key_X) {
 				this->volume.setCrossSectionAxis(Axis::X);
 				this->setSlice(this->volume.getCrossSectionIndex());
