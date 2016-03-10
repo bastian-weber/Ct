@@ -641,7 +641,7 @@ namespace ct {
 			std::ofstream file(filename.toStdWString(), std::iostream::binary);
 #else
 			//char for utf-8
-			std::ofstream file(path.toStdString(), std::iostream::binary);
+			std::ofstream file(filename.toStdString(), std::iostream::binary);
 #endif
 			if (!file.good()) {
 				QMessageBox::critical(this, tr("Error"), tr("The image file could not be written. Maybe there is insufficient disk space or you are trying to overwrite a protected file."), QMessageBox::Close);
