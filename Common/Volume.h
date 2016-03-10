@@ -230,42 +230,47 @@ namespace ct {
 			if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
 				size_t uSize;
 				size_t vSize;
-				if (axis == Axis::X) {
-					uSize = yMax;
-					vSize = zMax;
-				} else if (axis == Axis::Y) {
-					uSize = xMax;
-					vSize = zMax;
-				} else {
-					uSize = yMax;
-					vSize = xMax;
+				switch (axis) {
+					case Axis::X:
+						uSize = yMax;
+						vSize = zMax;
+						break;
+					case Axis::Y:
+						uSize = xMax;
+						vSize = zMax;
+						break;
+					case Axis::Z:
+						uSize = yMax;
+						vSize = xMax;
+						break;
 				}
 
 				cv::Mat result(static_cast<int>(vSize), static_cast<int>(uSize), CV_32FC1);
-				float* ptr;
-				if (axis == Axis::X) {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
+				std::function<void(int, int, float*)> setPixel;
+				switch (axis) {
+					case Axis::X:
+						setPixel = [&](int row, int column, float* ptr) {
 							ptr[column] = static_cast<float>((*this)[index][column][result.rows - 1 - row]);
-						}
-					}
-				} else if (axis == Axis::Y) {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
+						};
+						break;
+					case Axis::Y:
+						setPixel = [&](int row, int column, float* ptr) {
 							ptr[column] = static_cast<float>((*this)[result.cols - 1 - column][index][result.rows - 1 - row]);
-						}
-					}
-				} else {
-#pragma omp parallel for private(ptr)
-					for (int row = 0; row < result.rows; ++row) {
-						ptr = result.ptr<float>(row);
-						for (int column = 0; column < result.cols; ++column) {
+						};
+						break;
+					case Axis::Z:
+						setPixel = [&](int row, int column, float* ptr) {
 							ptr[column] = static_cast<float>((*this)[row][column][index]);
-						}
+						};
+						break;
+				}
+
+				float* ptr;
+#pragma omp parallel for private(ptr)
+				for (int row = 0; row < result.rows; ++row) {
+					ptr = result.ptr<float>(row);
+					for (int column = 0; column < result.cols; ++column) {
+						setPixel(row, column, ptr);
 					}
 				}
 				return result;
