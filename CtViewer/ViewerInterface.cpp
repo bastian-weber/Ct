@@ -358,7 +358,7 @@ namespace ct {
 	}
 
 	cv::Mat ViewerInterface::getNormalisedCrossSection() const {
-		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis());
+		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis(), CoordinateSystemOrientation::LEFT_HANDED);
 		cv::Mat normalized;
 		if (this->globalNormalisation) {
 			double min, max;

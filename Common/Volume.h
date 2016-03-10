@@ -21,6 +21,11 @@ namespace ct {
 		Z
 	};
 
+	enum class CoordinateSystemOrientation {
+		LEFT_HANDED,
+		RIGHT_HANDED
+	};
+
 	//base class for signals (signals do not work in template class)
 	class VolumeSignalsSlots : public QObject {
 		Q_OBJECT
@@ -55,7 +60,9 @@ namespace ct {
 		bool saveToBinaryFile(QString const& filename,						//saves the volume to a binary file with the given filename
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
-		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;			//returns a cross section through the volume as image
+		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
+									  size_t index, 
+									  CoordinateSystemOrientation type) const;			
 		size_t getSizeAlongDimension(Axis axis) const;							//returns the size along the axis axis
 		void stop();															//stops the saving function
 		//getters
@@ -221,7 +228,7 @@ namespace ct {
 	}
 
 	template<typename T>
-	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index) const {
+	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index, CoordinateSystemOrientation type) const {
 		if (this->size() == 0) return cv::Mat();
 		size_t xMax = this->size();
 		size_t yMax = (*this)[0].size();
@@ -247,21 +254,40 @@ namespace ct {
 
 				cv::Mat result(static_cast<int>(vSize), static_cast<int>(uSize), CV_32FC1);
 				std::function<void(int, int, float*)> setPixel;
+				
 				switch (axis) {
 					case Axis::X:
-						setPixel = [&](int row, int column, float* ptr) {
-							ptr[column] = static_cast<float>((*this)[index][column][result.rows - 1 - row]);
-						};
+						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[index][column][result.rows - 1 - row]);
+							};
+						} else {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[index][result.cols - 1 - column][result.rows - 1 - row]);
+							};
+						}
 						break;
 					case Axis::Y:
-						setPixel = [&](int row, int column, float* ptr) {
-							ptr[column] = static_cast<float>((*this)[result.cols - 1 - column][index][result.rows - 1 - row]);
-						};
+						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[result.cols - 1 - column][index][result.rows - 1 - row]);
+							};
+						} else {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[column][index][result.rows - 1 - row]);
+							};
+						}
 						break;
 					case Axis::Z:
-						setPixel = [&](int row, int column, float* ptr) {
-							ptr[column] = static_cast<float>((*this)[row][column][index]);
-						};
+						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[row][column][index]);
+							};
+						} else {
+							setPixel = [&](int row, int column, float* ptr) {
+								ptr[column] = static_cast<float>((*this)[row][result.cols - 1 - column][index]);
+							};
+						}
 						break;
 				}
 
