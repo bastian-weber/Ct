@@ -206,26 +206,30 @@ ENDIF(DEFINED QT_ROOT_FOUND)
 
 #copy dlls
 
-set(COPY_COMMAND_RELEASE "-E copy_if_different ")
-set(COPY_COMMAND_DEBUG "-E copy_if_different ")
+if(MSVC)
 
-list(REMOVE_DUPLICATES RELEASE_DLLS)
-list(REMOVE_DUPLICATES DEBUG_DLLS)
+	set(COPY_COMMAND_RELEASE "-E copy_if_different ")
+	set(COPY_COMMAND_DEBUG "-E copy_if_different ")
 
-foreach(DLL ${RELEASE_DLLS})
-	string(CONCAT COPY_COMMAND_RELEASE "${COPY_COMMAND_RELEASE} \"${DLL}\" ")
-endforeach()
-foreach(DLL ${DEBUG_DLLS})
-	string(CONCAT COPY_COMMAND_DEBUG "${COPY_COMMAND_DEBUG} \"${DLL}\" ")
-endforeach()
+	list(REMOVE_DUPLICATES RELEASE_DLLS)
+	list(REMOVE_DUPLICATES DEBUG_DLLS)
 
-string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BINARY_DIR}/Release\" ")
-string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
+	foreach(DLL ${RELEASE_DLLS})
+		string(CONCAT COPY_COMMAND_RELEASE "${COPY_COMMAND_RELEASE} \"${DLL}\" ")
+	endforeach()
+	foreach(DLL ${DEBUG_DLLS})
+		string(CONCAT COPY_COMMAND_DEBUG "${COPY_COMMAND_DEBUG} \"${DLL}\" ")
+	endforeach()
 
-foreach(EXECUTABLE ${TARGETS})
-	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")
-	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
-endforeach()
+	string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BINARY_DIR}/Release\" ")
+	string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
+
+	foreach(EXECUTABLE ${TARGETS})
+		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")
+		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
+	endforeach()
+
+endif()
 
 IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
