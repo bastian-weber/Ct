@@ -49,7 +49,6 @@ namespace ct {
 	}
 
 	bool CtVolume::cudaAvailable(bool verbose) {
-
 		int count;
 		cudaError_t error = cudaGetDeviceCount(&count);
 
