@@ -125,13 +125,15 @@ if(WIN32)
 	foreach(EXECUTABLE ${TARGETS})
 		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
 			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release
+			COMMENT "Copying ressources to executable directory...")
 	endforeach()
 elseif (UNIX)
 	foreach(EXECUTABLE ${TARGETS})
 		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
 			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR}
+			COMMENT "Copying ressources to executable directory...")
 	endforeach()
 endif()
 
@@ -194,7 +196,8 @@ IF(DEFINED QT_ROOT_FOUND)
 		foreach(EXECUTABLE ${TARGETS})
 			add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
 				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
-				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
+				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms
+				COMMENT "Copying Qt platforms to executable directory...")
 		endforeach()
 
 	ENDIF(MSVC)
@@ -220,8 +223,8 @@ string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BI
 string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
 
 foreach(EXECUTABLE ${TARGETS})
-	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
-	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
+	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")
+	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
 endforeach()
 
 IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
