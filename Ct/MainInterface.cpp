@@ -128,7 +128,7 @@ namespace ct {
 		this->cudaLayout->addWidget(this->cudaCheckBox);
 		this->cudaLayout->addWidget(this->cudaSettingsButton);
 		this->cudaGroupBox->setLayout(this->cudaLayout);
-		if (!volume.cudaAvailable()) {
+		if (!volume.cudaAvailable(true)) {
 			this->cudaCheckBox->setEnabled(false);
 			this->cudaSettingsButton->setEnabled(false);
 		}

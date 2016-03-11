@@ -48,8 +48,21 @@ namespace ct {
 		this->sinogramFromImages(csvFile);
 	}
 
-	bool CtVolume::cudaAvailable() {
-		return (cv::cuda::getCudaEnabledDeviceCount() > 0);
+	bool CtVolume::cudaAvailable(bool verbose) {
+
+		int count;
+		cudaError_t error = cudaGetDeviceCount(&count);
+
+		if (error == cudaSuccess && count > 0) {
+			return true;
+		} else if (error == cudaErrorInsufficientDriver && verbose) {
+			std::cout << "No sufficient version of the Nvidia driver could be found. CUDA will not be avialable." << std::endl;
+		} else if (error == cudaErrorNoDevice && verbose) {
+			std::cout << "No CUDA devices could be found. CUDA will not be available." << std::endl;
+		} else if (verbose) {
+			std::cout << "An error occured while trying to retrieve CUDA devices. CUDA will not be available. Error: " << cudaGetErrorString(error) << std::endl;
+		}
+		return false;
 	}
 
 	bool CtVolume::sinogramFromImages(QString csvFile) {
