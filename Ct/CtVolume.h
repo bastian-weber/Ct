@@ -65,7 +65,7 @@ namespace ct {
 		CtVolume();
 		CtVolume(QString csvFile);
 		//getters
-		bool cudaAvailable();
+		bool cudaAvailable(bool verbose = false);
 		ct::Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
 		size_t getImageWidth() const;
