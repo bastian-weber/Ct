@@ -119,47 +119,54 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
 endif(CMAKE_COMPILER_IS_GNUCC)
 
-#add custom target for copying ressources
-add_custom_target(COPY_RESSOURCES)
+#post build command for copying ressources
 if(WIN32)
-	add_custom_command(TARGET COPY_RESSOURCES POST_BUILD 
+	add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
 					   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
 					   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
+	add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
+				   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
+				   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
 elseif (UNIX)
-	add_custom_command(TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-					   TARGET COPY_RESSOURCES POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
+	add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
+	add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
 endif()
-add_dependencies(${EXECUTABLE_NAME_1} COPY_RESSOURCES)
-add_dependencies(${EXECUTABLE_NAME_2} COPY_RESSOURCES)
+
+set(RELEASE_DLLS)
+set(DEBUG_DLLS)
 
 #add lib files and copy dlls
-
-set(COPY_COMMAND "-E copy_if_different ")
 
 ########################################### OpenCV Libs ###########################################
 
 if(DEFINED OPENCV_ROOT_FOUND)
 	if(MSVC)
-		message("Copying dlls, please wait.")
+		message("Looking for dlls, please wait.")
 	endif()
 	target_link_libraries(${EXECUTABLE_NAME_1} ${OPENCV_MODULES_CT})
 	target_link_libraries(${EXECUTABLE_NAME_2} ${OPENCV_MODULES_CTVIEWER})
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
 	if(MSVC)
-		copydlls(COPY_COMMAND OPENCV_MODULES_ALL)
+		copydlls(RELEASE_DLLS DEBUG_DLLS OPENCV_MODULES_ALL)
 
 		#copy cuda dlls for opencv
 		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
 			#only 64bit dlls are copied, might not work with 32bit project
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-			file(COPY ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+
+			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
 		endif()	
 
 	endif(MSVC)
@@ -175,26 +182,49 @@ IF(DEFINED QT_ROOT_FOUND)
 	#copy the dlls
 	IF(MSVC)
 
-		copydlls(COPY_COMMAND QT_MODULES_ALL)	
+		copydlls(RELEASE_DLLS DEBUG_DLLS QT_MODULES_ALL)	
 
-		file(COPY ${PATH_QT_ROOT}/bin/icudt54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${PATH_QT_ROOT}/bin/icuin54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${PATH_QT_ROOT}/bin/icuuc54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
-		file(COPY ${PATH_QT_ROOT}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Debug)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icudt54.dll)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
+		
+		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icudt54.dll)
+		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
+		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
 
-		file(COPY ${PATH_QT_ROOT}/bin/icudt54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${PATH_QT_ROOT}/bin/icuin54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${PATH_QT_ROOT}/bin/icuuc54.dll DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
-		file(COPY ${PATH_QT_ROOT}/plugins/platforms DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Release)
+		add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
+		add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
 
 	ENDIF(MSVC)
 
 ENDIF(DEFINED QT_ROOT_FOUND)
 
-message(${COPY_COMMAND})
+#copy dlls
 
-add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND})
-add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND})
+set(COPY_COMMAND_RELEASE "-E copy_if_different ")
+set(COPY_COMMAND_DEBUG "-E copy_if_different ")
+
+list(REMOVE_DUPLICATES RELEASE_DLLS)
+list(REMOVE_DUPLICATES DEBUG_DLLS)
+
+foreach(DLL ${RELEASE_DLLS})
+	string(CONCAT COPY_COMMAND_RELEASE "${COPY_COMMAND_RELEASE} \"${DLL}\" ")
+endforeach()
+foreach(DLL ${DEBUG_DLLS})
+	string(CONCAT COPY_COMMAND_DEBUG "${COPY_COMMAND_DEBUG} \"${DLL}\" ")
+endforeach()
+
+string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BINARY_DIR}/Release\" ")
+string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
+
+add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
+add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
+add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
+add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
 
 IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
