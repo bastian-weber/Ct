@@ -15,6 +15,7 @@ set(QT_MODULES_CTVIEWER_WIN "Qt5::WinExtras")
 set(PROJECT_NAME Ct)
 set(EXECUTABLE_NAME_1 "Ct")
 set(EXECUTABLE_NAME_2 "CtViewer")
+set(TARGETS "${EXECUTABLE_NAME_1}" "${EXECUTABLE_NAME_2}")
 
 #=======================================================================#
 
@@ -121,19 +122,17 @@ endif(CMAKE_COMPILER_IS_GNUCC)
 
 #post build command for copying ressources
 if(WIN32)
-	add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
-					   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
-					   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
-	add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
-				   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
-				   COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
+	foreach(EXECUTABLE ${TARGETS})
+		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release)
+	endforeach()
 elseif (UNIX)
-	add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
-	add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
+	foreach(EXECUTABLE ${TARGETS})
+		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR})
+	endforeach()
 endif()
 
 set(RELEASE_DLLS)
@@ -192,12 +191,11 @@ IF(DEFINED QT_ROOT_FOUND)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
 
-		add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD 
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
-		add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD 
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
+		foreach(EXECUTABLE ${TARGETS})
+			add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
+				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
+				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms)
+		endforeach()
 
 	ENDIF(MSVC)
 
@@ -221,10 +219,10 @@ endforeach()
 string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BINARY_DIR}/Release\" ")
 string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
 
-add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
-add_custom_command(TARGET ${EXECUTABLE_NAME_1} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
-add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
-add_custom_command(TARGET ${EXECUTABLE_NAME_2} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
+foreach(EXECUTABLE ${TARGETS})
+	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
+	add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
+endforeach()
 
 IF(OPENCV_ROOT_FOUND AND QT_ROOT_FOUND AND CUDA_FOUND)
 	message("Everything fine, ready to generate.")
