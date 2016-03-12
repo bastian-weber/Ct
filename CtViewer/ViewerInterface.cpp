@@ -190,13 +190,15 @@ namespace ct {
 						yCoordinate = imageCoord.x();
 						zCoordinate = this->getCurrentSliceOfCurrentAxis();
 					}
-					float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
-					float span = this->maxValue - this->minValue;
-					float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
-					int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
-					int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
-					QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5 %)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
-					canvas.drawText(QPoint(20, 15 + textHeight), valueText);
+					if (xCoordinate >= 0 && xCoordinate < this->volume.xSize() && yCoordinate >= 0 && yCoordinate < this->volume.ySize() && zCoordinate >= 0 && zCoordinate < this->volume.zSize()) {
+						float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
+						float span = this->maxValue - this->minValue;
+						float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
+						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
+						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
+						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5 %)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
+						canvas.drawText(QPoint(20, 15 + textHeight), valueText);
+					}
 				}
 			}
 

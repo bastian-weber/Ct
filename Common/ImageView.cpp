@@ -234,7 +234,7 @@ namespace hb {
 	QPointF ImageView::mapToImageCoordinates(QPointF pointInWidgetCoordinates) const {
 		if (_imageAssigned) {
 			QPointF result = getTransform().inverted().map(pointInWidgetCoordinates);
-			if (result.x() >= 0 && result.y() >= 0 && result.x() <= _image.width() && result.y() <= _image.height()) {
+			if (result.x() >= 0 && result.y() >= 0 && result.x() < double(_image.width()) && result.y() < double(_image.height())) {
 				return result;
 			}
 			return QPointF();
