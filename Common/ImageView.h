@@ -34,9 +34,9 @@ namespace hb {
 		void setShowInterfaceOutline(bool value);
 		void setInterfaceBackgroundColor(QColor const& color);
 		void setRightClickForHundredPercentView(bool value);
-		bool rightClickForHundredPercentView();
+		bool getRightClickForHundredPercentView();
 		void setUsePanZooming(bool value);
-		bool usesPanZooming();
+		bool getUsesPanZooming();
 
 		void rotateLeft();
 		void rotateRight();
@@ -49,20 +49,20 @@ namespace hb {
 		void setImage(const cv::Mat& image);
 		void setImageWithPrecomputedPreview(const cv::Mat& image, const cv::Mat& downscaledImage);
 		void resetImage();
-		bool imageAssigned() const;
+		bool getImageAssigned() const;
 		QPointF mapToImageCoordinates(QPointF pointInWidgetCoordinates) const;
 
 		double getCurrentPreviewScalingFactor() const;
 		void setUseHighQualityDownscaling(bool value);
-		bool useHighQualityDownscaling();
+		bool getUseHighQualityDownscaling();
 		void setUseSmoothTransform(bool value);
-		bool useSmoothTransform() const;
+		bool getUseSmoothTransform() const;
 		void setEnablePostResizeSharpening(bool value);
-		bool enablePostResizeSharpening();
+		bool getEnablePostResizeSharpening();
 		void setPostResizeSharpeningStrength(double value);
-		double postResizeSharpeningStrength();
+		double getPostResizeSharpeningStrength();
 		void setPostResizeSharpeningRadius(double value);
-		double postResizeSharpeningRadius();
+		double getPostResizeSharpeningRadius();
 		void setPostResizeSharpening(bool enable, double strength, double radius);
 
 		void setPointEditing(bool enablePointAdding, bool enablePointManipulation);
@@ -152,83 +152,83 @@ namespace hb {
 		static void imageToMat(const QImage& image, cv::Mat& destMat, bool deepCopy);
 
 		//related to general interface settings
-		bool _interfaceOutline;
-		QColor _backgroundColor;
-		bool _rightClickForHundredPercentView;
-		bool _usePanZooming;
+		bool interfaceOutline;
+		QColor backgroundColor;
+		bool rightClickForHundredPercentView;
+		bool usePanZooming;
 		//the users transformations (panning, zooming)
-		double _zoomExponent;
-		const double _zoomBasis;
-		bool _preventMagnificationInDefaultZoom;
-		bool _hundredPercentZoomMode;
-		QPointF _panOffset;
-		double _viewRotation;
+		double zoomExponent;
+		const double zoomBasis;
+		bool preventMagnificationInDefaultZoom;
+		bool hundredPercentZoomMode;
+		QPointF panOffset;
+		double viewRotation;
 		//related to general click and drag events
-		bool _dragging;
-		QPointF _lastMousePosition;
-		int _screenId;
-		bool _moved;
+		bool dragging;
+		QPointF lastMousePosition;
+		int screenId;
+		bool moved;
 		//related to pan-zooming
-		bool _panZooming;
-		QPointF _initialMousePosition;
-		QPointF _infinitePanLastInitialMousePosition;
-		double _panZoomingInitialZoomExponent;
-		QPointF _panZoomingInitialPanOffset;
+		bool panZooming;
+		QPointF initialMousePosition;
+		QPointF infinitePanLastInitialMousePosition;
+		double panZoomingInitialZoomExponent;
+		QPointF panZoomingInitialPanOffset;
 		//related to setting points and rendering them
-		std::vector<QPointF> _points;
-		bool _pointEditingActive;
-		bool _pointManipulationActive;
-		bool _renderPoints;
+		std::vector<QPointF> points;
+		bool pointEditingActive;
+		bool pointManipulationActive;
+		bool renderPoints;
 		//related to editing of points
-		double _pointGrabTolerance;
-		bool _pointGrabbed;
-		int _grabbedPointIndex;
-		bool _showPointDeletionWarning;
+		double pointGrabTolerance;
+		bool pointGrabbed;
+		int grabbedPointIndex;
+		bool showPointDeletionWarning;
 		//related to displaying the image
-		QImage _image;
-		cv::Mat _mat;
-		bool _isMat;
-		QImage _downsampledImage;
-		cv::Mat _downsampledMat;
-		bool _imageAssigned;
-		bool _useHighQualityDownscaling;
-		bool _useSmoothTransform;
-		bool _enablePostResizeSharpening;
-		double _postResizeSharpeningStrength;
-		double _postResizeSharpeningRadius;
+		QImage image;
+		cv::Mat mat;
+		bool isMat;
+		QImage downsampledImage;
+		cv::Mat downsampledMat;
+		bool imageAssigned;
+		bool useHighQualityDownscaling;
+		bool useSmoothTransform;
+		bool enablePostResizeSharpening;
+		double postResizeSharpeningStrength;
+		double postResizeSharpeningRadius;
 		//related to mask painting
-		QBitmap _mask;
-		bool _paintingActive;
-		bool _maskInitialized;
-		bool _painting;
-		double _brushRadius;
-		QPointF _brushPosition;
-		bool _visualizeBrushSize;
+		QBitmap mask;
+		bool paintingActive;
+		bool maskInitialized;
+		bool painting;
+		double brushRadius;
+		QPointF brushPosition;
+		bool visualizeBrushSize;
 		//related to overlaying a mask
-		QBitmap _overlayMask;
-		bool _overlayMaskSet;
-		bool _renderOverlayMask;
+		QBitmap overlayMask;
+		bool overlayMaskSet;
+		bool renderOverlayMask;
 		//related to painting rectangle
-		QRectF _rectangle;
-		bool _renderRectangle;
+		QRectF rectangle;
+		bool renderRectangle;
 		//related to displaying a polyline
-		std::vector<QPointF> _polyline;
-		bool _polylineAssigned;
-		bool _renderPolyline;
+		std::vector<QPointF> polyline;
+		bool polylineAssigned;
+		bool renderPolyline;
 		//related to editing the polyline
-		bool _polylineManipulationActive;
-		bool _polylinePointGrabbed;
-		std::set<int> _polylineSelectedPoints;
-		double _polylinePointGrabTolerance;
-		bool _polylineSelected;
-		int _polylineLastAddedPoint;
-		QRectF _selectionRectangle;
-		std::set<int> _selectionRectanglePoints;
-		bool _spanningSelectionRectangle;
-		QColor _polylineColor;
+		bool polylineManipulationActive;
+		bool polylinePointGrabbed;
+		std::set<int> polylineSelectedPoints;
+		double polylinePointGrabTolerance;
+		bool polylineSelected;
+		int polylineLastAddedPoint;
+		QRectF selectionRectangle;
+		std::set<int> selectionRectanglePoints;
+		bool spanningSelectionRectangle;
+		QColor polylineColor;
 		//related to external post paint function
-		std::function<void(QPainter&)> _externalPostPaint;
-		bool _externalPostPaintFunctionAssigned;
+		std::function<void(QPainter&)> externalPostPaint;
+		bool externalPostPaintFunctionAssigned;
 	signals:
 		///Emitted when a point is moved, emitted live during interaction (not just on mouse release).
 		void pointModified();
@@ -260,8 +260,8 @@ namespace hb {
 	//template function, thus implemented in header
 	template <typename T>
 	void ImageView::setExternalPostPaintFunction(T* object, void(T::*function)(QPainter&)) {
-		_externalPostPaint = std::bind(function, object, std::placeholders::_1);
-		_externalPostPaintFunctionAssigned = true;
+		this->externalPostPaint = std::bind(function, object, std::placeholders::_1);
+		this->externalPostPaintFunctionAssigned = true;
 	}
 
 }
