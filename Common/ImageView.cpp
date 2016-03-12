@@ -593,6 +593,7 @@ namespace hb {
 
 	void ImageView::mousePressEvent(QMouseEvent *e) {
 		_lastMousePosition = e->pos();
+		_screenId = qApp->desktop()->screenNumber(QCursor::pos());
 		_initialMousePosition = e->pos();
 		_infinitePanLastInitialMousePosition = _initialMousePosition;
 
@@ -681,6 +682,7 @@ namespace hb {
 
 	void ImageView::mouseMoveEvent(QMouseEvent *e) {
 		_moved = true;
+		bool dontUpdateLastMousePosition = false;
 
 		if (_dragging || _pointGrabbed || _polylinePointGrabbed) {
 			QPointF deltaRotated = getTransformScaleRotateOnly().inverted().map((e->pos() - _lastMousePosition));
@@ -690,6 +692,24 @@ namespace hb {
 				qApp->setOverrideCursor(QCursor(Qt::ClosedHandCursor));
 				_panOffset += deltaScaled;
 				enforcePanConstraints();
+				//for infinite panning
+				QPoint globalPos = QCursor::pos();
+				QRect screen = QApplication::desktop()->screen(_screenId)->geometry();
+				QPoint newPos;
+				if (globalPos.y() >= screen.bottom()) {
+					newPos = QPoint(globalPos.x(), screen.top() + 1);
+				} else if (globalPos.y() <= screen.top()) {
+					newPos = QPoint(globalPos.x(), screen.bottom() - 1);
+				} else if (globalPos.x() >= screen.right()) {
+					newPos = QPoint(screen.left() + 1, globalPos.y());
+				} else if (globalPos.x() <= screen.left()) {
+					newPos = QPoint(screen.right() - 1, globalPos.y());
+				}
+				if (newPos != QPoint()) {
+					_lastMousePosition = mapFromGlobal(newPos);
+					dontUpdateLastMousePosition = true;
+					QCursor::setPos(newPos);
+				}
 			} else if (_pointGrabbed) {
 				//editing points
 				_points[_grabbedPointIndex] += deltaRotated;
@@ -751,21 +771,24 @@ namespace hb {
 			_panOffset = _panZoomingInitialPanOffset;
 			double delta = (_infinitePanLastInitialMousePosition - e->pos()).y() * (-0.025);
 			zoomBy(delta, _initialMousePosition);
-
-			QPoint globalPos = mapToGlobal(e->pos());
-			QRect screen = QApplication::desktop()->screenGeometry();
+			//for infinite pan zooming
+			QPoint globalPos = QCursor::pos();
+			QRect screen = QApplication::desktop()->screen(_screenId)->geometry();
 			QPoint newPos;
-			if (globalPos.y() == screen.height() - 1) {
-				newPos = QPoint(globalPos.x(), 1);
-			} else if (globalPos.y() == 0) {
-				newPos = QPoint(globalPos.x(), screen.height() - 2);
+			if (globalPos.y() >= screen.bottom()) {
+				newPos = QPoint(globalPos.x(), screen.top() + 1);
+			} else if (globalPos.y() <= screen.top()) {
+				newPos = QPoint(globalPos.x(), screen.bottom() - 1);
+			} else if (globalPos.x() >= screen.right()) {
+				newPos = QPoint(screen.left() + 1, globalPos.y());
+			} else if (globalPos.x() <= screen.left()) {
+				newPos = QPoint(screen.right() - 1, globalPos.y());
 			}
 			if (newPos != QPoint()) {
 				_infinitePanLastInitialMousePosition = mapFromGlobal(newPos);
 				_panZoomingInitialPanOffset = _panOffset;
 				_panZoomingInitialZoomExponent = _zoomExponent;
 				QCursor::setPos(newPos);
-
 			}
 			//doesn't work as expected
 			//QCursor::setPos(mapToGlobal(_lastMousePosition.toPoint()));
@@ -782,7 +805,7 @@ namespace hb {
 			}
 		}
 
-		if (_dragging || _painting || _pointGrabbed || _polylinePointGrabbed) {
+		if ((_dragging || _painting || _pointGrabbed || _polylinePointGrabbed) && !dontUpdateLastMousePosition) {
 			_lastMousePosition = e->pos();
 		}
 	}
