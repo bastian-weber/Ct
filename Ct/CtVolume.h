@@ -14,11 +14,9 @@
 //OpenCV
 #include <opencv2/core/core.hpp>											//core functionality of OpenCV
 #include <opencv2/highgui/highgui.hpp>										//GUI functionality of OpenCV (display images etc)
-#include <opencv2/imgproc/imgproc.hpp>										//image processing functionality of OpenCV (filter masks etc)
-#include <opencv2/cudaarithm.hpp>											//OpenCV CUDA
-#include <opencv2/cudaimgproc.hpp>
-#include <opencv2/cudafilters.hpp>
-#include <opencv2/cudawarping.hpp>
+#include <opencv2/imgproc/imgproc.hpp>										//OpenCV CUDA
+#include <opencv2/cudaarithm.hpp>											
+
 #include "opencv2/core/cuda_stream_accessor.hpp"
 
 //Qt
