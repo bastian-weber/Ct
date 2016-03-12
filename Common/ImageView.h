@@ -166,6 +166,7 @@ namespace hb {
 		//related to general click and drag events
 		bool _dragging;
 		QPointF _lastMousePosition;
+		int _screenId;
 		bool _moved;
 		//related to pan-zooming
 		bool _panZooming;
