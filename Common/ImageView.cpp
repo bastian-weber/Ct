@@ -750,6 +750,12 @@ namespace hb {
 			_panOffset = _panZoomingInitialPanOffset;
 			double delta = (_initialMousePosition - e->pos()).y() * (-0.025);
 			zoomBy(delta, _initialMousePosition);
+
+			QPoint globalPos = mapToGlobal(e->pos());
+			QRect screen = QApplication::desktop()->screenGeometry();
+			if (globalPos.y() == screen.height() - 1) {
+				QCursor::setPos(QPoint(globalPos.x(), 1));
+			}
 			//doesn't work as expected
 			//QCursor::setPos(mapToGlobal(_lastMousePosition.toPoint()));
 		}
