@@ -95,8 +95,8 @@ namespace hb {
 	void ImageView::rotateLeft() {
 		this->viewRotation -= 90;
 		if (this->viewRotation < 0) this->viewRotation += 360;
-		enforcePanConstraints();
-		updateResizedImage();
+		this->enforcePanConstraints();
+		this->updateResizedImage();
 		if (isVisible()) update();
 	}
 
@@ -104,8 +104,8 @@ namespace hb {
 	void ImageView::rotateRight() {
 		this->viewRotation += 90;
 		if (this->viewRotation >= 360) this->viewRotation -= 360;
-		enforcePanConstraints();
-		updateResizedImage();
+		this->enforcePanConstraints();
+		this->updateResizedImage();
 		if (isVisible()) update();
 	}
 
@@ -114,16 +114,16 @@ namespace hb {
 		this->viewRotation = degrees;
 		if (this->viewRotation >= 360) this->viewRotation = this->viewRotation - (360 * std::floor(degrees / 360.0));
 		if (this->viewRotation < 0) this->viewRotation = this->viewRotation + (360 * std::ceil(std::abs(degrees / 360.0)));
-		enforcePanConstraints();
-		updateResizedImage();
+		this->enforcePanConstraints();
+		this->updateResizedImage();
 		if (isVisible()) update();
 	}
 
 	///Moves the viewport to the point \p point.
 	void ImageView::centerViewportOn(QPointF point) {
-		QPointF transformedPoint = getTransform().map(point);
-		this->panOffset += (QPointF((double)width() / 2.0, (double)height() / 2.0) - transformedPoint) / (pow(this->zoomBasis, this->zoomExponent)*getWindowScalingFactor());
-		enforcePanConstraints();
+		QPointF transformedPoint = this->getTransform().map(point);
+		this->panOffset += (QPointF((double)width() / 2.0, (double)height() / 2.0) - transformedPoint) / (pow(this->zoomBasis, this->zoomExponent)*this->getWindowScalingFactor());
+		this->enforcePanConstraints();
 		update();
 	}
 
@@ -141,13 +141,13 @@ namespace hb {
 		this->isMat = false;
 		this->mat = cv::Mat();
 		if (this->image.size() != oldSize) {
-			resetMask();
+			this->resetMask();
 			this->hundredPercentZoomMode = false;
 		}
 
 		this->imageAssigned = true;
-		updateResizedImage();
-		enforcePanConstraints();
+		this->updateResizedImage();
+		this->enforcePanConstraints();
 		update();
 	}
 
@@ -159,13 +159,13 @@ namespace hb {
 		this->isMat = false;
 		this->mat = cv::Mat();
 		if (this->image.size() != oldSize) {
-			resetMask();
+			this->resetMask();
 			this->hundredPercentZoomMode = false;
 		}
 
 		this->imageAssigned = true;
-		updateResizedImage();
-		enforcePanConstraints();
+		this->updateResizedImage();
+		this->enforcePanConstraints();
 		update();
 	}
 
@@ -174,16 +174,16 @@ namespace hb {
 		if (image.type() == CV_8UC4 || image.type() == CV_8UC3 || image.type() == CV_8UC1) {
 			QSize oldSize = this->image.size();
 			this->mat = image;
-			shallowCopyMatToImage(this->mat, this->image);
+			ImageView::shallowCopyMatToImage(this->mat, this->image);
 			if (this->image.size() != oldSize) {
-				resetMask();
+				this->resetMask();
 				this->hundredPercentZoomMode = false;
 			}
 			this->isMat = true;
 
 			this->imageAssigned = true;
-			updateResizedImage();
-			enforcePanConstraints();
+			this->updateResizedImage();
+			this->enforcePanConstraints();
 			update();
 		} else {
 			std::cerr << "Image View: cannot assign image because of unsupported type " << image.type() << "." << std::endl;
@@ -202,13 +202,13 @@ namespace hb {
 		if ((image.type() == CV_8UC4 || image.type() == CV_8UC3 || image.type() == CV_8UC1) && (downscaledImage.type() == CV_8UC4 || downscaledImage.type() == CV_8UC3 || downscaledImage.type() == CV_8UC1)) {
 			QSize oldSize = this->image.size();
 			this->mat = image;
-			shallowCopyMatToImage(this->mat, this->image);
+			ImageView::shallowCopyMatToImage(this->mat, this->image);
 			if (this->image.size() != oldSize) {
-				resetMask();
+				this->resetMask();
 				this->hundredPercentZoomMode = false;
 			}
 			this->downsampledMat = downscaledImage;
-			shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
+			ImageView::shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
 			this->isMat = true;
 
 			this->imageAssigned = true;
@@ -233,7 +233,7 @@ namespace hb {
 	///Maps a point in widget coordinates to image coordinates of the currently assigned image
 	QPointF ImageView::mapToImageCoordinates(QPointF pointInWidgetCoordinates) const {
 		if (this->imageAssigned) {
-			QPointF result = getTransform().inverted().map(pointInWidgetCoordinates);
+			QPointF result = this->getTransform().inverted().map(pointInWidgetCoordinates);
 			if (result.x() >= 0 && result.y() >= 0 && result.x() < double(this->image.width()) && result.y() < double(this->image.height())) {
 				return result;
 			}
@@ -245,7 +245,7 @@ namespace hb {
 	///Returns the magnification factor at which the image is dispayed, 1 means the image is at a 100% view and one image pixel corresponds to one pixel of the display.
 	double ImageView::getCurrentPreviewScalingFactor() const {
 		if (this->imageAssigned) {
-			return std::pow(this->zoomBasis, this->zoomExponent) * getWindowScalingFactor();
+			return std::pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor();
 		} else {
 			return -1;
 		}
@@ -254,7 +254,7 @@ namespace hb {
 	///Specifies if the image will be resampled with a high quality algorithm when it's displayed with a magnificaiton smaller than 1.
 	void ImageView::setUseHighQualityDownscaling(bool value) {
 		this->useHighQualityDownscaling = value;
-		updateResizedImage();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -286,7 +286,7 @@ namespace hb {
 	*/
 	void ImageView::setEnablePostResizeSharpening(bool value) {
 		this->enablePostResizeSharpening = value;
-		updateResizedImage();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -298,7 +298,7 @@ namespace hb {
 	///Sets the strength value of the post-resize unsharp masking filter to \p value.
 	void ImageView::setPostResizeSharpeningStrength(double value) {
 		this->postResizeSharpeningStrength = value;
-		updateResizedImage();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -310,7 +310,7 @@ namespace hb {
 	///Sets the radius value of the post-resize unsharp masking filter to \p value.
 	void ImageView::setPostResizeSharpeningRadius(double value) {
 		this->postResizeSharpeningRadius = value;
-		updateResizedImage();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -329,7 +329,7 @@ namespace hb {
 		this->enablePostResizeSharpening = enable;
 		this->postResizeSharpeningStrength = strength;
 		this->postResizeSharpeningRadius = radius;
-		updateResizedImage();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -513,14 +513,14 @@ namespace hb {
 	void ImageView::zoomInKey() {
 		QPointF center = QPointF(double(width()) / 2.0, double(height()) / 2.0);
 		if (underMouse()) center = this->mapFromGlobal(QCursor::pos());
-		zoomBy(1, center);
+		this->zoomBy(1, center);
 	}
 
 	///Zooms the viewport out one step.
 	void ImageView::zoomOutKey() {
 		QPointF center = QPointF(double(width()) / 2.0, double(height()) / 2.0);
 		if (underMouse()) center = this->mapFromGlobal(QCursor::pos());
-		zoomBy(-1, center);
+		this->zoomBy(-1, center);
 	}
 
 	///Resets the mask the user is painting, does not affect the overlay mask.
@@ -543,16 +543,16 @@ namespace hb {
 	///Displays the image at 100% magnification; the point \p center (in widget screen coordinates) will be centered.
 	void ImageView::zoomToHundredPercent(QPointF center) {
 		if (this->imageAssigned) {
-			QPointF mousePositionCoordinateBefore = getTransform().inverted().map(center);
-			double desiredZoomFactor = 1 / getWindowScalingFactor();
+			QPointF mousePositionCoordinateBefore = this->getTransform().inverted().map(center);
+			double desiredZoomFactor = 1 / this->getWindowScalingFactor();
 			this->zoomExponent = log(desiredZoomFactor) / log(this->zoomBasis);
-			QPointF mousePositionCoordinateAfter = getTransform().inverted().map(center);
+			QPointF mousePositionCoordinateAfter = this->getTransform().inverted().map(center);
 			//remove the rotation from the delta
-			QPointF mouseDelta = getTransformRotateOnly().map(mousePositionCoordinateAfter - mousePositionCoordinateBefore);
+			QPointF mouseDelta = this->getTransformRotateOnly().map(mousePositionCoordinateAfter - mousePositionCoordinateBefore);
 			this->panOffset += mouseDelta;
 			this->hundredPercentZoomMode = true;
-			enforcePanConstraints();
-			updateResizedImage();
+			this->enforcePanConstraints();
+			this->updateResizedImage();
 			update();
 		}
 	}
@@ -560,8 +560,8 @@ namespace hb {
 	void ImageView::resetZoom() {
 		this->zoomExponent = 0;
 		this->hundredPercentZoomMode = false;
-		enforcePanConstraints();
-		updateResizedImage();
+		this->enforcePanConstraints();
+		this->updateResizedImage();
 		update();
 	}
 
@@ -588,7 +588,7 @@ namespace hb {
 	//========================================================================= Protected =========================================================================\\
 
 	void ImageView::showEvent(QShowEvent * e) {
-		enforcePanConstraints();
+		this->enforcePanConstraints();
 	}
 
 	void ImageView::mousePressEvent(QMouseEvent *e) {
@@ -607,9 +607,9 @@ namespace hb {
 			this->spanningSelectionRectangle = true;
 		} else {
 			//check for close points to grab
-			IndexWithDistance closestPoint = closestGrabbablePoint(e->pos());
-			IndexWithDistance closestPolylinePoint = closestGrabbablePolylinePoint(e->pos());
-			double polylineSelectionDistance = smallestDistanceToPolylineSelection(e->pos());
+			IndexWithDistance closestPoint = this->closestGrabbablePoint(e->pos());
+			IndexWithDistance closestPolylinePoint = this->closestGrabbablePolylinePoint(e->pos());
+			double polylineSelectionDistance = this->smallestDistanceToPolylineSelection(e->pos());
 			if (closestPoint.index >= 0 && (closestPolylinePoint.index <= 0 || closestPoint.distance < closestPolylinePoint.distance || !this->polylineSelected) && (closestPoint.distance < polylineSelectionDistance || this->polylineSelectedPoints.size() == 0 || !this->polylineSelected) && this->pointManipulationActive) {
 				//grab a point
 				this->grabbedPointIndex = closestPoint.index;
@@ -671,7 +671,7 @@ namespace hb {
 				} else {
 					canvas.setBrush(QBrush(Qt::color0));
 				}
-				QTransform transform = getTransform().inverted();
+				QTransform transform = this->getTransform().inverted();
 				canvas.drawEllipse(transform.map(QPointF(e->pos())), this->brushRadius, this->brushRadius);
 				update();
 			}
@@ -685,13 +685,13 @@ namespace hb {
 		bool dontUpdateLastMousePosition = false;
 
 		if (this->dragging || this->pointGrabbed || this->polylinePointGrabbed) {
-			QPointF deltaRotated = getTransformScaleRotateOnly().inverted().map((e->pos() - this->lastMousePosition));
-			QPointF deltaScaled = getTransformScaleOnly().inverted().map((e->pos() - this->lastMousePosition));
+			QPointF deltaRotated = this->getTransformScaleRotateOnly().inverted().map((e->pos() - this->lastMousePosition));
+			QPointF deltaScaled = this->getTransformScaleOnly().inverted().map((e->pos() - this->lastMousePosition));
 			if (this->dragging) {
 				//dragging
 				qApp->setOverrideCursor(QCursor(Qt::ClosedHandCursor));
 				this->panOffset += deltaScaled;
-				enforcePanConstraints();
+				this->enforcePanConstraints();
 				//for infinite panning
 				QPoint globalPos = QCursor::pos();
 				QRect screen = QApplication::desktop()->screen(this->screenId)->geometry();
@@ -734,7 +734,7 @@ namespace hb {
 			update();
 		} else if (this->spanningSelectionRectangle) {
 			this->selectionRectangle.setBottomLeft(e->pos());
-			QTransform transform = getTransform();
+			QTransform transform = this->getTransform();
 			this->selectionRectanglePoints.clear();
 			for (int point = 0; point < this->polyline.size(); ++point) {
 				QPointF transformedPoint = transform.map(this->polyline[point]);
@@ -760,7 +760,7 @@ namespace hb {
 				pen.setWidth(2 * this->brushRadius);
 				pen.setCapStyle(Qt::RoundCap);
 				canvas.setPen(pen);
-				QTransform transform = getTransform().inverted();
+				QTransform transform = this->getTransform().inverted();
 				canvas.drawLine(transform.map(this->lastMousePosition), transform.map(e->pos()));
 			}
 			update();
@@ -770,7 +770,7 @@ namespace hb {
 			this->zoomExponent = this->panZoomingInitialZoomExponent;
 			this->panOffset = this->panZoomingInitialPanOffset;
 			double delta = (this->infinitePanLastInitialMousePosition - e->pos()).y() * (-0.025);
-			zoomBy(delta, this->initialMousePosition);
+			this->zoomBy(delta, this->initialMousePosition);
 			//for infinite pan zooming
 			QPoint globalPos = QCursor::pos();
 			QRect screen = QApplication::desktop()->screen(this->screenId)->geometry();
@@ -797,7 +797,7 @@ namespace hb {
 		if (!this->dragging && !this->painting && !this->pointGrabbed && !this->spanningSelectionRectangle && !this->panZooming) {
 			//check for close points to grab
 			if (this->pointManipulationActive) {
-				if (closestGrabbablePoint(e->pos()).index >= 0) {
+				if (this->closestGrabbablePoint(e->pos()).index >= 0) {
 					qApp->setOverrideCursor(QCursor(Qt::OpenHandCursor));
 				} else {
 					qApp->setOverrideCursor(QCursor(Qt::ArrowCursor));
@@ -815,7 +815,7 @@ namespace hb {
 		//clicking points
 		if (this->pointEditingActive && this->imageAssigned && !this->moved) {
 			//this was a click, add a point
-			QTransform transform = getTransform();
+			QTransform transform = this->getTransform();
 			QPointF clickedPoint = e->pos();
 			QPointF worldPoint = transform.inverted().map(clickedPoint);
 			if (worldPoint.x() >= 0 && worldPoint.x() <= this->image.width() && worldPoint.y() >= 0 && worldPoint.y() <= this->image.height()) {
@@ -826,7 +826,7 @@ namespace hb {
 		} else if (!this->pointEditingActive && !this->moved && this->imageAssigned) {
 			if (this->polylineManipulationActive && e->button() != Qt::RightButton) {
 				//this was a click, select or unselect polyline
-				if (smallestDistanceToPolyline(e->pos()) <= this->polylinePointGrabTolerance) {
+				if (this->smallestDistanceToPolyline(e->pos()) <= this->polylinePointGrabTolerance) {
 					//clicked close enough to a point, select line
 					this->polylineSelected = true;
 				} else {
@@ -839,14 +839,14 @@ namespace hb {
 			if (e->button() == Qt::RightButton && this->rightClickForHundredPercentView) {
 				//zoom to 100%
 				if (this->hundredPercentZoomMode) {
-					resetZoom();
+					this->resetZoom();
 				} else {
-					zoomToHundredPercent(e->pos());
+					this->zoomToHundredPercent(e->pos());
 				}
 			}
 
 			//emit pixel click signal
-			QTransform transform = getTransform();
+			QTransform transform = this->getTransform();
 			QPointF clickedPoint = e->pos();
 			QPointF worldPoint = transform.inverted().map(clickedPoint);
 			emit(pixelClicked(QPoint(std::floor(worldPoint.x()), std::floor(worldPoint.y()))));
@@ -854,7 +854,7 @@ namespace hb {
 
 		if (this->pointGrabbed) {
 			if (e->pos().x() < 0 || e->pos().y() < 0 || e->pos().x() > width() || e->pos().y() > height() || this->points[this->grabbedPointIndex].x() < 0 || this->points[this->grabbedPointIndex].y() < 0 || this->points[this->grabbedPointIndex].x() >= this->image.width() || this->points[this->grabbedPointIndex].y() >= this->image.height()) {
-				deletePoint(this->grabbedPointIndex);
+				this->deletePoint(this->grabbedPointIndex);
 				emit(userDeletedPoint(this->grabbedPointIndex));
 				this->showPointDeletionWarning = false;
 				qApp->setOverrideCursor(QCursor(Qt::ArrowCursor));
@@ -909,7 +909,7 @@ namespace hb {
 				e->ignore();
 				return;
 			}
-			zoomBy(e->delta() / divisor, e->pos());
+			this->zoomBy(e->delta() / divisor, e->pos());
 		}
 		e->accept();
 	}
@@ -918,9 +918,9 @@ namespace hb {
 		//maintain 100% view if in 100% view
 		if (this->hundredPercentZoomMode) {
 			QPointF center(width() / 2.0, height() / 2.0);
-			zoomToHundredPercent(center);
+			this->zoomToHundredPercent(center);
 		}
-		updateResizedImage();
+		this->updateResizedImage();
 	}
 
 	void ImageView::enterEvent(QEvent* e) {
@@ -941,17 +941,17 @@ namespace hb {
 		canvas.setRenderHint(QPainter::Antialiasing, true);
 		canvas.setRenderHint(QPainter::SmoothPixmapTransform, this->useSmoothTransform);
 		QSize canvasSize = size();
-		QTransform transform = getTransform();
+		QTransform transform = this->getTransform();
 		QPalette palette = qApp->palette();
 		canvas.fillRect(0, 0, width(), height(), this->backgroundColor);
 
 		//drawing of the image
 		if (this->imageAssigned) {
-			if (std::pow(this->zoomBasis, this->zoomExponent) * getWindowScalingFactor() >= 1 || !this->useHighQualityDownscaling) {
+			if (std::pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor() >= 1 || !this->useHighQualityDownscaling) {
 				canvas.setTransform(transform);
 				canvas.drawImage(QPoint(0, 0), this->image);
 			} else {
-				canvas.setTransform(getTransformDownsampledImage());
+				canvas.setTransform(this->getTransformDownsampledImage());
 				canvas.drawImage(QPoint(0, 0), this->downsampledImage);
 			}
 		}
@@ -1073,7 +1073,7 @@ namespace hb {
 		//if painting active draw brush outline
 		if (this->paintingActive && underMouse() && !this->dragging) {
 			canvas.resetTransform();
-			double scalingFactor = pow(this->zoomBasis, this->zoomExponent) * getWindowScalingFactor();
+			double scalingFactor = pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor();
 			canvas.setBrush(Qt::NoBrush);
 			canvas.setPen(QPen(Qt::darkGray, 1));
 			canvas.drawEllipse(this->brushPosition, this->brushRadius*scalingFactor, this->brushRadius*scalingFactor);
@@ -1084,7 +1084,7 @@ namespace hb {
 			canvas.resetTransform();
 			canvas.setPen(QPen(Qt::darkGray));
 			canvas.setBrush(Qt::NoBrush);
-			double scalingFactor = pow(this->zoomBasis, this->zoomExponent) * getWindowScalingFactor();
+			double scalingFactor = pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor();
 			canvas.drawEllipse(QPointF((double)width() / 2.0, (double)height() / 2.0), this->brushRadius*scalingFactor, this->brushRadius*scalingFactor);
 		}
 
@@ -1131,13 +1131,13 @@ namespace hb {
 	void ImageView::keyPressEvent(QKeyEvent * e) {
 		if ((isVisible() && (underMouse() || e->key() == Qt::Key_X) && this->imageAssigned) || e->key() == Qt::Key_S) {
 			if (e->key() == Qt::Key_Plus && !this->panZooming) {
-				zoomInKey();
+				this->zoomInKey();
 			} else if (e->key() == Qt::Key_Minus && !this->panZooming) {
-				zoomOutKey();
+				this->zoomOutKey();
 			} else if (e->key() == Qt::Key_S) {
-				setUseSmoothTransform(!this->useSmoothTransform);
+				this->setUseSmoothTransform(!this->useSmoothTransform);
 			} else if (e->key() == Qt::Key_X && this->polylineAssigned && this->renderPolyline) {
-				invertPolylineColor();
+				this->invertPolylineColor();
 			} else {
 				e->ignore();
 			}
@@ -1150,12 +1150,12 @@ namespace hb {
 		if (e->type() == QEvent::KeyPress) {
 			QKeyEvent* keyEvent = (QKeyEvent*)e;
 			if ((keyEvent->key() == Qt::Key_Plus || keyEvent->key() == Qt::Key_Minus) && isVisible() && underMouse() && this->imageAssigned) {
-				keyPressEvent(keyEvent);
+				this->keyPressEvent(keyEvent);
 				return true;
 			} else if (keyEvent->key() == Qt::Key_S) {
-				keyPressEvent(keyEvent);
+				this->keyPressEvent(keyEvent);
 			} else if (keyEvent->key() == Qt::Key_X && isVisible() && this->imageAssigned && this->polylineAssigned && this->renderPolyline) {
-				keyPressEvent(keyEvent);
+				this->keyPressEvent(keyEvent);
 				return true;
 			}
 		}
@@ -1174,8 +1174,8 @@ namespace hb {
 
 	double ImageView::getWindowScalingFactor() const {
 		if (this->imageAssigned && this->image.width() != 0 && this->image.height() != 0) {
-			double imageWidth = getEffectiveImageWidth();
-			double imageHeight = getEffectiveImageHeight();
+			double imageWidth = this->getEffectiveImageWidth();
+			double imageHeight = this->getEffectiveImageHeight();
 			double scalingFactor = std::min((double)size().width() / imageWidth, (double)size().height() / imageHeight);
 			if (this->preventMagnificationInDefaultZoom && scalingFactor > 1) {
 				return 1;
@@ -1189,7 +1189,7 @@ namespace hb {
 
 	QTransform ImageView::getTransform() const {
 		//makes the map always fill the whole interface element
-		double factor = getWindowScalingFactor();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		double centeringOffsetX = (double)this->image.width() / 2;
 		double centeringOffsetY = (double)this->image.height() / 2;
@@ -1217,7 +1217,7 @@ namespace hb {
 
 	QTransform ImageView::getTransformDownsampledImage() const {
 		//makes the map always fill the whole interface element
-		double factor = getWindowScalingFactor();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		/*Here we can do integer division for the centering offset because this function is only called
 		when the image is displayed with negative magnificaiton. The Error of ca. 0.5 pixels can be
@@ -1250,7 +1250,7 @@ namespace hb {
 	}
 
 	QTransform ImageView::getTransformScaleRotateOnly() const {
-		double factor = getWindowScalingFactor();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		//those transforms are performed in inverse order, so read bottom - up
 		QTransform transform;
@@ -1264,7 +1264,7 @@ namespace hb {
 	}
 
 	QTransform ImageView::getTransformScaleOnly() const {
-		double factor = getWindowScalingFactor();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		//those transforms are performed in inverse order, so read bottom - up
 		QTransform transform;
@@ -1276,7 +1276,7 @@ namespace hb {
 	}
 
 	QTransform ImageView::getTransformRotateOnly() const {
-		double factor = getWindowScalingFactor();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		//those transforms are performed in inverse order, so read bottom - up
 		QTransform transform;
@@ -1287,24 +1287,24 @@ namespace hb {
 
 	void ImageView::zoomBy(double delta, QPointF const& center) {
 		if (this->imageAssigned) {
-			QPointF mousePositionCoordinateBefore = getTransform().inverted().map(center);
+			QPointF mousePositionCoordinateBefore = this->getTransform().inverted().map(center);
 			this->zoomExponent += delta;
 			if (this->zoomExponent < 0)this->zoomExponent = 0;
-			QPointF mousePositionCoordinateAfter = getTransform().inverted().map(center);
+			QPointF mousePositionCoordinateAfter = this->getTransform().inverted().map(center);
 			//remove the rotation from the delta
-			QPointF mouseDelta = getTransformRotateOnly().map(mousePositionCoordinateAfter - mousePositionCoordinateBefore);
+			QPointF mouseDelta = this->getTransformRotateOnly().map(mousePositionCoordinateAfter - mousePositionCoordinateBefore);
 			this->panOffset += mouseDelta;
 			this->hundredPercentZoomMode = false;
-			enforcePanConstraints();
-			updateResizedImage();
+			this->enforcePanConstraints();
+			this->updateResizedImage();
 			update();
 		}
 	}
 
 	void ImageView::enforcePanConstraints() {
-		double imageWidth = getEffectiveImageWidth();
-		double imageHeight = getEffectiveImageHeight();
-		double factor = getWindowScalingFactor();
+		double imageWidth = this->getEffectiveImageWidth();
+		double imageHeight = this->getEffectiveImageHeight();
+		double factor = this->getWindowScalingFactor();
 		double zoomFactor = pow(this->zoomBasis, this->zoomExponent);
 		double maxXOffset = (-1)*(((width() / factor / zoomFactor) - imageWidth) / 2);
 		double maxYOffset = (-1)*(((height() / factor / zoomFactor) - imageHeight) / 2);
@@ -1318,17 +1318,17 @@ namespace hb {
 
 	void ImageView::updateResizedImage() {
 		if (this->useHighQualityDownscaling && this->imageAssigned) {
-			double scalingFactor = std::pow(this->zoomBasis, this->zoomExponent) * getWindowScalingFactor();
+			double scalingFactor = std::pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor();
 			if (scalingFactor < 1) {
 				if (!this->isMat) {
 					if (this->image.format() == QImage::Format_RGB888 || this->image.format() == QImage::Format_Indexed8 || this->image.format() == QImage::Format_ARGB32) {
 						cv::Mat orig;
-						shallowCopyImageToMat(this->image, orig);
+						ImageView::shallowCopyImageToMat(this->image, orig);
 						cv::resize(orig, this->downsampledMat, cv::Size(), scalingFactor, scalingFactor, cv::INTER_AREA);
 						if (this->enablePostResizeSharpening) {
 							ImageView::sharpen(this->downsampledMat, this->postResizeSharpeningStrength, this->postResizeSharpeningRadius);
 						}
-						deepCopyMatToImage(this->downsampledMat, this->downsampledImage);
+						ImageView::deepCopyMatToImage(this->downsampledMat, this->downsampledImage);
 					} else {
 						//alternative
 						this->downsampledImage = this->image.scaledToWidth(this->image.width() * scalingFactor, Qt::SmoothTransformation);
@@ -1338,7 +1338,7 @@ namespace hb {
 					if (this->enablePostResizeSharpening) {
 						ImageView::sharpen(this->downsampledMat, this->postResizeSharpeningStrength, this->postResizeSharpeningRadius);
 					}
-					shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
+					ImageView::shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
 				}
 			}
 		}
@@ -1350,11 +1350,11 @@ namespace hb {
 
 	ImageView::IndexWithDistance ImageView::closestGrabbablePoint(QPointF const& mousePosition) const {
 		if (this->points.size() > 0) {
-			QTransform transform = getTransform();
-			double smallestDistance = distance(transform.map(this->points[0]), mousePosition);
+			QTransform transform = this->getTransform();
+			double smallestDistance = this->distance(transform.map(this->points[0]), mousePosition);
 			double index = 0;
 			for (int point = 1; point < this->points.size(); ++point) {
-				double tmpDistance = distance(transform.map(this->points[point]), mousePosition);
+				double tmpDistance = this->distance(transform.map(this->points[point]), mousePosition);
 				if (tmpDistance < smallestDistance) {
 					smallestDistance = tmpDistance;
 					index = point;
@@ -1369,11 +1369,11 @@ namespace hb {
 
 	ImageView::IndexWithDistance ImageView::closestGrabbablePolylinePoint(QPointF const& mousePosition) const {
 		if (this->polyline.size() > 0) {
-			QTransform transform = getTransform();
-			double smallestDistance = distance(transform.map(this->polyline[0]), mousePosition);
+			QTransform transform = this->getTransform();
+			double smallestDistance = this->distance(transform.map(this->polyline[0]), mousePosition);
 			double index = 0;
 			for (int point = 1; point < this->polyline.size(); ++point) {
-				double tmpDistance = distance(transform.map(this->polyline[point]), mousePosition);
+				double tmpDistance = this->distance(transform.map(this->polyline[point]), mousePosition);
 				if (tmpDistance < smallestDistance) {
 					smallestDistance = tmpDistance;
 					index = point;
@@ -1388,13 +1388,13 @@ namespace hb {
 
 	double ImageView::smallestDistanceToPolyline(QPointF const& mousePosition) const {
 		if (this->polyline.size() > 0) {
-			QTransform transform = getTransform();
-			double smallestDistance = distance(this->polyline[0], mousePosition);
+			QTransform transform = this->getTransform();
+			double smallestDistance = this->distance(this->polyline[0], mousePosition);
 			if (this->polyline.size() > 1) {
 				for (int point = 0; point < this->polyline.size() - 1; ++point) {
 					QPointF point1 = transform.map(this->polyline[point]);
 					QPointF point2 = transform.map(this->polyline[point + 1]);
-					double d = distanceOfPointToLineSegment(point1, point2, mousePosition);
+					double d = ImageView::distanceOfPointToLineSegment(point1, point2, mousePosition);
 					if (d < smallestDistance) smallestDistance = d;
 				}
 			}
@@ -1405,7 +1405,7 @@ namespace hb {
 
 	double ImageView::smallestDistanceToPolylineSelection(QPointF const& mousePosition) const {
 		if (this->polyline.size() > 0) {
-			QTransform transform = getTransform();
+			QTransform transform = this->getTransform();
 			double smallestDistance = -1;
 			for (int index : this->polylineSelectedPoints) {
 				QPointF point1 = transform.map(this->polyline[index]);
@@ -1413,10 +1413,10 @@ namespace hb {
 				if (this->polylineSelectedPoints.find(index + 1) != this->polylineSelectedPoints.end()) {
 					//check distance to line segment	
 					QPointF point2 = transform.map(this->polyline[index + 1]);
-					d = distanceOfPointToLineSegment(point1, point2, mousePosition);
+					d = ImageView::distanceOfPointToLineSegment(point1, point2, mousePosition);
 				} else {
 					//check distance to point
-					d = distance(point1, mousePosition);
+					d = this->distance(point1, mousePosition);
 				}
 				if (d < smallestDistance || smallestDistance == -1) smallestDistance = d;
 			}
@@ -1442,10 +1442,10 @@ namespace hb {
 		double smallestDistance;
 		if (point1ToMouse.length() * std::abs(QVector2D::dotProduct(pointConnection, point1ToMouse) / (pointConnection.length() * point1ToMouse.length())) > pointConnection.length()) {
 			//perpendicular is not on line segment
-			smallestDistance = distance(lineEnd, point);
+			smallestDistance = ImageView::distance(lineEnd, point);
 		} else if (point2ToMouse.length() * std::abs(QVector2D::dotProduct((-1)*pointConnection, point2ToMouse) / (pointConnection.length() * point2ToMouse.length())) > pointConnection.length()) {
 			//perpendicular is also not on line segment
-			smallestDistance = distance(lineStart, point);
+			smallestDistance = ImageView::distance(lineStart, point);
 		} else {
 			smallestDistance = std::abs(QVector2D::dotProduct(lineNormal, point1ToMouse));
 		}
@@ -1459,19 +1459,19 @@ namespace hb {
 	}
 
 	void ImageView::shallowCopyMatToImage(const cv::Mat& mat, QImage& destImage) {
-		matToImage(mat, destImage, false);
+		ImageView::matToImage(mat, destImage, false);
 	}
 
 	void ImageView::deepCopyMatToImage(const cv::Mat& mat, QImage& destImage) {
-		matToImage(mat, destImage, true);
+		ImageView::matToImage(mat, destImage, true);
 	}
 
 	void ImageView::shallowCopyImageToMat(const QImage& image, cv::Mat& destMat) {
-		imageToMat(image, destMat, false);
+		ImageView::imageToMat(image, destMat, false);
 	}
 
 	void ImageView::deepCopyImageToMat(const QImage& image, cv::Mat& destMat) {
-		imageToMat(image, destMat, true);
+		ImageView::imageToMat(image, destMat, true);
 	}
 
 	void ImageView::matToImage(const cv::Mat& mat, QImage& destImage, bool deepCopy) {
