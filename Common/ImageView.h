@@ -170,6 +170,7 @@ namespace hb {
 		//related to pan-zooming
 		bool _panZooming;
 		QPointF _initialMousePosition;
+		QPointF _infinitePanLastInitialMousePosition;
 		double _panZoomingInitialZoomExponent;
 		QPointF _panZoomingInitialPanOffset;
 		//related to setting points and rendering them
