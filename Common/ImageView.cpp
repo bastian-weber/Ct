@@ -594,6 +594,7 @@ namespace hb {
 	void ImageView::mousePressEvent(QMouseEvent *e) {
 		_lastMousePosition = e->pos();
 		_initialMousePosition = e->pos();
+		_infinitePanLastInitialMousePosition = _initialMousePosition;
 
 		if (e->modifiers() & Qt::AltModifier && _polylineManipulationActive && _polylineAssigned) {
 			//span a selection rectangle
@@ -748,13 +749,23 @@ namespace hb {
 		if (_panZooming) {
 			_zoomExponent = _panZoomingInitialZoomExponent;
 			_panOffset = _panZoomingInitialPanOffset;
-			double delta = (_initialMousePosition - e->pos()).y() * (-0.025);
+			double delta = (_infinitePanLastInitialMousePosition - e->pos()).y() * (-0.025);
 			zoomBy(delta, _initialMousePosition);
 
 			QPoint globalPos = mapToGlobal(e->pos());
 			QRect screen = QApplication::desktop()->screenGeometry();
+			QPoint newPos;
 			if (globalPos.y() == screen.height() - 1) {
-				QCursor::setPos(QPoint(globalPos.x(), 1));
+				newPos = QPoint(globalPos.x(), 1);
+			} else if (globalPos.y() == 0) {
+				newPos = QPoint(globalPos.x(), screen.height() - 2);
+			}
+			if (newPos != QPoint()) {
+				_infinitePanLastInitialMousePosition = mapFromGlobal(newPos);
+				_panZoomingInitialPanOffset = _panOffset;
+				_panZoomingInitialZoomExponent = _zoomExponent;
+				QCursor::setPos(newPos);
+
 			}
 			//doesn't work as expected
 			//QCursor::setPos(mapToGlobal(_lastMousePosition.toPoint()));
