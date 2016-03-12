@@ -49,19 +49,24 @@ namespace ct {
 	}
 
 	bool CtVolume::cudaAvailable(bool verbose) {
+		return (CtVolume::getCudaDeviceCount(verbose) > 0);
+	}
+
+	int CtVolume::getCudaDeviceCount(bool verbose) {
 		int count;
 		cudaError_t error = cudaGetDeviceCount(&count);
 
-		if (error == cudaSuccess && count > 0) {
-			return true;
+		if (error == cudaSuccess) {
+			return count;
 		} else if (error == cudaErrorInsufficientDriver && verbose) {
 			std::cout << "No sufficient version of the Nvidia driver could be found. CUDA will not be avialable." << std::endl;
+			return -1;
 		} else if (error == cudaErrorNoDevice && verbose) {
 			std::cout << "No CUDA devices could be found. CUDA will not be available." << std::endl;
 		} else if (verbose) {
 			std::cout << "An error occured while trying to retrieve CUDA devices. CUDA will not be available. Error: " << cudaGetErrorString(error) << std::endl;
 		}
-		return false;
+		return 0;
 	}
 
 	bool CtVolume::sinogramFromImages(QString csvFile) {
@@ -351,7 +356,7 @@ namespace ct {
 	}
 
 	std::vector<std::string> CtVolume::getCudaDeviceList() const {
-		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		int deviceCnt = CtVolume::getCudaDeviceCount();
 		//return an empty vector if there are no cuda devices
 		if(deviceCnt < 1) return std::vector<std::string>();
 		std::vector<std::string> result(deviceCnt);
@@ -404,7 +409,7 @@ namespace ct {
 	}
 
 	void CtVolume::setActiveCudaDevices(std::vector<int> devices) {
-		int deviceCnt = cv::cuda::getCudaEnabledDeviceCount();
+		int deviceCnt = CtVolume::getCudaDeviceCount();
 		for (std::vector<int>::iterator i = devices.begin(); i != devices.end();) {
 			if (*i >= deviceCnt) {
 				i = devices.erase(i);
