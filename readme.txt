@@ -26,7 +26,7 @@ The required libraries are:
 			BUILD_opencv_contrib_world unchecked
 		- 	You can uncheck BUILD_TESTS, BUILD_DOCS and BUILD_PERF_TESTS to save time (won't build the unit tests, documentation and
 			performance tests)
-		- 	Set CMAKE_INSTALL_PATH to the path where the result of the build shall be installed.
+		- 	Set CMAKE_INSTALL_PREFIX to the path where the result of the build shall be installed.
 		- 	Hit configure
 		- 	Hit generate
 		- 	Open the generated project in Visual Studio
@@ -55,7 +55,7 @@ to the Release and Debug directory.
 			BUILD_opencv_contrib_world unchecked
 		- 	You can uncheck BUILD_TESTS, BUILD_DOCS and BUILD_PERF_TESTS to save time (won't build the unit tests, documentation and
 			performance tests)
-		- 	Set CMAKE_INSTALL_PATH to the path where the result of the build shall be installed. It is recommended to not use /usr/local
+		- 	Set CMAKE_INSTALL_PREFIX to the path where the result of the build shall be installed. It is recommended to not use /usr/local
 		  	if you want to have multiple different versions of OpenCV on your machine. Just pick some directory of your choice
 		- 	Hit configure
 		- 	Hit generate
