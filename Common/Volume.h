@@ -76,6 +76,7 @@ namespace ct {
 		void setEmitSignals(bool value);
 	private:
 		using std::vector<std::vector<std::vector<T>>>::operator[];
+		using std::vector<std::vector<std::vector<T>>>::size;
 
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
