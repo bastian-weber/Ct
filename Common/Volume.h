@@ -70,9 +70,13 @@ namespace ct {
 		size_t xSize() const;
 		size_t ySize() const;
 		size_t zSize() const;
+		T& at(size_t x, size_t y, size_t z);
+		T const& at(size_t x, size_t y, size_t z) const;
 		//setters
 		void setEmitSignals(bool value);
 	private:
+		using std::vector<std::vector<std::vector<T>>>::operator[];
+
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
@@ -120,6 +124,16 @@ namespace ct {
 		return 0;
 	}
 
+	template<typename T>
+	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
+		return (*this)[x][y][z];
+	}
+
+	template<typename T>
+	inline T const& Volume<T>::at(size_t x, size_t y, size_t z) const {
+		return (*this)[x][y][z];
+	}
+
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
@@ -157,23 +171,23 @@ namespace ct {
 		T max = std::numeric_limits<T>::lowest();
 		U tmp;
 		T converted;
-		for (int x = 0; x < this->size(); ++x) {
+		for (int x = 0; x < this->xSize(); ++x) {
 			if (this->stopActiveProcess) {
 				this->clear();
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 				return false;
 			}
-			double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
+			double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
 			if (this->emitSignals) emit(loadingProgress(percentage));
-			for (int y = 0; y < (*this)[0].size(); ++y) {
-				for (int z = 0; z < (*this)[0][0].size(); ++z) {
+			for (int y = 0; y < this->ySize(); ++y) {
+				for (int z = 0; z < this->zSize(); ++z) {
 					//load one U of data
 					in >> tmp;
 					converted = static_cast<T>(tmp);
 					if (converted < min) min = converted;
 					if (converted > max) max = converted;
-					(*this)[x][y][z] = converted;
+					this->at(x, y, z) = converted;
 				}
 			}
 		}
@@ -187,7 +201,7 @@ namespace ct {
 	template <typename T>
 	bool Volume<T>::saveToBinaryFile(QString const& filename, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
 		this->stopActiveProcess = false;
-		if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
+		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 			{
 				//write binary file
 				QFile file(filename);
@@ -200,18 +214,18 @@ namespace ct {
 				out.setFloatingPointPrecision(floatingPointPrecision);
 				out.setByteOrder(byteOrder);
 				//iterate through the volume
-				for (int x = 0; x < this->size(); ++x) {
+				for (int x = 0; x < this->xSize(); ++x) {
 					if (this->stopActiveProcess) {
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 						return false;
 					}
-					double percentage = floor(double(x) / double(this->size()) * 100 + 0.5);
+					double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
 					if (this->emitSignals) emit(savingProgress(percentage));
-					for (int y = 0; y < (*this)[0].size(); ++y) {
-						for (int z = 0; z < (*this)[0][0].size(); ++z) {
+					for (int y = 0; y < this->ySize(); ++y) {
+						for (int z = 0; z < this->zSize(); ++z) {
 							//save one T of data
-							out << (*this)[x][y][z];
+							out << this->at(x, y, z);
 						}
 					}
 				}
@@ -230,25 +244,22 @@ namespace ct {
 	template<typename T>
 	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index, CoordinateSystemOrientation type) const {
 		if (this->size() == 0) return cv::Mat();
-		size_t xMax = this->size();
-		size_t yMax = (*this)[0].size();
-		size_t zMax = (*this)[0][0].size();
-		if (index >= 0 && ((axis == Axis::X && index < xMax) || (axis == Axis::Y && index < yMax) || (axis == Axis::Z && index < zMax))) {
-			if (this->size() > 0 && (*this)[0].size() > 0 && (*this)[0][0].size() > 0) {
+		if (index >= 0 && ((axis == Axis::X && index < this->xSize()) || (axis == Axis::Y && index < this->zSize()) || (axis == Axis::Z && index < this->zSize()))) {
+			if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 				size_t uSize;
 				size_t vSize;
 				switch (axis) {
 					case Axis::X:
-						uSize = yMax;
-						vSize = zMax;
+						uSize = this->ySize();
+						vSize = this->zSize();
 						break;
 					case Axis::Y:
-						uSize = xMax;
-						vSize = zMax;
+						uSize = this->xSize();
+						vSize = this->zSize();
 						break;
 					case Axis::Z:
-						uSize = yMax;
-						vSize = xMax;
+						uSize = this->ySize();
+						vSize = this->xSize();
 						break;
 				}
 
@@ -259,33 +270,33 @@ namespace ct {
 					case Axis::X:
 						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[index][column][result.rows - 1 - row]);
+								ptr[column] = static_cast<float>(this->at(index, column, result.rows - 1 - row));
 							};
 						} else {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[index][result.cols - 1 - column][result.rows - 1 - row]);
+								ptr[column] = static_cast<float>(this->at(index, result.cols - 1 - column, result.rows - 1 - row));
 							};
 						}
 						break;
 					case Axis::Y:
 						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[result.cols - 1 - column][index][result.rows - 1 - row]);
+								ptr[column] = static_cast<float>(this->at(result.cols - 1 - column, index, result.rows - 1 - row));
 							};
 						} else {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[column][index][result.rows - 1 - row]);
+								ptr[column] = static_cast<float>(this->at(column, index, result.rows - 1 - row));
 							};
 						}
 						break;
 					case Axis::Z:
 						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[row][column][index]);
+								ptr[column] = static_cast<float>(this->at(row, column, index));
 							};
 						} else {
 							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>((*this)[row][result.cols - 1 - column][index]);
+								ptr[column] = static_cast<float>(this->at(row, result.cols - 1 - column, index));
 							};
 						}
 						break;

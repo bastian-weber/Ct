@@ -191,7 +191,7 @@ namespace ct {
 						zCoordinate = this->getCurrentSliceOfCurrentAxis();
 					}
 					if (xCoordinate >= 0 && xCoordinate < this->volume.xSize() && yCoordinate >= 0 && yCoordinate < this->volume.ySize() && zCoordinate >= 0 && zCoordinate < this->volume.zSize()) {
-						float dataValue = this->volume[xCoordinate][yCoordinate][zCoordinate];
+						float dataValue = this->volume.at(xCoordinate, yCoordinate, zCoordinate);
 						float span = this->maxValue - this->minValue;
 						float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
 						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });

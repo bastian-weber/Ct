@@ -475,8 +475,8 @@ namespace ct {
 						for (int y = 0; y < this->yMax; ++y) {
 							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) <= radiusSquared) {
 								for (int z = 0; z < this->zMax; ++z) {
-									if (this->volume[x][y][z] < threadMin) {
-										threadMin = this->volume[x][y][z];
+									if (this->volume.at(x, y, z) < threadMin) {
+										threadMin = this->volume.at(x, y, z);
 									}
 								}
 							}
@@ -492,7 +492,7 @@ namespace ct {
 						for (int y = 0; y < this->yMax; ++y) {
 							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) >= radiusSquared) {
 								for (int z = 0; z < this->zMax; ++z) {
-									this->volume[x][y][z] = smallestValue;
+									this->volume.at(x, y, z) = smallestValue;
 								}
 							}
 						}
@@ -816,7 +816,7 @@ namespace ct {
 								row = image.ptr<float>(v1);
 								float u0v1 = row[u0];
 								float u1v1 = row[u1];
-								this->volume[xIndex][this->worldToVolumeY(y)][this->worldToVolumeZ(z)] += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+								this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 						}
 					}
@@ -1126,7 +1126,7 @@ namespace ct {
 			for (int y = 0; y < this->yMax; ++y) {
 				for (int z = 0; z < zSize; ++z) {
 					//xSize * ySize * zCoord + xSize * yChoord + xCoord
-					volume[x][y][z + zOffset] = arrayPtr.get()[z * this->xMax * this->yMax + y * this->xMax + x];
+					volume.at(x, y, z + zOffset) = arrayPtr.get()[z * this->xMax * this->yMax + y * this->xMax + x];
 				}
 			}
 		}
