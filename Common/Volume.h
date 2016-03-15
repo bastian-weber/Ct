@@ -39,7 +39,7 @@ namespace ct {
 	};
 
 	template <typename T>
-	class Volume : public std::vector<std::vector<std::vector<T>>>, public VolumeSignalsSlots {
+	class Volume : public VolumeSignalsSlots {
 	public:
 		Volume() = default;
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
@@ -48,6 +48,7 @@ namespace ct {
 						  size_t ySize, 
 						  size_t zSize, 
 						  T defaultValue = 0);
+		void clear();
 		template <typename U>
 		bool loadFromBinaryFile(QString const& filename,						//reads a volume from a binary file
 								size_t xSize,
@@ -72,12 +73,13 @@ namespace ct {
 		size_t zSize() const;
 		T& at(size_t x, size_t y, size_t z);
 		T const& at(size_t x, size_t y, size_t z) const;
+		T* data();
+		T const* data() const;
 		//setters
 		void setEmitSignals(bool value);
 	private:
-		using std::vector<std::vector<std::vector<T>>>::operator[];
-		using std::vector<std::vector<std::vector<T>>>::size;
-
+		T* volume = nullptr;
+		size_t xMax = 0, yMax = 0, zMax = 0;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
@@ -85,13 +87,29 @@ namespace ct {
 	//=========================================== IMPLEMENTATION ===========================================\\
 
 	template <typename T>
-	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) 
-	: std::vector<std::vector<std::vector<T>>>(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue))) { }
+	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
+		this->reinitialise(xSize, ySize, zSize, defaultValue);
+	}
 
 	template <typename T>
 	void Volume<T>::reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
 		this->clear();
-		this->resize(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue)));
+		this->volume = new T[xSize*ySize*zSize];
+		std::fill(this->volume, this->volume + xSize*ySize*zSize, defaultValue);
+		this->xMax = xSize;
+		this->yMax = ySize;
+		this->zMax = zSize;
+	}
+
+	template<typename T>
+	void Volume<T>::clear() {
+		if (this->volume != nullptr) {
+			delete[] this->volume;
+			this->volume = nullptr;
+			this->xMax = 0;
+			this->yMax = 0;
+			this->zMax = 0;
+		}
 	}
 
 	template<typename T>
@@ -106,33 +124,39 @@ namespace ct {
 
 	template<typename T>
 	size_t Volume<T>::xSize() const {
-		return this->size();
+		return this->xMax;
 	}
 
 	template<typename T>
 	size_t Volume<T>::ySize() const {
-		if (this->size() != 0) {
-			return (*this)[0].size();
-		}
-		return 0;
+		return this->yMax;
 	}
 
 	template<typename T>
 	size_t Volume<T>::zSize() const {
-		if (this->size() != 0 && (*this)[0].size()) {
-			return (*this)[0][0].size();
-		}
-		return 0;
+		return this->zMax;
 	}
 
 	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
-		return (*this)[x][y][z];
+		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
+		return this->volume[x * this->ySize() * this->zSize() + y*this->zSize() + z];
 	}
 
 	template<typename T>
 	inline T const& Volume<T>::at(size_t x, size_t y, size_t z) const {
-		return (*this)[x][y][z];
+		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
+		return this->volume[x * this->ySize() * this->zSize() + y*this->zSize() + z];
+	}
+
+	template<typename T>
+	T* Volume<T>::data() {
+		return this->volume;
+	}
+
+	template<typename T>
+	inline T const * Volume<T>::data() const {
+		return this->volume;
 	}
 
 	template <typename T>
@@ -244,8 +268,8 @@ namespace ct {
 
 	template<typename T>
 	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index, CoordinateSystemOrientation type) const {
-		if (this->size() == 0) return cv::Mat();
-		if (index >= 0 && ((axis == Axis::X && index < this->xSize()) || (axis == Axis::Y && index < this->zSize()) || (axis == Axis::Z && index < this->zSize()))) {
+		if (this->xSize() == 0) return cv::Mat();
+		if (index >= 0 && ((axis == Axis::X && index < this->xSize()) || (axis == Axis::Y && index < this->ySize()) || (axis == Axis::Z && index < this->zSize()))) {
 			if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 				size_t uSize;
 				size_t vSize;
