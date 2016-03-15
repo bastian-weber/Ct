@@ -43,6 +43,7 @@ namespace ct {
 	public:
 		Volume() = default;
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
+		~Volume();
 		Volume& operator=(Volume const& other) = delete;
 		void reinitialise(size_t xSize,											//resizes the volume to the given dimensions and sets all elements to the given value
 						  size_t ySize, 
@@ -89,6 +90,13 @@ namespace ct {
 	template <typename T>
 	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
 		this->reinitialise(xSize, ySize, zSize, defaultValue);
+	}
+
+	template<typename T>
+	inline Volume<T>::~Volume() {
+		if (this->volume != nullptr) {
+			delete[] this->volume;
+		}
 	}
 
 	template <typename T>
