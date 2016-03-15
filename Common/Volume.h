@@ -27,10 +27,10 @@ namespace ct {
 	};
 
 	//base class for signals (signals do not work in template class)
-	class VolumeSignalsSlots : public QObject {
+	class AbstractVolume : public QObject {
 		Q_OBJECT
 	public:
-		virtual ~VolumeSignalsSlots() = default;
+		virtual ~AbstractVolume() = default;
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
@@ -39,7 +39,7 @@ namespace ct {
 	};
 
 	template <typename T>
-	class Volume : public VolumeSignalsSlots {
+	class Volume : public AbstractVolume {
 	public:
 		Volume() = default;
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
@@ -58,7 +58,7 @@ namespace ct {
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
 								T* minValue = nullptr,
 								T* maxValue = nullptr);
-		bool saveToBinaryFile(QString const& filename,						//saves the volume to a binary file with the given filename
+		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
 		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
@@ -345,16 +345,13 @@ namespace ct {
 
 	template<typename T>
 	size_t Volume<T>::getSizeAlongDimension(Axis axis) const {
-		if (this->size() != 0) {
-			if (axis == Axis::X) {
-				return this->xSize();
-			} else if (axis == Axis::Y) {
-				return this->ySize();
-			} else {
-				return this->zSize();
-			}
+		if (axis == Axis::X) {
+			return this->xSize();
+		} else if (axis == Axis::Y) {
+			return this->ySize();
+		} else {
+			return this->zSize();
 		}
-		return 0;
 	}
 
 	template<typename T>
