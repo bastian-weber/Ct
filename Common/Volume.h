@@ -79,7 +79,7 @@ namespace ct {
 		void setEmitSignals(bool value);
 	private:
 		T* volume = nullptr;
-		size_t xMax = 0, yMax = 0, zMax = 0;
+		size_t xMax = 0, yMax = 0, zMax = 0, slicePitch = 0;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
@@ -99,6 +99,7 @@ namespace ct {
 		this->xMax = xSize;
 		this->yMax = ySize;
 		this->zMax = zSize;
+		this->slicePitch = ySize * zSize;
 	}
 
 	template<typename T>
@@ -140,13 +141,13 @@ namespace ct {
 	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
-		return this->volume[x * this->ySize() * this->zSize() + y*this->zSize() + z];
+		return this->volume[x * this->slicePitch + y*this->zMax + z];
 	}
 
 	template<typename T>
 	inline T const& Volume<T>::at(size_t x, size_t y, size_t z) const {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
-		return this->volume[x * this->ySize() * this->zSize() + y*this->zSize() + z];
+		return this->volume[x * this->slicePitch + y*this->zMax + z];
 	}
 
 	template<typename T>
