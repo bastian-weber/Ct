@@ -502,7 +502,7 @@ namespace ct {
 			return false;
 		}
 		std::function<bool()> callLoadProcedure = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, QDataStream::SinglePrecision, QDataStream::LittleEndian, &this->minValue, &this->maxValue); 
+			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, IndexOrder::Z_FASTEST, QDataStream::SinglePrecision, QDataStream::LittleEndian, &this->minValue, &this->maxValue); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();
