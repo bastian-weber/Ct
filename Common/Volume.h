@@ -26,6 +26,11 @@ namespace ct {
 		RIGHT_HANDED
 	};
 
+	enum class IndexOrder {
+		X_FASTEST,
+		Z_FASTEST
+	};
+
 	//base class for signals (signals do not work in template class)
 	class AbstractVolume : public QObject {
 		Q_OBJECT
@@ -55,11 +60,13 @@ namespace ct {
 								size_t xSize,
 								size_t ySize,
 								size_t zSize,
+								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
 								T* minValue = nullptr,
 								T* maxValue = nullptr);
 		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
+							  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
 		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
@@ -170,7 +177,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -201,21 +208,31 @@ namespace ct {
 		in.setFloatingPointPrecision(floatingPointPrecision);
 		in.setByteOrder(byteOrder);
 		//iterate through the volume
+		int x, z;
+		int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+		int* innerIndex, *innerMax, *outerIndex, *outerMax;
+		if (indexOrder == IndexOrder::X_FASTEST) {
+			innerIndex = &x, outerIndex = &z;
+			innerMax = &xUpperBound, outerMax = &zUpperBound;
+		} else {
+			innerIndex = &z, outerIndex = &x;
+			innerMax = &zUpperBound, outerMax = &xUpperBound;
+		}
 		T min = std::numeric_limits<T>::max();
 		T max = std::numeric_limits<T>::lowest();
 		U tmp;
 		T converted;
-		for (int x = 0; x < this->xSize(); ++x) {
+		for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 			if (this->stopActiveProcess) {
 				this->clear();
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 				return false;
 			}
-			double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
+			double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
 			if (this->emitSignals) emit(loadingProgress(percentage));
 			for (int y = 0; y < this->ySize(); ++y) {
-				for (int z = 0; z < this->zSize(); ++z) {
+				for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 					//load one U of data
 					in >> tmp;
 					converted = static_cast<T>(tmp);
@@ -233,7 +250,7 @@ namespace ct {
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(QString const& filename, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
+	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
 		this->stopActiveProcess = false;
 		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 			{
@@ -248,16 +265,26 @@ namespace ct {
 				out.setFloatingPointPrecision(floatingPointPrecision);
 				out.setByteOrder(byteOrder);
 				//iterate through the volume
-				for (int x = 0; x < this->xSize(); ++x) {
+				int x, z;
+				int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+				int* innerIndex, *innerMax, *outerIndex, *outerMax;
+				if (indexOrder == IndexOrder::X_FASTEST) {
+					innerIndex = &x, outerIndex = &z;
+					innerMax = &xUpperBound, outerMax = &zUpperBound;
+				} else {
+					innerIndex = &z, outerIndex = &x;
+					innerMax = &zUpperBound, outerMax = &xUpperBound;
+				}
+				for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 					if (this->stopActiveProcess) {
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 						return false;
 					}
-					double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
+					double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
 					if (this->emitSignals) emit(savingProgress(percentage));
 					for (int y = 0; y < this->ySize(); ++y) {
-						for (int z = 0; z < this->zSize(); ++z) {
+						for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 							//save one T of data
 							out << this->at(x, y, z);
 						}
