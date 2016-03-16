@@ -26,11 +26,16 @@ namespace ct {
 		RIGHT_HANDED
 	};
 
+	enum class IndexOrder {
+		X_FASTEST,
+		Z_FASTEST
+	};
+
 	//base class for signals (signals do not work in template class)
-	class VolumeSignalsSlots : public QObject {
+	class AbstractVolume : public QObject {
 		Q_OBJECT
 	public:
-		virtual ~VolumeSignalsSlots() = default;
+		virtual ~AbstractVolume() = default;
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
@@ -39,25 +44,29 @@ namespace ct {
 	};
 
 	template <typename T>
-	class Volume : public std::vector<std::vector<std::vector<T>>>, public VolumeSignalsSlots {
+	class Volume : public AbstractVolume {
 	public:
 		Volume() = default;
 		Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue = 0);
+		~Volume();
 		Volume& operator=(Volume const& other) = delete;
 		void reinitialise(size_t xSize,											//resizes the volume to the given dimensions and sets all elements to the given value
 						  size_t ySize, 
 						  size_t zSize, 
 						  T defaultValue = 0);
+		void clear();
 		template <typename U>
 		bool loadFromBinaryFile(QString const& filename,						//reads a volume from a binary file
 								size_t xSize,
 								size_t ySize,
 								size_t zSize,
+								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
 								T* minValue = nullptr,
 								T* maxValue = nullptr);
-		bool saveToBinaryFile(QString const& filename,						//saves the volume to a binary file with the given filename
+		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
+							  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
 							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
 		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
@@ -72,12 +81,13 @@ namespace ct {
 		size_t zSize() const;
 		T& at(size_t x, size_t y, size_t z);
 		T const& at(size_t x, size_t y, size_t z) const;
+		T* data();
+		T const* data() const;
 		//setters
 		void setEmitSignals(bool value);
 	private:
-		using std::vector<std::vector<std::vector<T>>>::operator[];
-		using std::vector<std::vector<std::vector<T>>>::size;
-
+		T* volume = nullptr;
+		size_t xMax = 0, yMax = 0, zMax = 0, slicePitch = 0;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
@@ -85,13 +95,37 @@ namespace ct {
 	//=========================================== IMPLEMENTATION ===========================================\\
 
 	template <typename T>
-	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) 
-	: std::vector<std::vector<std::vector<T>>>(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue))) { }
+	Volume<T>::Volume(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
+		this->reinitialise(xSize, ySize, zSize, defaultValue);
+	}
+
+	template<typename T>
+	inline Volume<T>::~Volume() {
+		if (this->volume != nullptr) {
+			delete[] this->volume;
+		}
+	}
 
 	template <typename T>
 	void Volume<T>::reinitialise(size_t xSize, size_t ySize, size_t zSize, T defaultValue) {
 		this->clear();
-		this->resize(xSize, std::vector<std::vector<T>>(ySize, std::vector<T>(zSize, defaultValue)));
+		this->volume = new T[xSize*ySize*zSize];
+		std::fill(this->volume, this->volume + xSize*ySize*zSize, defaultValue);
+		this->xMax = xSize;
+		this->yMax = ySize;
+		this->zMax = zSize;
+		this->slicePitch = ySize * zSize;
+	}
+
+	template<typename T>
+	void Volume<T>::clear() {
+		if (this->volume != nullptr) {
+			delete[] this->volume;
+			this->volume = nullptr;
+			this->xMax = 0;
+			this->yMax = 0;
+			this->zMax = 0;
+		}
 	}
 
 	template<typename T>
@@ -106,38 +140,44 @@ namespace ct {
 
 	template<typename T>
 	size_t Volume<T>::xSize() const {
-		return this->size();
+		return this->xMax;
 	}
 
 	template<typename T>
 	size_t Volume<T>::ySize() const {
-		if (this->size() != 0) {
-			return (*this)[0].size();
-		}
-		return 0;
+		return this->yMax;
 	}
 
 	template<typename T>
 	size_t Volume<T>::zSize() const {
-		if (this->size() != 0 && (*this)[0].size()) {
-			return (*this)[0][0].size();
-		}
-		return 0;
+		return this->zMax;
 	}
 
 	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
-		return (*this)[x][y][z];
+		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
+		return this->volume[x * this->slicePitch + y*this->zMax + z];
 	}
 
 	template<typename T>
 	inline T const& Volume<T>::at(size_t x, size_t y, size_t z) const {
-		return (*this)[x][y][z];
+		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
+		return this->volume[x * this->slicePitch + y*this->zMax + z];
+	}
+
+	template<typename T>
+	T* Volume<T>::data() {
+		return this->volume;
+	}
+
+	template<typename T>
+	inline T const * Volume<T>::data() const {
+		return this->volume;
 	}
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -168,21 +208,31 @@ namespace ct {
 		in.setFloatingPointPrecision(floatingPointPrecision);
 		in.setByteOrder(byteOrder);
 		//iterate through the volume
+		int x, z;
+		int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+		int* innerIndex, *innerMax, *outerIndex, *outerMax;
+		if (indexOrder == IndexOrder::X_FASTEST) {
+			innerIndex = &x, outerIndex = &z;
+			innerMax = &xUpperBound, outerMax = &zUpperBound;
+		} else {
+			innerIndex = &z, outerIndex = &x;
+			innerMax = &zUpperBound, outerMax = &xUpperBound;
+		}
 		T min = std::numeric_limits<T>::max();
 		T max = std::numeric_limits<T>::lowest();
 		U tmp;
 		T converted;
-		for (int x = 0; x < this->xSize(); ++x) {
+		for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 			if (this->stopActiveProcess) {
 				this->clear();
 				std::cout << "User interrupted. Stopping." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 				return false;
 			}
-			double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
+			double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
 			if (this->emitSignals) emit(loadingProgress(percentage));
 			for (int y = 0; y < this->ySize(); ++y) {
-				for (int z = 0; z < this->zSize(); ++z) {
+				for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 					//load one U of data
 					in >> tmp;
 					converted = static_cast<T>(tmp);
@@ -200,7 +250,7 @@ namespace ct {
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(QString const& filename, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
+	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
 		this->stopActiveProcess = false;
 		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 			{
@@ -215,16 +265,26 @@ namespace ct {
 				out.setFloatingPointPrecision(floatingPointPrecision);
 				out.setByteOrder(byteOrder);
 				//iterate through the volume
-				for (int x = 0; x < this->xSize(); ++x) {
+				int x, z;
+				int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+				int* innerIndex, *innerMax, *outerIndex, *outerMax;
+				if (indexOrder == IndexOrder::X_FASTEST) {
+					innerIndex = &x, outerIndex = &z;
+					innerMax = &xUpperBound, outerMax = &zUpperBound;
+				} else {
+					innerIndex = &z, outerIndex = &x;
+					innerMax = &zUpperBound, outerMax = &xUpperBound;
+				}
+				for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 					if (this->stopActiveProcess) {
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 						return false;
 					}
-					double percentage = floor(double(x) / double(this->xSize()) * 100 + 0.5);
+					double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
 					if (this->emitSignals) emit(savingProgress(percentage));
 					for (int y = 0; y < this->ySize(); ++y) {
-						for (int z = 0; z < this->zSize(); ++z) {
+						for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 							//save one T of data
 							out << this->at(x, y, z);
 						}
@@ -244,8 +304,8 @@ namespace ct {
 
 	template<typename T>
 	cv::Mat Volume<T>::getVolumeCrossSection(Axis axis, size_t index, CoordinateSystemOrientation type) const {
-		if (this->size() == 0) return cv::Mat();
-		if (index >= 0 && ((axis == Axis::X && index < this->xSize()) || (axis == Axis::Y && index < this->zSize()) || (axis == Axis::Z && index < this->zSize()))) {
+		if (this->xSize() == 0) return cv::Mat();
+		if (index >= 0 && ((axis == Axis::X && index < this->xSize()) || (axis == Axis::Y && index < this->ySize()) || (axis == Axis::Z && index < this->zSize()))) {
 			if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 				size_t uSize;
 				size_t vSize;
@@ -321,16 +381,13 @@ namespace ct {
 
 	template<typename T>
 	size_t Volume<T>::getSizeAlongDimension(Axis axis) const {
-		if (this->size() != 0) {
-			if (axis == Axis::X) {
-				return this->xSize();
-			} else if (axis == Axis::Y) {
-				return this->ySize();
-			} else {
-				return this->zSize();
-			}
+		if (axis == Axis::X) {
+			return this->xSize();
+		} else if (axis == Axis::Y) {
+			return this->ySize();
+		} else {
+			return this->zSize();
 		}
-		return 0;
 	}
 
 	template<typename T>
