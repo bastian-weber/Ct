@@ -119,7 +119,7 @@ namespace ct {
 		QRadioButton* bigEndianRadioButton;
 		QRadioButton* zFastestRadioButton;
 		QRadioButton* xFastestRadioButton;
-		QButtonGroup* endiannessGroup;
+		QButtonGroup* byteOrderGroup;
 		QButtonGroup* indexOrderGroup;
 		hb::ImageView* imageView;
 		QLabel* informationLabel;
