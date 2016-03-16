@@ -17,6 +17,7 @@ namespace ct {
 	public:
 		CudaSettingsDialog(std::shared_ptr<QSettings> settings, std::vector<std::string> const& devices, QWidget* parent = 0);
 		std::vector<int> getActiveCudaDevices() const;
+		int getSpareMemoryAmount() const;
 	protected:
 		void showEvent(QShowEvent* e);
 	private:
