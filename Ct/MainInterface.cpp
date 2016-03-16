@@ -101,12 +101,50 @@ namespace ct {
 			this->cudaSettingsButton->setEnabled(false);
 		}
 
+		this->littleEndianRadioButton = new QRadioButton(tr("Little Endian"), this);
+		this->bigEndianRadioButton = new QRadioButton(tr("Big Endian"), this);
+		this->zFastestRadioButton = new QRadioButton(tr("Z Fastest"), this);
+		this->xFastestRadioButton = new QRadioButton(tr("X Fastest"), this);
+		if (this->settings->value("endianess", "littleEndian") == "littleEndian") {
+			this->littleEndianRadioButton->setChecked(true);
+		} else {
+			this->bigEndianRadioButton->setChecked(true);
+		}
+		if (this->settings->value("indexOrder", "zFastest") == "zFastest") {
+			this->zFastestRadioButton->setChecked(true);
+		} else {
+			this->xFastestRadioButton->setChecked(true);
+		}
+		QObject::connect(this->littleEndianRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
+		QObject::connect(this->bigEndianRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
+		QObject::connect(this->zFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
+		QObject::connect(this->xFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
+		this->endiannessGroup = new QButtonGroup(this);
+		this->endiannessGroup->addButton(littleEndianRadioButton);
+		this->endiannessGroup->addButton(bigEndianRadioButton);
+		this->indexOrderGroup = new QButtonGroup(this);
+		this->indexOrderGroup->addButton(zFastestRadioButton);
+		this->indexOrderGroup->addButton(xFastestRadioButton);
+		this->saveLayout = new QFormLayout;
+		this->saveLayout->addRow(tr("Endianess:"), littleEndianRadioButton);
+		this->saveLayout->addRow("", bigEndianRadioButton);
+		this->saveLayout->addRow(tr("Index Order:"), zFastestRadioButton);
+		this->saveLayout->addRow("", xFastestRadioButton);
+		this->saveGroupBox = new QGroupBox(tr("Output Settings"), this);
+		this->saveGroupBox->setLayout(this->saveLayout);
+
 		this->loadButton = new QPushButton(tr("&Load Configuration File"), this);
 		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
 		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"), this);
 		QObject::connect(this->reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
 		this->saveButton = new QPushButton(tr("&Save Volume"), this);
 		QObject::connect(this->saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
+		this->buttonLayout = new QVBoxLayout;
+		this->buttonLayout->addWidget(this->loadButton);
+		this->buttonLayout->addWidget(this->reconstructButton);
+		this->buttonLayout->addWidget(this->saveButton);
+		this->buttonGroupBox = new QGroupBox(tr("Commands"), this);
+		this->buttonGroupBox->setLayout(this->buttonLayout);
 
 		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"), this);
 		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
@@ -149,19 +187,19 @@ namespace ct {
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->cudaGroupBox);
 		this->leftLayout->addSpacing(20);
-		this->leftLayout->addWidget(this->loadButton);
-		this->leftLayout->addWidget(this->reconstructButton);
-		this->leftLayout->addWidget(this->saveButton);
+		this->leftLayout->addWidget(this->saveGroupBox);
 		this->leftLayout->addStretch(1);
-		this->leftLayout->addLayout(this->progressLayout);
-		this->leftLayout->addWidget(this->statusLabel);
 
 		this->rightLayout = new QVBoxLayout;
 		this->rightLayout->addStrut(250);
+		this->rightLayout->addWidget(this->buttonGroupBox);
+		this->rightLayout->addSpacing(20);
 		this->rightLayout->addWidget(this->advancedGroupBox);
 		this->rightLayout->addSpacing(20);
 		this->rightLayout->addWidget(this->infoGroupBox);
 		this->rightLayout->addStretch(1);
+		this->rightLayout->addLayout(this->progressLayout);
+		this->rightLayout->addWidget(this->statusLabel);
 
 		this->imageView = new hb::ImageView(this);
 		this->imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
@@ -619,7 +657,7 @@ namespace ct {
 		this->volume.setFrequencyFilterType(type);
 		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
 		if(this->cudaCheckBox->isChecked()) this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
-		this->volume.setGpuSpareMemory(this->settings->value("gpuSpareMemory", 200).toLongLong());
+		this->volume.setGpuSpareMemory(this->cudaSettingsDialog->getSpareMemoryAmount());
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
@@ -686,6 +724,19 @@ namespace ct {
 		this->settings->setValue("yTo", this->yTo->value());
 		this->settings->setValue("zFrom", this->zFrom->value());
 		this->settings->setValue("zTo", this->zTo->value());
+	}
+
+	void MainInterface::saveSaveSettings() {
+		if (this->littleEndianRadioButton->isChecked()) {
+			this->settings->setValue("endianess", "littleEndian");
+		} else {
+			this->settings->setValue("endianess", "bigEndian");
+		}
+		if (this->zFastestRadioButton->isChecked()) {
+			this->settings->setValue("indexOrder", "zFastest");
+		} else {
+			this->settings->setValue("indexOrder", "xFastest");
+		}
 	}
 
 	void MainInterface::resetBounds() {

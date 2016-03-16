@@ -71,6 +71,10 @@ namespace ct {
 		return devices;
 	}
 
+	int CudaSettingsDialog::getSpareMemoryAmount() const {
+		return this->memorySpinBox->value();
+	}
+
 	void CudaSettingsDialog::showEvent(QShowEvent * e) {
 		std::vector<int> activeDevices = this->getActiveCudaDevices();
 		for (int i = 0; i < activeDevices.size(); ++i) {

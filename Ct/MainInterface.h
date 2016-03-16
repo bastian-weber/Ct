@@ -74,9 +74,13 @@ namespace ct {
 		QHBoxLayout* progressLayout;
 		QVBoxLayout* rightLayout;
 		QVBoxLayout* loadLayout;
+		QFormLayout* saveLayout;
+		QVBoxLayout* buttonLayout;
 		QVBoxLayout* advancedLayout;
 		QVBoxLayout* infoLayout;
 		QGroupBox* loadGroupBox;
+		QGroupBox* saveGroupBox;
+		QGroupBox* buttonGroupBox;
 		QGroupBox* advancedGroupBox;
 		QGroupBox* infoGroupBox;
 		QGroupBox* filterGroupBox;
@@ -111,6 +115,12 @@ namespace ct {
 		QPushButton* cmdButton;
 		QPushButton* stopButton;
 		QProgressBar* progressBar;
+		QRadioButton* littleEndianRadioButton;
+		QRadioButton* bigEndianRadioButton;
+		QRadioButton* zFastestRadioButton;
+		QRadioButton* xFastestRadioButton;
+		QButtonGroup* endiannessGroup;
+		QButtonGroup* indexOrderGroup;
 		hb::ImageView* imageView;
 		QLabel* informationLabel;
 		QLabel* statusLabel;
@@ -125,6 +135,7 @@ namespace ct {
 		void reactToBoundsChange();
 		void reactToCudaCheckboxChange();
 		void saveBounds();
+		void saveSaveSettings();
 		void resetBounds();
 		void saveFilterType();
 		void updateInfo();
