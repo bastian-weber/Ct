@@ -106,7 +106,9 @@ namespace ct {
 		//control functions
 		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
-		void saveVolumeToBinaryFile(QString filename) const;					//saves the reconstructed volume to a binary file
+		void saveVolumeToBinaryFile(QString filename,							//saves the reconstructed volume to a binary file
+									IndexOrder indexOrder = IndexOrder::Z_FASTEST,
+									QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;					
 		void stop();															//should stop the operation that's currently running (either preprocessing, reconstruction or saving)
 
 	private:

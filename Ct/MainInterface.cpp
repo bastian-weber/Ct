@@ -105,7 +105,7 @@ namespace ct {
 		this->bigEndianRadioButton = new QRadioButton(tr("Big Endian"), this);
 		this->zFastestRadioButton = new QRadioButton(tr("Z Fastest"), this);
 		this->xFastestRadioButton = new QRadioButton(tr("X Fastest"), this);
-		if (this->settings->value("endianess", "littleEndian") == "littleEndian") {
+		if (this->settings->value("byteOrder", "littleEndian") == "littleEndian") {
 			this->littleEndianRadioButton->setChecked(true);
 		} else {
 			this->bigEndianRadioButton->setChecked(true);
@@ -119,14 +119,14 @@ namespace ct {
 		QObject::connect(this->bigEndianRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
 		QObject::connect(this->zFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
 		QObject::connect(this->xFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
-		this->endiannessGroup = new QButtonGroup(this);
-		this->endiannessGroup->addButton(littleEndianRadioButton);
-		this->endiannessGroup->addButton(bigEndianRadioButton);
+		this->byteOrderGroup = new QButtonGroup(this);
+		this->byteOrderGroup->addButton(littleEndianRadioButton);
+		this->byteOrderGroup->addButton(bigEndianRadioButton);
 		this->indexOrderGroup = new QButtonGroup(this);
 		this->indexOrderGroup->addButton(zFastestRadioButton);
 		this->indexOrderGroup->addButton(xFastestRadioButton);
 		this->saveLayout = new QFormLayout;
-		this->saveLayout->addRow(tr("Endianess:"), littleEndianRadioButton);
+		this->saveLayout->addRow(tr("Byte Order:"), littleEndianRadioButton);
 		this->saveLayout->addRow("", bigEndianRadioButton);
 		this->saveLayout->addRow(tr("Index Order:"), zFastestRadioButton);
 		this->saveLayout->addRow("", xFastestRadioButton);
@@ -728,9 +728,9 @@ namespace ct {
 
 	void MainInterface::saveSaveSettings() {
 		if (this->littleEndianRadioButton->isChecked()) {
-			this->settings->setValue("endianess", "littleEndian");
+			this->settings->setValue("byteOrder", "littleEndian");
 		} else {
-			this->settings->setValue("endianess", "bigEndian");
+			this->settings->setValue("byteOrder", "bigEndian");
 		}
 		if (this->zFastestRadioButton->isChecked()) {
 			this->settings->setValue("indexOrder", "zFastest");
@@ -813,7 +813,11 @@ namespace ct {
 #endif
 			this->setStatus(tr("Writing volume to disk..."));
 			this->timer.reset();
-			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path).detach();
+			IndexOrder indexOrder = IndexOrder::Z_FASTEST;
+			if (this->xFastestRadioButton->isChecked()) indexOrder = IndexOrder::X_FASTEST;
+			QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
+			if (this->bigEndianRadioButton->isChecked()) byteOrder = QDataStream::BigEndian;
+			std::thread(&CtVolume::saveVolumeToBinaryFile, &this->volume, path, indexOrder, byteOrder).detach();
 		}
 	}
 

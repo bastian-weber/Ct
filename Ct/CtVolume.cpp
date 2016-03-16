@@ -521,7 +521,7 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::saveVolumeToBinaryFile(QString filename) const {
+	void CtVolume::saveVolumeToBinaryFile(QString filename, IndexOrder indexOrder, QDataStream::ByteOrder byteOrder) const {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 
@@ -557,7 +557,7 @@ namespace ct {
 		file.close();
 
 		//write binary file
-		this->volume.saveToBinaryFile(filename);
+		this->volume.saveToBinaryFile(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
 
 	}
 
