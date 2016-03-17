@@ -9,19 +9,19 @@ namespace ct {
 
 		this->volume.setEmitSignals(true);
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
-		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
-		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(loadProgressUpdate(double)));
+		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(loadCompletion(CompletionStatus)));
 		qRegisterMetaType<cv::Mat>("cv::Mat");
-		QObject::connect(&this->volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reactToReconstructionProgressUpdate(double, cv::Mat)));
-		QObject::connect(&this->volume, SIGNAL(reconstructionFinished(cv::Mat, CompletionStatus)), this, SLOT(reactToReconstructionCompletion(cv::Mat, CompletionStatus)));
-		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SLOT(reactToSaveProgressUpdate(double)));
-		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SLOT(reactToSaveCompletion(CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(reconstructionProgress(double, cv::Mat)), this, SLOT(reconstructionProgressUpdate(double, cv::Mat)));
+		QObject::connect(&this->volume, SIGNAL(reconstructionFinished(cv::Mat, CompletionStatus)), this, SLOT(reconstructionCompletion(cv::Mat, CompletionStatus)));
+		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SLOT(savingProgressUpdate(double)));
+		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SLOT(savingCompletion(CompletionStatus)));
 
 		this->inputFileEdit = new QLineEdit(this);
 		this->inputFileEdit->setPlaceholderText("Configuration File");
 		QObject::connect(this->inputFileEdit, SIGNAL(textChanged(QString)), this, SLOT(reactToTextChange(QString)));
 		this->browseButton = new QPushButton(tr("&Browse"), this);
-		QObject::connect(this->browseButton, SIGNAL(clicked()), this, SLOT(reactToBrowseButtonClick()));
+		QObject::connect(this->browseButton, SIGNAL(clicked()), this, SLOT(browse()));
 		this->completer = new QCompleter(this);
 		QDirModel* model = new QDirModel(this->completer);
 		this->completer->setModel(model);
@@ -134,11 +134,11 @@ namespace ct {
 		this->saveGroupBox->setLayout(this->saveLayout);
 
 		this->loadButton = new QPushButton(tr("&Load Configuration File"), this);
-		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(reactToLoadButtonClick()));
+		QObject::connect(this->loadButton, SIGNAL(clicked()), this, SLOT(load()));
 		this->reconstructButton = new QPushButton(tr("&Reconstruct Volume"), this);
-		QObject::connect(this->reconstructButton, SIGNAL(clicked()), this, SLOT(reactToReconstructButtonClick()));
+		QObject::connect(this->reconstructButton, SIGNAL(clicked()), this, SLOT(reconstruct()));
 		this->saveButton = new QPushButton(tr("&Save Volume"), this);
-		QObject::connect(this->saveButton, SIGNAL(clicked()), this, SLOT(reactToSaveButtonClick()));
+		QObject::connect(this->saveButton, SIGNAL(clicked()), this, SLOT(save()));
 		this->buttonLayout = new QVBoxLayout;
 		this->buttonLayout->addWidget(this->loadButton);
 		this->buttonLayout->addWidget(this->reconstructButton);
@@ -147,9 +147,9 @@ namespace ct {
 		this->buttonGroupBox->setLayout(this->buttonLayout);
 
 		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"), this);
-		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(reactToRunAllButtonClick()));
+		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(executeRunAll()));
 		this->cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"), this);
-		QObject::connect(this->cmdButton, SIGNAL(clicked()), this, SLOT(reactToBatchFileAction()));
+		QObject::connect(this->cmdButton, SIGNAL(clicked()), this, SLOT(createBatchFile()));
 		this->advancedLayout = new QVBoxLayout;
 		this->advancedLayout->addWidget(this->runAllButton);
 		this->advancedLayout->addWidget(this->cmdButton);
@@ -171,7 +171,7 @@ namespace ct {
 		this->taskbarProgress = this->taskbarButton->progress();
 #endif
 		this->stopButton = new QPushButton(tr("Stop"), this);
-		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(reactToStopButtonClick()));
+		QObject::connect(this->stopButton, SIGNAL(clicked()), this, SLOT(stop()));
 
 		this->progressLayout = new QHBoxLayout();
 		this->progressLayout->addWidget(this->progressBar, 1);
@@ -680,7 +680,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToBrowseButtonClick() {
+	void MainInterface::browse() {
 		//QFileDialog dialog;
 		//dialog.setNameFilter("Text Files (*.txt *.csv *.*);;");
 		//dialog.setFileMode(QFileDialog::ExistingFile);
@@ -773,7 +773,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToLoadButtonClick() {
+	void MainInterface::load() {
 		this->disableAllControls();
 		this->setStatus(tr("Loading file and analysing images..."));
 #ifdef Q_OS_WIN
@@ -783,7 +783,7 @@ namespace ct {
 		std::thread(&CtVolume::sinogramFromImages, &this->volume, this->inputFileEdit->text()).detach();
 	}
 
-	void MainInterface::reactToReconstructButtonClick() {
+	void MainInterface::reconstruct() {
 		this->disableAllControls();
 		this->imageView->resetImage();
 		this->setStatus(tr("Backprojecting..."));
@@ -797,7 +797,7 @@ namespace ct {
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
-	void MainInterface::reactToSaveButtonClick() {
+	void MainInterface::save() {
 		QString path;
 		if (!this->runAll) {
 			path = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
@@ -821,21 +821,21 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToRunAllButtonClick() {
+	void MainInterface::executeRunAll() {
 		this->savingPath = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
 		if (!this->savingPath.isEmpty()) {
 			this->runAll = true;
-			this->reactToLoadButtonClick();
+			this->load();
 		}
 	}
 
-	void MainInterface::reactToStopButtonClick() {
+	void MainInterface::stop() {
 		this->volume.stop();
 		this->stopButton->setEnabled(false);
 		this->setStatus("Stopping...");
 	}
 
-	void MainInterface::reactToBatchFileAction() {
+	void MainInterface::createBatchFile() {
 #if defined Q_OS_WIN32
 	//The strings for a windows system
 		QString saveDialogCaption = tr("Create Batch File");
@@ -926,14 +926,14 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToLoadProgressUpdate(double percentage) {
+	void MainInterface::loadProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
 #ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
 #endif
 	}
 
-	void MainInterface::reactToLoadCompletion(CompletionStatus status) {
+	void MainInterface::loadCompletion(CompletionStatus status) {
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
@@ -944,7 +944,7 @@ namespace ct {
 			this->setStatus(tr("Loading finished (") + QString::number(time, 'f', 1) + "s).");
 			this->updateInfo();
 			if (this->runAll) {
-				this->reactToReconstructButtonClick();
+				this->reconstruct();
 			} else {
 				this->setSinogramImage(0);
 				this->preprocessedState();
@@ -963,7 +963,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
+	void MainInterface::reconstructionProgressUpdate(double percentage, cv::Mat crossSection) {
 		this->progressBar->setValue(percentage);
 #ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
@@ -985,7 +985,7 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToReconstructionCompletion(cv::Mat crossSection, CompletionStatus status) {
+	void MainInterface::reconstructionCompletion(cv::Mat crossSection, CompletionStatus status) {
 		this->reconstructionActive = false;
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
@@ -999,7 +999,7 @@ namespace ct {
 			double time = this->timer.getTime();
 			this->setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
 			if (this->runAll) {
-				this->reactToSaveButtonClick();
+				this->save();
 			} else {
 				reconstructedState();
 			}
@@ -1018,14 +1018,14 @@ namespace ct {
 		}
 	}
 
-	void MainInterface::reactToSaveProgressUpdate(double percentage) {
+	void MainInterface::savingProgressUpdate(double percentage) {
 		this->progressBar->setValue(percentage);
 #ifdef Q_OS_WIN
 		this->taskbarProgress->setValue(percentage);
 #endif
 	}
 
-	void MainInterface::reactToSaveCompletion(CompletionStatus status) {
+	void MainInterface::savingCompletion(CompletionStatus status) {
 		this->savingActive = false;
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
