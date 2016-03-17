@@ -905,7 +905,7 @@ namespace ct {
 						devices.append(QString::number(deviceId));
 					}
 					stream << " -d " << devices.join(',');
-					stream << " -m " << this->settings->value("gpuSpareMemory", 200).toLongLong();
+					stream << " -m " << this->settings->value("gpuSpareMemory", 0).toLongLong();
 				}
 				if (this->bigEndianRadioButton->isChecked()) {
 					stream << " -e bigendian";
