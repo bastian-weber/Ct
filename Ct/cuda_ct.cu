@@ -151,14 +151,13 @@ namespace ct {
 			}
 		}
 
-		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
+		void download3dVolume(cudaPitchedPtr devicePtr, float* hostPtr, size_t xSize, size_t ySize, size_t zSize,  bool& success) {
 			success = true;
-			float* hostDataPtr = new float[xSize * ySize * zSize];
-			cudaPitchedPtr hostPtr = make_cudaPitchedPtr(hostDataPtr, xSize * sizeof(float), xSize, ySize);
+			cudaPitchedPtr hostPitchedPtr = make_cudaPitchedPtr(hostPtr, xSize * sizeof(float), xSize, ySize);
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaMemcpy3DParms memcopyParameters = { 0 };
 			memcopyParameters.srcPtr = devicePtr;
-			memcopyParameters.dstPtr = hostPtr;
+			memcopyParameters.dstPtr = hostPitchedPtr;
 			memcopyParameters.extent = extent;
 			memcopyParameters.kind = cudaMemcpyDeviceToHost;
 			cudaError_t status = cudaMemcpy3D(&memcopyParameters);
@@ -166,7 +165,6 @@ namespace ct {
 				std::cout << "cudaMemcpy3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
-			return std::shared_ptr<float>(hostDataPtr, std::default_delete<float[]>());
 		}
 
 		__device__ float bilinearInterpolation(float u, float v, float u0v0, float u1v0, float u0v1, float u1v1) {
