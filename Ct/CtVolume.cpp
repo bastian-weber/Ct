@@ -464,40 +464,40 @@ namespace ct {
 			}
 			if (result) {
 				//now fill the corners around the cylinder with the lowest density value
-				double smallestValue = std::numeric_limits<double>::infinity();
-				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
-					double radiusSquared = std::pow(((double)this->xSize / 2) - 3, 2);
-#pragma omp parallel
-				{
-					double threadMin = std::numeric_limits<double>::infinity();
-#pragma omp for schedule(dynamic)
-					for (int x = 0; x < this->xMax; ++x) {
-						for (int y = 0; y < this->yMax; ++y) {
-							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) <= radiusSquared) {
-								for (int z = 0; z < this->zMax; ++z) {
-									if (this->volume.at(x, y, z) < threadMin) {
-										threadMin = this->volume.at(x, y, z);
-									}
-								}
-							}
-						}
-					}
-#pragma omp critical(compareLocalMinimums)
-					{
-						if (threadMin < smallestValue) smallestValue = threadMin;
-					}
-				}
-#pragma omp parallel for schedule(dynamic)
-					for (int x = 0; x < this->xMax; ++x) {
-						for (int y = 0; y < this->yMax; ++y) {
-							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) >= radiusSquared) {
-								for (int z = 0; z < this->zMax; ++z) {
-									this->volume.at(x, y, z) = smallestValue;
-								}
-							}
-						}
-					}
-				}
+//				double smallestValue = std::numeric_limits<double>::infinity();
+//				if (this->xMax > 0 && this->yMax > 0 && this->zMax > 0) {
+//					double radiusSquared = std::pow(((double)this->xSize / 2) - 3, 2);
+//#pragma omp parallel
+//				{
+//					double threadMin = std::numeric_limits<double>::infinity();
+//#pragma omp for schedule(dynamic)
+//					for (int x = 0; x < this->xMax; ++x) {
+//						for (int y = 0; y < this->yMax; ++y) {
+//							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) <= radiusSquared) {
+//								for (int z = 0; z < this->zMax; ++z) {
+//									if (this->volume.at(x, y, z) < threadMin) {
+//										threadMin = this->volume.at(x, y, z);
+//									}
+//								}
+//							}
+//						}
+//					}
+//#pragma omp critical(compareLocalMinimums)
+//					{
+//						if (threadMin < smallestValue) smallestValue = threadMin;
+//					}
+//				}
+//#pragma omp parallel for schedule(dynamic)
+//					for (int x = 0; x < this->xMax; ++x) {
+//						for (int y = 0; y < this->yMax; ++y) {
+//							if (this->volumeToWorldX(x)*this->volumeToWorldX(x) + this->volumeToWorldY(y)*this->volumeToWorldY(y) >= radiusSquared) {
+//								for (int z = 0; z < this->zMax; ++z) {
+//									this->volume.at(x, y, z) = smallestValue;
+//								}
+//							}
+//						}
+//					}
+//				}
 
 				//mesure time
 				clock_t end = clock();
@@ -1011,7 +1011,7 @@ namespace ct {
 				}
 
 				//donload the reconstructed volume part
-				std::shared_ptr<float> reconstructedVolumePart = ct::cuda::download3dVolume(gpuVolumePtr, xDimension, yDimension, zDimension, success);
+				ct::cuda::download3dVolume(gpuVolumePtr, &this->volume.at(0, 0, currentSlice), xDimension, yDimension, zDimension,  success);
 
 				if (!success) {
 					this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
@@ -1022,7 +1022,7 @@ namespace ct {
 				}
 
 				//copy volume part to vector
-				this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
+				//this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
 
 				//free volume part memory on gpu
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);

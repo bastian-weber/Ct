@@ -34,11 +34,12 @@ namespace ct {
 										   size_t zSize, 
 										   bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);			//deletes the 3d volume from the gpu memory
-		std::shared_ptr<float> download3dVolume(cudaPitchedPtr devicePtr, 
-												size_t xSize, 
-												size_t ySize, 
-												size_t zSize, 
-												bool& success);
+		void download3dVolume(cudaPitchedPtr devicePtr,
+							  float* hostPtr,
+							  size_t xSize,
+							  size_t ySize,
+							  size_t zSize,
+							  bool& success);
 		void startReconstruction(cv::cuda::PtrStepSz<float> image,					//starts the reconstruction
 								 cudaPitchedPtr volumePtr,
 								 size_t xSize,
