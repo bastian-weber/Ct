@@ -1116,9 +1116,10 @@ namespace ct {
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
 		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
-		//spare memory for intermediate images and dft result
-		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 3 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
-
+		//spare memory gpu mats, intermediate images and dft result
+		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 5 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
+		//estimate for memory consumed by fft
+		freeMemory -= sizeof(float)*this->imageWidth*this->imageHeight*15;
 		if (freeMemory < 0) return 0;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);

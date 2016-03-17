@@ -83,7 +83,7 @@ namespace ct {
 			}
 		}
 
-		this->memorySpinBox->setValue(this->settings->value("gpuSpareMemory", 200).toLongLong());
+		this->memorySpinBox->setValue(this->settings->value("gpuSpareMemory", 0).toLongLong());
 	}
 
 	void CudaSettingsDialog::reactToCheckboxToggle() {
