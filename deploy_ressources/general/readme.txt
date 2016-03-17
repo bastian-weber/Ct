@@ -26,12 +26,20 @@ The command line options are:
 	-b 					Optional. Runs with background priority. Long: --background
 	-f [option] 		Optional. Sets the preprocessing filter. Options are 'ramlak', 'shepplogan' and 'hann'.
 						Long: --filter
+						Default: ramlak
 	-n 					Optional. Disables CUDA. Long: --nocuda.
 	-d 0,1,..,n 		Optional. Sets the cuda devices that shall be used. Option is a list of device ids seperated
 						by comma.
-						Long: --cudadevices.
+						Long: --cudadevices
+						Default: 0
 	-d [number] 		Optional. Sets the amount of VRAM to spare in Mb. Option is a positive integer. 
 						Long: --cudasparememory.
+						Default: 200
+	-e [option]			Optional. Sets the byte order of the output. Options are 'littleendian' and 'bigendian'.
+						Long: --byteorder
+						Default: littleendian
+	-j [option]			Optional. Sets the index order of the output. Options are 'zfastest' and 'xfastest'.
+						Default: zfastest
 	--xmin 0..1 		Optional. The lower x bound of the volume part that will be reconstructed.
 	--xmax 0..1 		Optional. The upper x bound of the volume part that will be reconstructed.
 	--ymin 0..1 		Optional. The lower y bound of the volume part that will be reconstructed.
