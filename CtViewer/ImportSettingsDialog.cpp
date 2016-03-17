@@ -29,6 +29,18 @@ namespace ct {
 		QObject::connect(this->xSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
 		QObject::connect(this->ySpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
 		QObject::connect(this->zSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
+		this->littleEndianRadioButton = new QRadioButton(tr("Little endian"), this);
+		this->bigEndianRadioButton = new QRadioButton(tr("Big endian"), this);
+		this->zFastestRadioButton = new QRadioButton(tr("Z fastest"), this);
+		this->xFastestRadioButton = new QRadioButton(tr("X fastest"), this);
+		this->byteOrderGroup = new QButtonGroup(this);
+		this->indexOrderGroup = new QButtonGroup(this);
+		this->byteOrderGroup->addButton(littleEndianRadioButton);
+		this->byteOrderGroup->addButton(bigEndianRadioButton);
+		this->indexOrderGroup->addButton(zFastestRadioButton);
+		this->indexOrderGroup->addButton(xFastestRadioButton);
+		this->littleEndianRadioButton->setChecked(true);
+		this->zFastestRadioButton->setChecked(true);
 		this->requiredSizeLabel = new QLabel("");
 		this->actualSizeLabel = new QLabel("");
 
@@ -39,6 +51,10 @@ namespace ct {
 		this->formLayout->addRow(tr("X size:"), this->xSpinBox);
 		this->formLayout->addRow(tr("Y size:"), this->ySpinBox);
 		this->formLayout->addRow(tr("Z size:"), this->zSpinBox);
+		this->formLayout->addRow(tr("Byte order:"), this->littleEndianRadioButton);
+		this->formLayout->addRow("", this->bigEndianRadioButton);
+		this->formLayout->addRow(tr("Index order:"), this->zFastestRadioButton);
+		this->formLayout->addRow("", this->xFastestRadioButton);
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
@@ -71,6 +87,48 @@ namespace ct {
 
 	size_t ImportSettingsDialog::getZSize() const {
 		return static_cast<size_t>(this->zSpinBox->value());
+	}
+
+	IndexOrder ImportSettingsDialog::getIndexOrder() const {
+		if (this->zFastestRadioButton->isChecked()) {
+			return IndexOrder::Z_FASTEST;
+		}
+		return IndexOrder::X_FASTEST;
+	}
+
+	QDataStream::ByteOrder ImportSettingsDialog::getByteOrder() const {
+		if (this->littleEndianRadioButton->isChecked()) {
+			return QDataStream::LittleEndian;
+		}
+		return QDataStream::BigEndian;
+	}
+
+	void ImportSettingsDialog::setXSize(size_t xSize) {
+		this->xSpinBox->setValue(static_cast<int>(xSize));
+	}
+
+	void ImportSettingsDialog::setYSize(size_t ySize) {
+		this->ySpinBox->setValue(static_cast<int>(ySize));
+	}
+
+	void ImportSettingsDialog::setZSize(size_t zSize) {
+		this->zSpinBox->setValue(static_cast<int>(zSize));
+	}
+
+	void ImportSettingsDialog::setIndexOrder(IndexOrder indexOrder) {
+		if (indexOrder == IndexOrder::Z_FASTEST) {
+			this->zFastestRadioButton->setChecked(true);
+		} else {
+			this->xFastestRadioButton->setChecked(true);
+		}
+	}
+
+	void ImportSettingsDialog::setByteOrder(QDataStream::ByteOrder byteOrder) {
+		if (byteOrder == QDataStream::LittleEndian) {
+			this->littleEndianRadioButton->setChecked(true);
+		} else {
+			this->bigEndianRadioButton->setChecked(true);
+		}
 	}
 
 	void ImportSettingsDialog::showEvent(QShowEvent * e) {

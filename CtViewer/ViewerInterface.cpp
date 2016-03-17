@@ -450,6 +450,9 @@ namespace ct {
 		size_t xSize = 0;
 		size_t ySize = 0;
 		size_t zSize = 0;
+		QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
+		IndexOrder indexOrder = IndexOrder::Z_FASTEST;
+		bool byteOrderFound = false, indexOrderFound = false;
 		bool success;
 		if (QFile::exists(infoFileName)) {
 			informationFound = true;
@@ -459,27 +462,44 @@ namespace ct {
 				QString line;
 				do {
 					line = in.readLine();
-					if (line.contains("X size:", Qt::CaseSensitive)) {
+					if (line.contains("X size:", Qt::CaseInsensitive)) {
 						QStringList parts = line.split('\t');
 						for (QString& part : parts) {
 							size_t parsed = part.toULongLong(&success);
 							if (success) xSize = parsed;
 						}
-					} else if (line.contains("Y size:", Qt::CaseSensitive)) {
+					} else if (line.contains("Y size:", Qt::CaseInsensitive)) {
 						QStringList parts = line.split('\t');
 						for (QString& part : parts) {
 							size_t parsed = part.toULongLong(&success);
 							if (success) ySize = parsed;
 						}
-					} else if (line.contains("Z size:", Qt::CaseSensitive)) {
+					} else if (line.contains("Z size:", Qt::CaseInsensitive)) {
 						QStringList parts = line.split('\t');
 						for (QString& part : parts) {
 							size_t parsed = part.toULongLong(&success);
 							if (success) zSize = parsed;
 						}
+					} else if (line.contains("Byte order:", Qt::CaseInsensitive)) {
+						byteOrderFound = true;
+						if (line.contains("Big endian", Qt::CaseInsensitive)) {
+							byteOrder = QDataStream::BigEndian;
+						}
+					} else if (line.contains("Index order:", Qt::CaseInsensitive)) {
+						indexOrderFound = true;
+						if (line.contains("X fastest", Qt::CaseInsensitive)) {
+							indexOrder = IndexOrder::X_FASTEST;
+						}
 					}
 				} while (!in.atEnd());
-				if (!(xSize > 0 && ySize > 0 && zSize > 0)) informationFound = false;
+				if (!(xSize > 0 && ySize > 0 && zSize > 0 && byteOrderFound && indexOrderFound)) {
+					informationFound = false;
+					if (xSize != 0) this->settingsDialog->setXSize(xSize);
+					if (ySize != 0) this->settingsDialog->setYSize(ySize);
+					if (zSize != 0) this->settingsDialog->setZSize(zSize);
+					if (indexOrderFound) this->settingsDialog->setIndexOrder(indexOrder);
+					if (byteOrderFound) this->settingsDialog->setByteOrder(byteOrder);
+				}
 			} else {
 				informationFound = false;
 			}
@@ -491,6 +511,8 @@ namespace ct {
 				xSize = this->settingsDialog->getXSize();
 				ySize = this->settingsDialog->getYSize();
 				zSize = this->settingsDialog->getZSize();
+				indexOrder = this->settingsDialog->getIndexOrder();
+				byteOrder = this->settingsDialog->getByteOrder();
 			} else {
 				this->loadingActive = false;
 				return false;
@@ -502,7 +524,7 @@ namespace ct {
 			return false;
 		}
 		std::function<bool()> callLoadProcedure = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, IndexOrder::Z_FASTEST, QDataStream::SinglePrecision, QDataStream::LittleEndian, &this->minValue, &this->maxValue); 
+			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, &this->minValue, &this->maxValue); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();
