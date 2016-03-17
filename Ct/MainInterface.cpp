@@ -897,12 +897,6 @@ namespace ct {
 						stream << " -f hann";
 					}
 				}
-				if (this->xFrom->value() != 0) stream << " --xmin " << this->xFrom->value();
-				if (this->xTo->value() != 1) stream << " --xmax " << this->xTo->value();
-				if (this->yFrom->value() != 0) stream << " --ymin " << this->yFrom->value();
-				if (this->yTo->value() != 1) stream << " --ymax " << this->yTo->value();
-				if (this->zFrom->value() != 0) stream << " --zmin " << this->zFrom->value();
-				if (this->zTo->value() != 1) stream << " --zmax " << this->zTo->value();
 				if (volume.cudaAvailable()) {
 					if (!this->cudaCheckBox->isChecked()) stream << " -n";
 					QStringList devices;
@@ -913,6 +907,19 @@ namespace ct {
 					stream << " -d " << devices.join(',');
 					stream << " -m " << this->settings->value("gpuSpareMemory", 200).toLongLong();
 				}
+				if (this->bigEndianRadioButton->isChecked()) {
+					stream << " -e bigendian";
+				}
+				if (this->xFastestRadioButton->isChecked()) {
+					stream << " -j xfastest";
+				}
+				if (this->xFrom->value() != 0) stream << " --xmin " << this->xFrom->value();
+				if (this->xTo->value() != 1) stream << " --xmax " << this->xTo->value();
+				if (this->yFrom->value() != 0) stream << " --ymin " << this->yFrom->value();
+				if (this->yTo->value() != 1) stream << " --ymax " << this->yTo->value();
+				if (this->zFrom->value() != 0) stream << " --zmin " << this->zFrom->value();
+				if (this->zTo->value() != 1) stream << " --zmax " << this->zTo->value();
+
 				file.close();
 				this->setStatus(status);
 			}
