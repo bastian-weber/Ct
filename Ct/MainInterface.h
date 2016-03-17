@@ -131,7 +131,7 @@ namespace ct {
 	#endif
 		private slots:
 		void reactToTextChange(QString text);
-		void reactToBrowseButtonClick();
+		void browse();
 		void reactToBoundsChange();
 		void reactToCudaCheckboxChange();
 		void saveBounds();
@@ -139,18 +139,18 @@ namespace ct {
 		void resetBounds();
 		void saveFilterType();
 		void updateInfo();
-		void reactToLoadButtonClick();
-		void reactToReconstructButtonClick();
-		void reactToSaveButtonClick();
-		void reactToRunAllButtonClick();
-		void reactToStopButtonClick();
-		void reactToBatchFileAction();
-		void reactToLoadProgressUpdate(double percentage);
-		void reactToLoadCompletion(CompletionStatus status);
-		void reactToReconstructionProgressUpdate(double percentage, cv::Mat crossSection);
-		void reactToReconstructionCompletion(cv::Mat crossSection, CompletionStatus status);
-		void reactToSaveProgressUpdate(double percentage);
-		void reactToSaveCompletion(CompletionStatus status);
+		void load();
+		void reconstruct();
+		void save();
+		void executeRunAll();
+		void stop();
+		void createBatchFile();
+		void loadProgressUpdate(double percentage);
+		void loadCompletion(CompletionStatus status);
+		void reconstructionProgressUpdate(double percentage, cv::Mat crossSection);
+		void reconstructionCompletion(cv::Mat crossSection, CompletionStatus status);
+		void savingProgressUpdate(double percentage);
+		void savingCompletion(CompletionStatus status);
 		void askForDeletionOfIncompleteFile();
 	};
 
