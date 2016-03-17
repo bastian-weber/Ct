@@ -10,6 +10,8 @@
 #include <QtGui/QtGui>
 #include <QtWidgets/QtWidgets>
 
+#include "Volume.h"
+
 namespace ct {
 
 	class ImportSettingsDialog : public QDialog {
@@ -20,6 +22,13 @@ namespace ct {
 		size_t getXSize() const;
 		size_t getYSize() const;
 		size_t getZSize() const;
+		IndexOrder getIndexOrder() const;
+		QDataStream::ByteOrder getByteOrder() const;
+		void setXSize(size_t xSize);
+		void setYSize(size_t ySize);
+		void setZSize(size_t zSize);
+		void setIndexOrder(IndexOrder indexOrder);
+		void setByteOrder(QDataStream::ByteOrder byteOrder);
 	protected:
 		void showEvent(QShowEvent* e);
 	private:
@@ -37,6 +46,12 @@ namespace ct {
 		QSpinBox* xSpinBox;
 		QSpinBox* ySpinBox;
 		QSpinBox* zSpinBox;
+		QRadioButton* littleEndianRadioButton;
+		QRadioButton* bigEndianRadioButton;
+		QRadioButton* xFastestRadioButton;
+		QRadioButton* zFastestRadioButton;
+		QButtonGroup* byteOrderGroup;
+		QButtonGroup* indexOrderGroup;
 		QLabel* actualSizeLabel;
 		QLabel* requiredSizeLabel;
 	private slots:

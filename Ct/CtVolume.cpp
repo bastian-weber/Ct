@@ -552,8 +552,16 @@ namespace ct {
 		out << "Z size:\t\t\t" << this->zMax << endl << endl;
 		out << "[Data format]" << endl;
 		out << "Data type:\t\t32bit IEEE 754 float" << endl;
-		out << "Endianness:\t\tLittle Endian" << endl;
-		out << "Index order:\tZ fastest";
+		if (byteOrder == QDataStream::LittleEndian) {
+			out << "Byte order:\t\tLittle endian" << endl;
+		} else {
+			out << "Byte order:\t\tBig endian" << endl;
+		}
+		if (indexOrder == IndexOrder::Z_FASTEST) {
+			out << "Index order:\tZ fastest";
+		} else {
+			out << "Index order:\tX fastest";
+		}
 		file.close();
 
 		//write binary file
