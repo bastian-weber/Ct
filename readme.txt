@@ -10,7 +10,7 @@ The required libraries are:
 			http://opencv.org/downloads.html
 	2. NVIDIA CUDA Toolkit (currently 7.5)
 			https://developer.nvidia.com/cuda-toolkit
-	3. Qt (currently 5.5.1)
+	3. Qt (currently 5.6)
 			https://www.qt.io/download-open-source/#section-2
 
 ============================================= Windows =============================================

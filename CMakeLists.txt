@@ -88,7 +88,7 @@ if(QT_ROOT_FOUND)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${PATH_QT_ROOT})
 	foreach(module ${QT_MODULES_ALL})
 		string(REGEX REPLACE "::" "" MODULE_NAME ${module})
-		find_package(${MODULE_NAME} 5.5.1 REQUIRED)
+		find_package(${MODULE_NAME} 5.6 REQUIRED)
 	endforeach(module ${QT_MODULES_ALL})
 endif(QT_ROOT_FOUND)
 
