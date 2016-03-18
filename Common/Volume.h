@@ -83,11 +83,17 @@ namespace ct {
 		T const& at(size_t x, size_t y, size_t z) const;
 		T* data();
 		T const* data() const;
+		T* slicePtr(size_t sliceIndex);
+		T* const* slicePtr(size_t sliceIndex) const;
+		T* rowPtr(size_t sliceIndex, size_t rowIndex);
+		T* const* rowPtr(size_t sliceIndex, size_t rowIndex) const;
 		//setters
+		void setMemoryLayout(IndexOrder indexOrder);
 		void setEmitSignals(bool value);
 	private:
 		T* volume = nullptr;
-		size_t xMax = 0, yMax = 0, zMax = 0, slicePitch = 0;
+		size_t xMax = 0, yMax = 0, zMax = 0, slicePitchXFastest = 0, slicePitchZFastest = 0;
+		IndexOrder mode = IndexOrder::Z_FASTEST;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
 		mutable std::atomic<bool> stopActiveProcess{ false };
 	};
@@ -114,7 +120,8 @@ namespace ct {
 		this->xMax = xSize;
 		this->yMax = ySize;
 		this->zMax = zSize;
-		this->slicePitch = ySize * xSize;
+		this->slicePitchXFastest = ySize * xSize;
+		this->slicePitchZFastest = ySize * zSize;
 	}
 
 	template<typename T>
@@ -126,6 +133,11 @@ namespace ct {
 			this->yMax = 0;
 			this->zMax = 0;
 		}
+	}
+
+	template<typename T>
+	void Volume<T>::setMemoryLayout(IndexOrder indexOrder) {
+		this->mode = indexOrder;
 	}
 
 	template<typename T>
@@ -156,13 +168,15 @@ namespace ct {
 	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
-		return this->volume[z * this->slicePitch + y*this->xMax + x];
+		if (this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
+		return this->volume[z * this->slicePitchXFastest + y*this->xMax + x];
 	}
 
 	template<typename T>
 	inline T const& Volume<T>::at(size_t x, size_t y, size_t z) const {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
-		return this->volume[z * this->slicePitch + y*this->xMax + x];
+		if(this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
+		return this->volume[z * this->slicePitchXFastest + y*this->xMax + x];
 	}
 
 	template<typename T>
@@ -171,8 +185,32 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline T const * Volume<T>::data() const {
+	inline T const* Volume<T>::data() const {
 		return this->volume;
+	}
+
+	template<typename T>
+	inline T* Volume<T>::slicePtr(size_t outerIndex) {
+		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest];
+		return &this->volume[outerIndex * this->slicePitchXFastest];
+	}
+
+	template<typename T>
+	inline T* const * Volume<T>::slicePtr(size_t outerIndex) const {
+		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest];
+		return &this->volume[outerIndex * this->slicePitchXFastest];
+	}
+
+	template<typename T>
+	inline T* Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) {
+		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest + innerIndex*this->zMax];
+		return &this->volume[outerIndex * this->slicePitchXFastest + innerIndex*this->xMax];
+	}
+
+	template<typename T>
+	inline T* const * Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) const {
+		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest + innerIndex*this->zMax];
+		return &this->volume[outerIndex * this->slicePitchXFastest + innerIndex*this->xMax];
 	}
 
 	template <typename T>
