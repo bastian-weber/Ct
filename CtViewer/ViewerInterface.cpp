@@ -523,6 +523,7 @@ namespace ct {
 			this->loadingActive = false;
 			return false;
 		}
+		this->volume.setMemoryLayout(indexOrder);
 		std::function<bool()> callLoadProcedure = [=]() { 
 			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, &this->minValue, &this->maxValue); 
 		};
