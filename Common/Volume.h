@@ -260,23 +260,46 @@ namespace ct {
 		T max = std::numeric_limits<T>::lowest();
 		U tmp;
 		T converted;
-		for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-			if (this->stopActiveProcess) {
-				this->clear();
-				std::cout << "User interrupted. Stopping." << std::endl;
-				if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
-				return false;
+		if (this->mode == indexOrder) {
+			float* volumePtr = this->volume;
+			size_t size = this->xMax*this->yMax*this->zMax;
+			for (int i = 0; i < size; ++i, ++volumePtr) {
+				if (i % 100000 == 0) {
+					if (this->stopActiveProcess) {
+						this->clear();
+						std::cout << "User interrupted. Stopping." << std::endl;
+						if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+						return false;
+					}
+					double percentage = std::round(double(i) / double(size) * 100);
+					if(this->emitSignals) emit(savingProgress(percentage));
+				}
+				//load one U of data
+				in >> tmp;
+				converted = static_cast<T>(tmp);
+				if (converted < min) min = converted;
+				if (converted > max) max = converted;
+				(*volumePtr) = converted;
 			}
-			double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-			if (this->emitSignals) emit(loadingProgress(percentage));
-			for (int y = 0; y < this->ySize(); ++y) {
-				for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-					//load one U of data
-					in >> tmp;
-					converted = static_cast<T>(tmp);
-					if (converted < min) min = converted;
-					if (converted > max) max = converted;
-					this->at(x, y, z) = converted;
+		} else {
+			for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
+				if (this->stopActiveProcess) {
+					this->clear();
+					std::cout << "User interrupted. Stopping." << std::endl;
+					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+					return false;
+				}
+				double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+				if (this->emitSignals) emit(loadingProgress(percentage));
+				for (int y = 0; y < this->ySize(); ++y) {
+					for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+						//load one U of data
+						in >> tmp;
+						converted = static_cast<T>(tmp);
+						if (converted < min) min = converted;
+						if (converted > max) max = converted;
+						this->at(x, y, z) = converted;
+					}
 				}
 			}
 		}
@@ -317,9 +340,14 @@ namespace ct {
 					float* volumePtr = this->volume;
 					size_t size = this->xMax*this->yMax*this->zMax;
 					for (int i = 0; i < size; ++i, ++volumePtr) {
-						if (i % 100000 == 0 && this->emitSignals) {
+						if (i % 100000 == 0) {
+							if (this->stopActiveProcess) {
+								std::cout << "User interrupted. Stopping." << std::endl;
+								if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+								return false;
+							}
 							double percentage = std::round(double(i) / double(size) * 100);
-							emit(savingProgress(percentage));
+							if(this->emitSignals) emit(savingProgress(percentage));
 						}
 						//save one T of data
 						out << (*volumePtr);
@@ -377,43 +405,40 @@ namespace ct {
 				}
 
 				cv::Mat result(static_cast<int>(vSize), static_cast<int>(uSize), CV_32FC1);
-				std::function<void(int, int, float*)> setPixel;
-				
-				switch (axis) {
-					case Axis::X:
-						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(index, column, result.rows - 1 - row));
-							};
-						} else {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(index, result.cols - 1 - column, result.rows - 1 - row));
-							};
-						}
-						break;
-					case Axis::Y:
-						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(result.cols - 1 - column, index, result.rows - 1 - row));
-							};
-						} else {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(column, index, result.rows - 1 - row));
-							};
-						}
-						break;
-					case Axis::Z:
-						if (type == CoordinateSystemOrientation::LEFT_HANDED) {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(row, column, index));
-							};
-						} else {
-							setPixel = [&](int row, int column, float* ptr) {
-								ptr[column] = static_cast<float>(this->at(row, result.cols - 1 - column, index));
-							};
-						}
-						break;
-				}
+				std::function<void(int, int, float*)> const setPixel = [&]()->std::function<void(int, int, float*)> {
+					switch (axis) {
+						case Axis::X:
+							if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(index, column, result.rows - 1 - row));
+								};
+							} else {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(index, result.cols - 1 - column, result.rows - 1 - row));
+								};
+							}
+						case Axis::Y:
+							if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(result.cols - 1 - column, index, result.rows - 1 - row));
+								};
+							} else {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(column, index, result.rows - 1 - row));
+								};
+							}
+						case Axis::Z:
+							if (type == CoordinateSystemOrientation::LEFT_HANDED) {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(row, column, index));
+								};
+							} else {
+								return [&](int row, int column, float* ptr) {
+									ptr[column] = static_cast<float>(this->at(row, result.cols - 1 - column, index));
+								};
+							}
+					}
+				}();
 
 				float* ptr;
 #pragma omp parallel for private(ptr)
