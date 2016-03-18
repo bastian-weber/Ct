@@ -1019,7 +1019,7 @@ namespace ct {
 				}
 
 				//donload the reconstructed volume part
-				ct::cuda::download3dVolume(gpuVolumePtr, &this->volume.at(0, 0, currentSlice), xDimension, yDimension, zDimension,  success);
+				ct::cuda::download3dVolume(gpuVolumePtr, &this->volume.at(0, 0, currentSlice), xDimension, yDimension, zDimension, success);
 
 				if (!success) {
 					this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
@@ -1127,7 +1127,7 @@ namespace ct {
 		//spare memory gpu mats, intermediate images and dft result
 		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 5 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
 		//estimate for memory consumed by fft
-		freeMemory -= sizeof(float)*this->imageWidth*this->imageHeight*15;
+		freeMemory -= sizeof(float)*this->imageWidth*this->imageHeight*17;
 		if (freeMemory < 0) return 0;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
