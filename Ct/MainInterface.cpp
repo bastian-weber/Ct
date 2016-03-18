@@ -987,6 +987,7 @@ namespace ct {
 
 	void MainInterface::reconstructionCompletion(cv::Mat crossSection, CompletionStatus status) {
 		this->reconstructionActive = false;
+		double time = this->timer.getTime();
 		this->progressBar->reset();
 #ifdef Q_OS_WIN
 		this->taskbarProgress->hide();
@@ -996,7 +997,6 @@ namespace ct {
 			cv::Mat normalized;
 			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
 			this->imageView->setImage(normalized);
-			double time = this->timer.getTime();
 			this->setStatus(tr("Reconstruction finished (") + QString::number(time, 'f', 1) + "s).");
 			if (this->runAll) {
 				this->save();
