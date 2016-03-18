@@ -458,8 +458,10 @@ namespace ct {
 				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Falling back to CPU." << std::endl;
 			}
 			if (this->useCuda && this->cudaAvailable()) {
+				this->volume.setMemoryLayout(IndexOrder::X_FASTEST);
 				result = this->launchCudaThreads();
 			} else {
+				this->volume.setMemoryLayout(IndexOrder::Z_FASTEST);
 				result = this->reconstructionCore();
 			}
 			if (result) {
@@ -788,44 +790,50 @@ namespace ct {
 			double uOffset = this->uOffset;
 			double SD = this->SD;
 			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
-#pragma omp parallel for schedule(dynamic)
+			float* volumePtr;
+#pragma omp parallel for private(volumePtr) schedule(dynamic)
 			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
 				double x = this->volumeToWorldX(xIndex);
+				volumePtr = this->volume.slicePtr(xIndex);
 				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
-					if ((x*x + y*y) < radiusSquared) {
-						//if the voxel is inside the reconstructable cylinder
-						for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z) {
+					if ((x*x + y*y) >= radiusSquared) {
+						volumePtr += this->zMax;
+						continue;
+					}
+					//if the voxel is inside the reconstructable cylinder
+					for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
-							double t = (-1)*x*sine + y*cosine;
-							//correct the u-offset
-							t += uOffset;
-							double s = x*cosine + y*sine;
-							double u = (t*SD) / (SD - s);
-							double v = ((z + heightOffset)*SD) / (SD - s);
+						double t = (-1)*x*sine + y*cosine;
+						//correct the u-offset
+						t += uOffset;
+						double s = x*cosine + y*sine;
+						double u = (t*SD) / (SD - s);
+						double v = ((z + heightOffset)*SD) / (SD - s);
 
-							//check if it's inside the image (before the coordinate transformation)
-							if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
+						//check if it's inside the image (before the coordinate transformation)
+						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-								u = this->imageToMatU(u);
-								v = this->imageToMatV(v);
+							u = this->imageToMatU(u);
+							v = this->imageToMatV(v);
 
-								//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
-								int u0 = u;
-								int u1 = u0 + 1;
-								int v0 = v;
-								int v1 = v0 + 1;
+							//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
+							int u0 = u;
+							int u1 = u0 + 1;
+							int v0 = v;
+							int v1 = v0 + 1;
 
-								//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
-								//if (u0 < this->imageWidth && u0 >= 0 && u1 < this->imageWidth && u1 >= 0 && v0 < this->imageHeight && v0 >= 0 && v1 < this->imageHeight && v1 >= 0) {
+							//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
+							//if (u0 < this->imageWidth && u0 >= 0 && u1 < this->imageWidth && u1 >= 0 && v0 < this->imageHeight && v0 >= 0 && v1 < this->imageHeight && v1 >= 0) {
 
-								float* row = image.ptr<float>(v0);
-								float u0v0 = row[u0];
-								float u1v0 = row[u1];
-								row = image.ptr<float>(v1);
-								float u0v1 = row[u0];
-								float u1v1 = row[u1];
-								this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
-							}
+							float* row = image.ptr<float>(v0);
+							float u0v0 = row[u0];
+							float u1v0 = row[u1];
+							row = image.ptr<float>(v1);
+							float u0v1 = row[u0];
+							float u1v1 = row[u1];
+							//this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+							//size_t index = this->worldToVolumeY(y)*this->zMax + this->worldToVolumeZ(z);
+							(*volumePtr) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
