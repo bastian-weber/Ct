@@ -313,21 +313,35 @@ namespace ct {
 					innerIndex = &z, outerIndex = &x;
 					innerMax = &zUpperBound, outerMax = &xUpperBound;
 				}
-				for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-					if (this->stopActiveProcess) {
-						std::cout << "User interrupted. Stopping." << std::endl;
-						if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
-						return false;
+				if (this->mode == indexOrder) {
+					float* volumePtr = this->volume;
+					size_t size = this->xMax*this->yMax*this->zMax;
+					for (int i = 0; i < size; ++i, ++volumePtr) {
+						if (i % 100000 == 0 && this->emitSignals) {
+							double percentage = std::round(double(i) / double(size) * 100);
+							emit(savingProgress(percentage));
+						}
+						//save one T of data
+						out << (*volumePtr);
 					}
-					double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-					if (this->emitSignals) emit(savingProgress(percentage));
-					for (int y = 0; y < this->ySize(); ++y) {
-						for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-							//save one T of data
-							out << this->at(x, y, z);
+				} else {
+					for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
+						if (this->stopActiveProcess) {
+							std::cout << "User interrupted. Stopping." << std::endl;
+							if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+							return false;
+						}
+						double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+						if (this->emitSignals) emit(savingProgress(percentage));
+						for (int y = 0; y < this->ySize(); ++y) {
+							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+								//save one T of data
+								out << this->at(x, y, z);
+							}
 						}
 					}
 				}
+
 				file.close();
 			}
 		} else {
