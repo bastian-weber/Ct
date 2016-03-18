@@ -374,21 +374,12 @@ namespace ct {
 		//size of volume
 		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
 		if (this->useCuda) {
-			//images in RAM
 			std::vector<int> devices = this->getActiveCudaDevices();
+			//images in RAM
 			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * devices.size();
-			for (int& device : devices) {
-				cudaSetDevice(device);
-				size_t maxSlices = this->getMaxChunkSize();
-				//upper bounded by zMax
-				//assume the volume is equally divided amonst gpus for simplicity
-				maxSlices = std::min(maxSlices, size_t(std::ceil(double(this->zMax)/double(devices.size()))));
-				//add extra memory required during download
-				requiredMemory += this->xMax * this->yMax * maxSlices * sizeof(float);
-			}
 		} else {
 			//images in RAM
-			requiredMemory += this->imageWidth*this->imageHeight*sizeof(float) * 2;
+			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * 2;
 		}
 		return requiredMemory;
 	}
@@ -1019,7 +1010,7 @@ namespace ct {
 				}
 
 				//donload the reconstructed volume part
-				ct::cuda::download3dVolume(gpuVolumePtr, &this->volume.at(0, 0, currentSlice), xDimension, yDimension, zDimension, success);
+				ct::cuda::download3dVolume(gpuVolumePtr, this->volume.slicePtr(currentSlice), xDimension, yDimension, zDimension, success);
 
 				if (!success) {
 					this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
@@ -1028,9 +1019,6 @@ namespace ct {
 					if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 					return false;
 				}
-
-				//copy volume part to vector
-				//this->copyFromArrayToVolume(reconstructedVolumePart, zDimension, currentSlice);
 
 				//free volume part memory on gpu
 				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
@@ -1135,18 +1123,6 @@ namespace ct {
 		size_t sliceCnt = freeMemory / sliceSize;
 
 		return sliceCnt;
-	}
-
-	void CtVolume::copyFromArrayToVolume(std::shared_ptr<float> arrayPtr, size_t zSize, size_t zOffset) {
-#pragma omp parallel for schedule(dynamic)
-		for (int x = 0; x < this->xMax; ++x) {
-			for (int y = 0; y < this->yMax; ++y) {
-				for (int z = 0; z < zSize; ++z) {
-					//xSize * ySize * zCoord + xSize * yChoord + xCoord
-					volume.at(x, y, z + zOffset) = arrayPtr.get()[z * this->xMax * this->yMax + y * this->xMax + x];
-				}
-			}
-		}
 	}
 
 	void CtVolume::updateBoundaries() {
