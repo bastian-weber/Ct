@@ -167,9 +167,6 @@ namespace ct {
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
 		size_t getMaxChunkSize() const;											//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
-		void copyFromArrayToVolume(std::shared_ptr<float> arrayPtr,				//copies contents of an array to the volume vector, used to copy CUDA reconstruction parts
-								   size_t zSize,
-								   size_t zOffset);
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
