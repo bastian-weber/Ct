@@ -29,6 +29,12 @@ namespace ct {
 			return busWidth;
 		}
 
+		int getMemoryClockRate(int deviceId) {
+			int busWidth;
+			cudaDeviceGetAttribute(&busWidth, cudaDevAttrGlobalMemoryBusWidth, deviceId);
+			return busWidth;
+		}
+
 		std::string getDeviceName(int deviceId) {
 			cudaSetDevice(deviceId);
 			cudaDeviceProp prop;
