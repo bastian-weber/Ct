@@ -900,7 +900,7 @@ namespace ct {
 				if (volume.cudaAvailable()) {
 					if (!this->cudaCheckBox->isChecked()) stream << " -n";
 					QStringList devices;
-					std::vector<int> deviceIds = volume.getActiveCudaDevices();
+					std::vector<int> deviceIds = this->cudaSettingsDialog->getActiveCudaDevices();
 					for (int& deviceId : deviceIds) {
 						devices.append(QString::number(deviceId));
 					}
