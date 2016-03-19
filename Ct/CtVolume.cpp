@@ -863,26 +863,10 @@ namespace ct {
 
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
 
-			//first upload two images, so the memory used will be taken into consideration
-			//prepare and upload image 1
 			cv::Mat image;
 			cv::cuda::GpuMat gpuPrefetchedImage;
 			cv::cuda::GpuMat gpuCurrentImage;
-			image = this->sinogram[0].getImage();
 			cv::cuda::Stream gpuPreprocessingStream;
-			try {
-				gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-				gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-			} catch (...) {
-				this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-				stopCudaThreads = true;
-				return false;
-			}
-			if (!success) {
-				this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-				stopCudaThreads = true;
-				return false;
-			}
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -909,6 +893,22 @@ namespace ct {
 
 				if (!success) {
 					this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+					stopCudaThreads = true;
+					return false;
+				}
+
+				//prepare and upload image 1
+				image = this->sinogram[0].getImage();
+				try {
+					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
+					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
+				} catch (...) {
+					this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+					stopCudaThreads = true;
+					return false;
+				}
+				if (!success) {
+					this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 					stopCudaThreads = true;
 					return false;
 				}
