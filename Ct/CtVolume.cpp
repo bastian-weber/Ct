@@ -873,7 +873,6 @@ namespace ct {
 			try {
 				gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
 				gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-				gpuPreprocessingStream.waitForCompletion();
 			} catch (...) {
 				this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
 				stopCudaThreads = true;
@@ -946,6 +945,8 @@ namespace ct {
 					double sine = sin(beta_rad);
 					double cosine = cos(beta_rad);
 
+					gpuPreprocessingStream.waitForCompletion();
+
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(gpuCurrentImage,
 												  gpuVolumePtr,
@@ -991,7 +992,6 @@ namespace ct {
 						try {
 							gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
 							gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-							gpuPreprocessingStream.waitForCompletion();
 						} catch (...) {
 							this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 							stopCudaThreads = true;
