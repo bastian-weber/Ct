@@ -19,6 +19,7 @@ namespace ct {
 		size_t getTotalMemory();													//returns the global memory of the currently active device
 		int getMultiprocessorCnt(int deviceId);										//returns the amount of streaming processors
 		int getMemoryBusWidth(int deviceId);										//returns the global memory bus width
+		int getMemoryClockRate(int deviceId);
 		std::string getDeviceName(int deviceId);									//returns the name of the device
 		void applyFrequencyFiltering(cv::cuda::PtrStepSz<float2> image,				//applies a frequency filter on a dft spectrum
 									 int filterType, 
