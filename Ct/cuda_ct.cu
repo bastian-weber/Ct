@@ -54,13 +54,13 @@ namespace ct {
 				return 0.0f;
 			} else {
 				float rl = ramLakWindowFilter(n, N);
-				return (rl)* (sin(rl*0.5f*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
+				return (rl)* (__sinf(rl*0.5f*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
 			}
 
 		}
 
 		__device__ float hannWindowFilter(float n, float N) {
-			return ramLakWindowFilter(n, N) * 0.5f*(1.0f + cos((2.0f * CUDART_PI_F * float(n)) / (float(N) * 2.0f)));
+			return ramLakWindowFilter(n, N) * 0.5f*(1.0f + __cosf((2.0f * CUDART_PI_F * float(n)) / (float(N) * 2.0f)));
 		}
 
 		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
@@ -98,7 +98,7 @@ namespace ct {
 		}
 
 		__device__ float W(float D, float u, float v) {
-			return D / std::sqrt(D*D + u*u + v*v);
+			return D / rsqrtf(D*D + u*u + v*v);
 		}
 
 		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed) {
@@ -108,7 +108,7 @@ namespace ct {
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float u = float(xIndex) - matToImageUPreprocessed;
-				float v = (-1.0f)*float(yIndex) + matToImageVPreprocessed;
+				float v = -float(yIndex) + matToImageVPreprocessed;
 				image(yIndex, xIndex) *= W(SD, u, v);
 			}
 
@@ -228,9 +228,10 @@ namespace ct {
 				float z = float(zIndex + zOffset) - volumeToWorldZPrecomputed;
 
 				//check if voxel is inside the reconstructable cylinder
+#pragma unroll
 				if ((x*x + y*y) < radiusSquared) {
 
-					float t = (-1.0f)*x*sine + y*cosine;
+					float t = -x*sine + y*cosine;
 					t += uOffset;
 					float s = x*cosine + y*sine;
 					float u = (t*SD) / (SD - s);
@@ -240,7 +241,7 @@ namespace ct {
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 						u += imageToMatUPrecomputed;
-						v = (-1.0f)*v + imageToMatVPrecomputed;
+						v = -v + imageToMatVPrecomputed;
 
 						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
 						size_t u0 = u;
