@@ -148,8 +148,8 @@ namespace ct {
 		
 		//related to the GPU image preprocessing
 		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
-											 cv::cuda::Stream& stream,
-											 bool& success) const;	
+											 bool& success,
+											 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 
 		//related to the CPU reconstruction
 		bool reconstructionCore();												//does the actual reconstruction

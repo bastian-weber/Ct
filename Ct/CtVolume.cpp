@@ -715,7 +715,7 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::Stream& stream, bool& success) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
 		cv::cuda::GpuMat tmp1;
 		cv::cuda::GpuMat tmp2;
@@ -969,6 +969,7 @@ namespace ct {
 												  this->volumeToWorldZPrecomputed,
 												  this->imageToMatUPrecomputed,
 												  this->imageToMatVPrecomputed,
+												  cv::cuda::StreamAccessor::getStream(cv::cuda::Stream::Null()),
 												  success);
 
 					if (!success) {

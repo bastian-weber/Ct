@@ -62,6 +62,7 @@ namespace ct {
 								 float volumeToWorldZPrecomputed,
 								 float imageToMatUPrecomputed,
 								 float imageToMatVPrecomputed,
+								 cudaStream_t stream,
 								 bool& success);
 	
 	}
