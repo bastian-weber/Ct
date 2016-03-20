@@ -866,7 +866,8 @@ namespace ct {
 			cv::Mat image;
 			cv::cuda::GpuMat gpuPrefetchedImage;
 			cv::cuda::GpuMat gpuCurrentImage;
-			cv::cuda::Stream gpuPreprocessingStream;
+			cv::cuda::Stream stream1;
+			cv::cuda::Stream stream2;
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -897,22 +898,6 @@ namespace ct {
 					return false;
 				}
 
-				//prepare and upload image 1
-				image = this->sinogram[0].getImage();
-				try {
-					gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-					gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-				} catch (...) {
-					this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-					stopCudaThreads = true;
-					return false;
-				}
-				if (!success) {
-					this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-					stopCudaThreads = true;
-					return false;
-				}
-
 				for (int projection = 0; projection < this->sinogram.size(); ++projection) {
 
 					//if user interrupts
@@ -935,17 +920,42 @@ namespace ct {
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
 
-					{
-						cv::cuda::GpuMat tmp = gpuCurrentImage;
-						gpuCurrentImage = gpuPrefetchedImage;
-						gpuPrefetchedImage = tmp;
-					}
+					std::swap(gpuCurrentImage, gpuPrefetchedImage);
+					std::swap(stream1, stream2);					
 
 					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(beta_rad);
 					double cosine = cos(beta_rad);
 
-					gpuPreprocessingStream.waitForCompletion();
+					stream1.waitForCompletion();
+
+					//prepare and upload next image
+					image = this->sinogram[projection].getImage();
+					if (!image.data) {
+						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+					try {
+						gpuCurrentImage.upload(image, stream1);
+						gpuCurrentImage = this->cudaPreprocessImage(gpuCurrentImage, success, stream1);
+					} catch (...) {
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+					if (!success) {
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+					
 
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(gpuCurrentImage,
@@ -969,7 +979,7 @@ namespace ct {
 												  this->volumeToWorldZPrecomputed,
 												  this->imageToMatUPrecomputed,
 												  this->imageToMatVPrecomputed,
-												  cv::cuda::StreamAccessor::getStream(cv::cuda::Stream::Null()),
+												  cv::cuda::StreamAccessor::getStream(stream1),
 												  success);
 
 					if (!success) {
@@ -980,34 +990,6 @@ namespace ct {
 						return false;
 					}
 
-					//prepare and upload next image
-					if (projection < this->sinogram.size() - 1) {
-						image = this->sinogram[projection + 1].getImage();
-						if (!image.data) {
-							this->lastErrorMessage = "The image " + this->sinogram[projection + 1].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
-							stopCudaThreads = true;
-							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-							return false;
-						}
-						try {
-							gpuPrefetchedImage.upload(image, gpuPreprocessingStream);
-							gpuPrefetchedImage = this->cudaPreprocessImage(gpuPrefetchedImage, gpuPreprocessingStream, success);
-						} catch (...) {
-							this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
-							stopCudaThreads = true;
-							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-							return false;
-						}
-						if (!success) {
-							this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
-							stopCudaThreads = true;
-							ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-							if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-							return false;
-						}
-					}
 				}
 
 				//donload the reconstructed volume part
