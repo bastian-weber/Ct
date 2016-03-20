@@ -98,7 +98,7 @@ namespace ct {
 		}
 
 		__device__ float W(float D, float u, float v) {
-			return D / rsqrtf(D*D + u*u + v*v);
+			return D * rsqrtf(D*D + u*u + v*v);
 		}
 
 		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed) {
