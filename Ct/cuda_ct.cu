@@ -228,7 +228,6 @@ namespace ct {
 				float z = float(zIndex + zOffset) - volumeToWorldZPrecomputed;
 
 				//check if voxel is inside the reconstructable cylinder
-#pragma unroll
 				if ((x*x + y*y) < radiusSquared) {
 
 					float t = -x*sine + y*cosine;
