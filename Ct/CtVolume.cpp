@@ -864,8 +864,8 @@ namespace ct {
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
 
 			cv::Mat image;
-			cv::cuda::GpuMat gpuPrefetchedImage;
-			cv::cuda::GpuMat gpuCurrentImage;
+			cv::cuda::GpuMat gpuImage1;
+			cv::cuda::GpuMat gpuImage2;
 			cv::cuda::Stream stream1;
 			cv::cuda::Stream stream2;
 
@@ -920,7 +920,7 @@ namespace ct {
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
 
-					std::swap(gpuCurrentImage, gpuPrefetchedImage);
+					gpuImage1.swap(gpuImage2);
 					std::swap(stream1, stream2);					
 
 					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
@@ -939,8 +939,8 @@ namespace ct {
 						return false;
 					}
 					try {
-						gpuCurrentImage.upload(image, stream1);
-						gpuCurrentImage = this->cudaPreprocessImage(gpuCurrentImage, success, stream1);
+						gpuImage1.upload(image, stream1);
+						gpuImage1 = this->cudaPreprocessImage(gpuImage1, success, stream1);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
@@ -958,7 +958,7 @@ namespace ct {
 					
 
 					//start reconstruction with current image
-					ct::cuda::startReconstruction(gpuCurrentImage,
+					ct::cuda::startReconstruction(gpuImage1,
 												  gpuVolumePtr,
 												  xDimension,
 												  yDimension,
