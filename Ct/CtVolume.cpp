@@ -715,10 +715,8 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, bool& success, cv::cuda::Stream& stream) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
-		cv::cuda::GpuMat tmp1;
-		cv::cuda::GpuMat tmp2;
 		image.convertTo(tmp1, CV_32FC1, stream);
 		cv::cuda::log(tmp1, tmp1, stream);
 		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
@@ -864,8 +862,14 @@ namespace ct {
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
 
 			cv::Mat image;
+			cv::cuda::HostMem memory1(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::AllocType::PAGE_LOCKED);
+			cv::cuda::HostMem memory2(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::AllocType::PAGE_LOCKED);
 			cv::cuda::GpuMat gpuImage1;
 			cv::cuda::GpuMat gpuImage2;
+			cv::cuda::GpuMat tmp11(this->imageHeight, this->imageWidth, CV_32FC1);
+			cv::cuda::GpuMat tmp21(this->imageHeight, this->imageWidth/2 - 1, CV_32FC2);
+			cv::cuda::GpuMat tmp12(this->imageHeight, this->imageWidth, CV_32FC1);
+			cv::cuda::GpuMat tmp22(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
 			cv::cuda::Stream stream1;
 			cv::cuda::Stream stream2;
 
@@ -921,13 +925,17 @@ namespace ct {
 					}
 
 					gpuImage1.swap(gpuImage2);
-					std::swap(stream1, stream2);					
+					memory1.swap(memory2);
+					std::swap(stream1, stream2);
+					tmp11.swap(tmp12);
+					tmp21.swap(tmp22);
+
 
 					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(beta_rad);
 					double cosine = cos(beta_rad);
 
-					stream1.waitForCompletion();
+					//stream1.waitForCompletion();
 
 					//prepare and upload next image
 					image = this->sinogram[projection].getImage();
@@ -939,8 +947,9 @@ namespace ct {
 						return false;
 					}
 					try {
-						gpuImage1.upload(image, stream1);
-						gpuImage1 = this->cudaPreprocessImage(gpuImage1, success, stream1);
+						image.copyTo(memory1);
+						gpuImage1.upload(memory1, stream1);
+						gpuImage1 = this->cudaPreprocessImage(gpuImage1, tmp11, tmp21, success, stream1);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
@@ -1033,7 +1042,7 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-
+		cudaProfilerStart();
 		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
@@ -1056,7 +1065,7 @@ namespace ct {
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
 		}
-
+		cudaProfilerStop();
 		return result;
 	}
 
