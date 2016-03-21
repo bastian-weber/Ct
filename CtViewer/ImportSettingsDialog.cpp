@@ -40,7 +40,7 @@ namespace ct {
 		this->indexOrderGroup->addButton(zFastestRadioButton);
 		this->indexOrderGroup->addButton(xFastestRadioButton);
 		this->littleEndianRadioButton->setChecked(true);
-		this->zFastestRadioButton->setChecked(true);
+		this->xFastestRadioButton->setChecked(true);
 		this->requiredSizeLabel = new QLabel("");
 		this->actualSizeLabel = new QLabel("");
 
@@ -53,8 +53,8 @@ namespace ct {
 		this->formLayout->addRow(tr("Z size:"), this->zSpinBox);
 		this->formLayout->addRow(tr("Byte order:"), this->littleEndianRadioButton);
 		this->formLayout->addRow("", this->bigEndianRadioButton);
-		this->formLayout->addRow(tr("Index order:"), this->zFastestRadioButton);
-		this->formLayout->addRow("", this->xFastestRadioButton);
+		this->formLayout->addRow(tr("Index order:"), this->xFastestRadioButton);
+		this->formLayout->addRow("", this->zFastestRadioButton);
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
