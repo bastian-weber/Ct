@@ -24,6 +24,7 @@
 
 //CUDA
 #include <cuda_runtime.h>
+#include <cuda_profiler_api.h>
 
 #include "Volume.h"
 #include "utility.h"
@@ -148,6 +149,8 @@ namespace ct {
 		
 		//related to the GPU image preprocessing
 		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat image,
+											 cv::cuda::GpuMat& tmp1,
+											 cv::cuda::GpuMat& tmp2,
 											 bool& success,
 											 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 
