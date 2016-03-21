@@ -166,6 +166,12 @@ namespace ct {
 			double min = std::numeric_limits<double>::quiet_NaN();
 			double max = std::numeric_limits<double>::quiet_NaN();
 			for (Projection const& projection : this->sinogram) {
+				if (this->stopActiveProcess) {
+					this->sinogram.clear();
+					std::cout << "User interrupted. Stopping.";
+					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+					return false;
+				}
 				cv::Mat image = projection.getImage();
 				if (!image.data) {
 					//if there is no image data
