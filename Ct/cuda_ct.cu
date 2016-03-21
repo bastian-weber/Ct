@@ -50,7 +50,7 @@ namespace ct {
 		}
 
 		__device__ float sheppLoganWindowFilter(float n, float N) {
-			if (n == 0) {
+			if (n == 0.0f) {
 				return 0.0f;
 			} else {
 				float rl = ramLakWindowFilter(n, N);
@@ -248,10 +248,12 @@ namespace ct {
 						size_t v0 = v;
 						size_t v1 = v0 + 1;
 
-						float u0v0 = image(v0, u0);
-						float u1v0 = image(v0, u1);
-						float u0v1 = image(v1, u0);
-						float u1v1 = image(v1, u1);
+						float* row = image.ptr(v0);
+						float u0v0 = row[u0];
+						float u1v0 = row[u1];
+						row = image.ptr(v1);
+						float u0v1 = row[u0];
+						float u1v1 = row[u1];
 
 						float value = bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
