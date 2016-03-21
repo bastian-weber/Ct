@@ -451,8 +451,8 @@ namespace ct {
 		this->progressBar->setVisible(true);
 		this->stopButton->setVisible(true);
 		this->stopButton->setEnabled(true);
-		this->cudaCheckBox->setEnabled(false);
-		this->cudaSettingsButton->setEnabled(false);
+		this->cudaGroupBox->setEnabled(false);
+		this->saveGroupBox->setEnabled(false);
 		this->imageView->setFocus();
 	}
 
@@ -479,8 +479,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
-		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
+		this->cudaGroupBox->setEnabled(this->volume.cudaAvailable());
+		this->saveGroupBox->setEnabled(true);
 		this->browseButton->setFocus();
 	}
 
@@ -509,8 +509,8 @@ namespace ct {
 		this->resetInfo();
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
-		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
+		this->cudaGroupBox->setEnabled(this->volume.cudaAvailable());
+		this->saveGroupBox->setEnabled(true);
 		this->loadButton->setFocus();
 	}
 
@@ -535,8 +535,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(true);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
-		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
+		this->cudaGroupBox->setEnabled(this->volume.cudaAvailable());
+		this->saveGroupBox->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
@@ -561,8 +561,8 @@ namespace ct {
 		this->imageView->setRenderRectangle(false);
 		this->progressBar->setVisible(false);
 		this->stopButton->setVisible(false);
-		this->cudaCheckBox->setEnabled(this->volume.cudaAvailable());
-		this->cudaSettingsButton->setEnabled(this->volume.cudaAvailable());
+		this->cudaGroupBox->setEnabled(this->volume.cudaAvailable());
+		this->saveGroupBox->setEnabled(true);
 		this->imageView->setFocus();
 	}
 
