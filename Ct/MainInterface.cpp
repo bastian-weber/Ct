@@ -110,7 +110,7 @@ namespace ct {
 		} else {
 			this->bigEndianRadioButton->setChecked(true);
 		}
-		if (this->settings->value("indexOrder", "zFastest") == "zFastest") {
+		if (this->settings->value("indexOrder", "xFastest") == "zFastest") {
 			this->zFastestRadioButton->setChecked(true);
 		} else {
 			this->xFastestRadioButton->setChecked(true);
@@ -120,16 +120,16 @@ namespace ct {
 		QObject::connect(this->zFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
 		QObject::connect(this->xFastestRadioButton, SIGNAL(toggled(bool)), this, SLOT(saveSaveSettings()));
 		this->byteOrderGroup = new QButtonGroup(this);
-		this->byteOrderGroup->addButton(littleEndianRadioButton);
-		this->byteOrderGroup->addButton(bigEndianRadioButton);
+		this->byteOrderGroup->addButton(this->littleEndianRadioButton);
+		this->byteOrderGroup->addButton(this->bigEndianRadioButton);
 		this->indexOrderGroup = new QButtonGroup(this);
-		this->indexOrderGroup->addButton(zFastestRadioButton);
-		this->indexOrderGroup->addButton(xFastestRadioButton);
+		this->indexOrderGroup->addButton(this->zFastestRadioButton);
+		this->indexOrderGroup->addButton(this->xFastestRadioButton);
 		this->saveLayout = new QFormLayout;
-		this->saveLayout->addRow(tr("Byte Order:"), littleEndianRadioButton);
-		this->saveLayout->addRow("", bigEndianRadioButton);
-		this->saveLayout->addRow(tr("Index Order:"), zFastestRadioButton);
-		this->saveLayout->addRow("", xFastestRadioButton);
+		this->saveLayout->addRow(tr("Byte Order:"), this->littleEndianRadioButton);
+		this->saveLayout->addRow("", this->bigEndianRadioButton);
+		this->saveLayout->addRow(tr("Index Order:"), this->xFastestRadioButton);
+		this->saveLayout->addRow("", this->zFastestRadioButton);
 		this->saveGroupBox = new QGroupBox(tr("Output Settings"), this);
 		this->saveGroupBox->setLayout(this->saveLayout);
 
@@ -643,7 +643,10 @@ namespace ct {
 	}
 
 	void MainInterface::resetInfo() {
-		this->informationLabel->setText("<p>Memory required: N/A</p><p>Volume dimensions: N/A</p><p>Projections: N/A</p>");
+		this->informationLabel->setText(QString("<p>Memory required: N/A</p>"
+												"<p>Volume dimensions: N/A</p>"
+												"<p>Projections: N/A</p>"
+												"<p>Active CUDA devices: %1 of %2</p>").arg(this->cudaSettingsDialog->getActiveCudaDevices().size()).arg(this->volume.getCudaDeviceCount()));
 	}
 
 	void MainInterface::setVolumeSettings() {
@@ -767,8 +770,9 @@ namespace ct {
 			double memory = double(this->volume.getRequiredMemoryUpperBound()) / 1024 / 1024 / 1024;
 			QString infoText = tr("<p>Memory required: %L1Gb</p>"
 								  "<p>Volume dimensions: %L2x%L3x%L4</p>"
-								  "<p>Projections: %L5</p>");
-			infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize());
+								  "<p>Projections: %L5</p>"
+								  "<p>Active CUDA devices: %6 of %7</p>");
+			infoText = infoText.arg(memory, 0, 'f', 2).arg(xSize).arg(ySize).arg(zSize).arg(this->volume.getSinogramSize()).arg(this->cudaSettingsDialog->getActiveCudaDevices().size()).arg(this->volume.getCudaDeviceCount());
 			this->informationLabel->setText(infoText);
 		}
 	}

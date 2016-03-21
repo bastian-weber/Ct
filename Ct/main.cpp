@@ -58,7 +58,7 @@ int initConsoleMode(int argc, char* argv[]) {
 	bool lowerPriority = false;
 	bool useCuda = volume.cudaAvailable();
 	ct::FilterType filterType = ct::FilterType::RAMLAK;
-	ct::IndexOrder indexOrder = ct::IndexOrder::Z_FASTEST;
+	ct::IndexOrder indexOrder = ct::IndexOrder::X_FASTEST;
 	QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
 	std::string filterTypeString = "Ram-Lak";
 	QString input;
@@ -144,6 +144,10 @@ int initConsoleMode(int argc, char* argv[]) {
 					for (QString& device : devices) {
 						cudaDeviceList.push_back(device.toInt());
 					}
+					if (cudaDeviceList.size() < 1) {
+						std::cout << "When using the flag -d you have to specify at least one device ID." << std::endl;
+						return 1;
+					}
 					volume.setActiveCudaDevices(cudaDeviceList);
 				}
 			} else if (std::string(argv[i]).compare("-m") == 0 || std::string(argv[i]).compare("--cudasparememory") == 0) {
@@ -157,7 +161,7 @@ int initConsoleMode(int argc, char* argv[]) {
 			} else if (std::string(argv[i]).compare("-j") == 0 || std::string(argv[i]).compare("--indexOrder") == 0) {
 				std::string value = argv[++i];
 				std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-				if (value == "xfastest") indexOrder = ct::IndexOrder::X_FASTEST;
+				if (value == "zfastest") indexOrder = ct::IndexOrder::Z_FASTEST;
 			} else {
 				std::cout << "Unknown or misplaced parameter " << argv[i] << "." << std::endl;
 				return 1;
