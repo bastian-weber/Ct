@@ -721,10 +721,8 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat image, bool& success, cv::cuda::Stream& stream) const {
+	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
-		cv::cuda::GpuMat tmp1;
-		cv::cuda::GpuMat tmp2;
 		image.convertTo(tmp1, CV_32FC1, stream);
 		cv::cuda::log(tmp1, tmp1, stream);
 		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
@@ -874,6 +872,8 @@ namespace ct {
 			cv::cuda::GpuMat gpuImage2;
 			cv::cuda::Stream stream1;
 			cv::cuda::Stream stream2;
+			cv::cuda::GpuMat tmp1(this->imageHeight, this->imageWidth, CV_32FC1);
+			cv::cuda::GpuMat tmp2(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -933,8 +933,6 @@ namespace ct {
 					double sine = sin(beta_rad);
 					double cosine = cos(beta_rad);
 
-					stream1.waitForCompletion();
-
 					//prepare and upload next image
 					image = this->sinogram[projection].getImage();
 					if (!image.data) {
@@ -946,7 +944,7 @@ namespace ct {
 					}
 					try {
 						gpuImage1.upload(image, stream1);
-						gpuImage1 = this->cudaPreprocessImage(gpuImage1, success, stream1);
+						gpuImage1 = this->cudaPreprocessImage(gpuImage1, tmp1, tmp2, success, stream1);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
