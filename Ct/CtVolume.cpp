@@ -381,8 +381,8 @@ namespace ct {
 		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
 		if (this->useCuda) {
 			std::vector<int> devices = this->getActiveCudaDevices();
-			//images in RAM
-			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * devices.size();
+			//image in RAM + 2 * page locked memory
+			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * devices.size() * 3;
 		} else {
 			//images in RAM
 			requiredMemory += this->imageWidth * this->imageHeight * sizeof(float) * 2;
