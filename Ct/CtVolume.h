@@ -147,11 +147,11 @@ namespace ct {
 		static double hannWindowFilter(double n, double N);						
 		
 		//related to the GPU image preprocessing
-		cv::cuda::GpuMat cudaPreprocessImage(cv::cuda::GpuMat& image,
-											 cv::cuda::GpuMat& tmp1,
-											 cv::cuda::GpuMat& tmp2,
-											 bool& success,
-											 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
+		void cudaPreprocessImage(cv::cuda::GpuMat& image,
+								 cv::cuda::GpuMat& tmp1,
+								 cv::cuda::GpuMat& tmp2,
+								 bool& success,
+								 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 
 		//related to the CPU reconstruction
 		bool reconstructionCore();												//does the actual reconstruction
