@@ -54,6 +54,9 @@ namespace ct {
 
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+
+		//sets the default values
+		this->showEvent(&QShowEvent());
 	}
 
 	std::vector<int> CudaSettingsDialog::getActiveCudaDevices() const {
@@ -76,6 +79,10 @@ namespace ct {
 	}
 
 	void CudaSettingsDialog::showEvent(QShowEvent * e) {
+		this->setDefaultValues();
+	}
+
+	void CudaSettingsDialog::setDefaultValues() {
 		std::vector<int> activeDevices = this->getActiveCudaDevices();
 		for (int i = 0; i < activeDevices.size(); ++i) {
 			if (activeDevices[i] < this->checkboxes.size()) {
