@@ -55,8 +55,7 @@ namespace ct {
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
 
-		//sets the default values
-		this->showEvent(&QShowEvent());
+		this->setDefaultValues();
 	}
 
 	std::vector<int> CudaSettingsDialog::getActiveCudaDevices() const {

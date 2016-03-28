@@ -22,6 +22,7 @@ namespace ct {
 		void showEvent(QShowEvent* e);
 	private:
 		//functions
+		void setDefaultValues();
 
 		//variables
 		std::shared_ptr<QSettings> settings;
