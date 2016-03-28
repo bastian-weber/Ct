@@ -650,10 +650,11 @@ namespace ct {
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
 		CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
+		//images must be scaled in case different depths are mixed (-> equal value range)
 		if (img.depth() == CV_8U) {
-			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 8));
+			img.convertTo(img, CV_32F, 1.0 / 255.0);
 		} else if (img.depth() == CV_16U) {
-			img.convertTo(img, CV_32F, 1.0 / (float)pow(2, 16));
+			img.convertTo(img, CV_32F, 1.0 / 65535.0);
 		}
 	}
 
@@ -724,14 +725,28 @@ namespace ct {
 
 	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
-		image.convertTo(tmp1, CV_32FC1, stream);
+		//images must be scaled in case different depths are mixed (-> equal value range)
+		double scalingFactor = 1.0;
+		if (image.depth() == CV_8U) {
+			scalingFactor = 255.0;
+		} else if (image.depth() == CV_16U) {
+			scalingFactor = 65535.0;
+		}
+		//convert to 32bit
+		image.convertTo(tmp1, CV_32FC1, 1.0/scalingFactor, stream);
+		//logarithmic scale
 		cv::cuda::log(tmp1, tmp1, stream);
+		//multiply by -1
 		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		//transform to frequency domain
 		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
 		bool successLocal;
+		//apply frequency filter
 		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
+		//transform back to spatial domain
 		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		//apply the feldkamp weights
 		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
 	}

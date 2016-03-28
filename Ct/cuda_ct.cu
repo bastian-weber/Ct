@@ -45,22 +45,22 @@ namespace ct {
 			return out.str();
 		}
 
-		__device__ float ramLakWindowFilter(float n, float N){
-			return n / N;
+		__device__ float ramLakWindowFilter(float n, float Nreciprocal){
+			return n * Nreciprocal;
 		}
 
-		__device__ float sheppLoganWindowFilter(float n, float N) {
+		__device__ float sheppLoganWindowFilter(float n, float Nreciprocal) {
 			if (n == 0.0f) {
 				return 0.0f;
 			} else {
-				float rl = ramLakWindowFilter(n, N);
+				float rl = ramLakWindowFilter(n, Nreciprocal);
 				return (rl)* (__sinf(rl*0.5f*CUDART_PI_F)) / (rl*0.5f*CUDART_PI_F);
 			}
 
 		}
 
-		__device__ float hannWindowFilter(float n, float N) {
-			return ramLakWindowFilter(n, N) * 0.5f*(1.0f + __cosf((2.0f * CUDART_PI_F * float(n)) / (float(N) * 2.0f)));
+		__device__ float hannWindowFilter(float n, float Nreciprocal) {
+			return ramLakWindowFilter(n, Nreciprocal) * 0.5f*(1.0f + __cosf((2.0f * CUDART_PI_F * float(n)) * (Nreciprocal * 0.5f)));
 		}
 
 		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
@@ -70,13 +70,14 @@ namespace ct {
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float2 pixel = image(yIndex, xIndex);
+				float Nreciprocal = 1.0 / static_cast<float>(image.cols);
 				float factor;
 				if (filterType == 0) {
-					factor = ramLakWindowFilter(xIndex, image.cols);
+					factor = ramLakWindowFilter(xIndex, Nreciprocal);
 				} else if (filterType == 1) {
-					factor = sheppLoganWindowFilter(xIndex, image.cols);
+					factor = sheppLoganWindowFilter(xIndex, Nreciprocal);
 				} else if (filterType == 2) {
-					factor = hannWindowFilter(xIndex, image.cols);
+					factor = hannWindowFilter(xIndex, Nreciprocal);
 				}
 				image(yIndex, xIndex) = make_float2(pixel.x*factor, pixel.y*factor);
 			}
