@@ -192,6 +192,7 @@ namespace ct {
 					if (cnt == 0) {
 						rows = image.rows;
 						cols = image.cols;
+						this->imageType = image.type();
 					} else {
 						if (image.rows != rows || image.cols != cols) {
 							//if the image has a different size than the images before stop and reverse
@@ -869,9 +870,11 @@ namespace ct {
 			//image in RAM
 			cv::Mat image;
 			//page-locked RAM memeory for async upload
-			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, CV_16UC1, cv::cuda::HostMem::PAGE_LOCKED));
+			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, this->imageType, cv::cuda::HostMem::PAGE_LOCKED));
 			//image on gpu
 			std::vector<cv::cuda::GpuMat> gpuImage(2);
+			gpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+			gpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
 			//streams for alternation
 			std::vector<cv::cuda::Stream> stream(2);
 			//temporary gpu mats for preprocessing

@@ -189,6 +189,7 @@ namespace ct {
 		std::vector<Projection> sinogram;									//here the images are stored
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
+		int imageType;														//assumed type of all the images (taken from the first image)
 		double SD = 0;														//the distance of the source to the detector in pixel
 		double SO = 0;														//the distance of the source to the object in pixel
 		double pixelSize = 0;
