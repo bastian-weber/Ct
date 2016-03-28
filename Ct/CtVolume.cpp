@@ -867,15 +867,17 @@ namespace ct {
 
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
 
+			//image in RAM
 			cv::Mat image;
-			cv::cuda::HostMem memory1(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::PAGE_LOCKED);
-			cv::cuda::HostMem memory2(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::PAGE_LOCKED);
-			cv::cuda::GpuMat gpuImage1;
-			cv::cuda::GpuMat gpuImage2;
-			cv::cuda::Stream stream1;
-			cv::cuda::Stream stream2;
-			cv::cuda::GpuMat tmp1(this->imageHeight, this->imageWidth, CV_32FC1);
-			cv::cuda::GpuMat tmp2(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
+			//page-locked RAM memeory for async upload
+			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::PAGE_LOCKED));
+			//image on gpu
+			std::vector<cv::cuda::GpuMat> gpuImage(2);
+			//streams for alternation
+			std::vector<cv::cuda::Stream> stream(2);
+			//temporary gpu mats for preprocessing
+			std::vector<cv::cuda::GpuMat> tmp1(2, cv::cuda::GpuMat(this->imageHeight, this->imageWidth, CV_32FC1));
+			std::vector<cv::cuda::GpuMat> tmp2(2, cv::cuda::GpuMat(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2));
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -928,9 +930,7 @@ namespace ct {
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
 
-					gpuImage1.swap(gpuImage2);
-					memory1.swap(memory2);
-					std::swap(stream1, stream2);					
+					int current = projection % 2;
 
 					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(beta_rad);
@@ -946,9 +946,9 @@ namespace ct {
 						return false;
 					}
 					try {
-						image.copyTo(memory1);
-						gpuImage1.upload(memory1, stream1);
-						gpuImage1 = this->cudaPreprocessImage(gpuImage1, tmp1, tmp2, success, stream1);
+						image.copyTo(memory[current]);
+						gpuImage[current].upload(memory[current], stream[current]);
+						gpuImage[current] = this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
@@ -966,7 +966,7 @@ namespace ct {
 					
 
 					//start reconstruction with current image
-					ct::cuda::startReconstruction(gpuImage1,
+					ct::cuda::startReconstruction(gpuImage[current],
 												  gpuVolumePtr,
 												  xDimension,
 												  yDimension,
@@ -987,7 +987,7 @@ namespace ct {
 												  this->volumeToWorldZPrecomputed,
 												  this->imageToMatUPrecomputed,
 												  this->imageToMatVPrecomputed,
-												  cv::cuda::StreamAccessor::getStream(stream1),
+												  cv::cuda::StreamAccessor::getStream(stream[current]),
 												  success);
 
 					if (!success) {
