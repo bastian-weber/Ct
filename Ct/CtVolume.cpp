@@ -721,7 +721,7 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	cv::cuda::GpuMat CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
+	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
 		image.convertTo(tmp1, CV_32FC1, stream);
 		cv::cuda::log(tmp1, tmp1, stream);
@@ -733,7 +733,6 @@ namespace ct {
 		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
 		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
-		return image;
 	}
 
 	bool CtVolume::reconstructionCore() {
@@ -870,14 +869,18 @@ namespace ct {
 			//image in RAM
 			cv::Mat image;
 			//page-locked RAM memeory for async upload
-			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, CV_32FC1, cv::cuda::HostMem::PAGE_LOCKED));
+			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, CV_16UC1, cv::cuda::HostMem::PAGE_LOCKED));
 			//image on gpu
 			std::vector<cv::cuda::GpuMat> gpuImage(2);
 			//streams for alternation
 			std::vector<cv::cuda::Stream> stream(2);
 			//temporary gpu mats for preprocessing
-			std::vector<cv::cuda::GpuMat> tmp1(2, cv::cuda::GpuMat(this->imageHeight, this->imageWidth, CV_32FC1));
-			std::vector<cv::cuda::GpuMat> tmp2(2, cv::cuda::GpuMat(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2));
+			std::vector<cv::cuda::GpuMat> tmp1(2);
+			tmp1[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			tmp1[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			std::vector<cv::cuda::GpuMat> tmp2(2);
+			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
+			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -948,7 +951,7 @@ namespace ct {
 					try {
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
-						gpuImage[current] = this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
+						this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
