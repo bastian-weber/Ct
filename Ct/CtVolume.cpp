@@ -927,6 +927,9 @@ namespace ct {
 			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
 			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
 
+			gpuImage[0].upload(this->sinogram[0].getImage());
+			gpuImage[1].upload(this->sinogram[0].getImage());
+
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
 
@@ -985,18 +988,18 @@ namespace ct {
 					double cosine = cos(beta_rad);
 
 					//prepare and upload next image
-					image = this->sinogram[projection].getImage();
-					if (!image.data) {
-						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
-						stopCudaThreads = true;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						return false;
-					}
+					//image = this->sinogram[projection].getImage();
+					//if (!image.data) {
+					//	this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+					//	stopCudaThreads = true;
+					//	ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					//	if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+					//	return false;
+					//}
 					try {
 						stream[current].waitForCompletion();
-						image.copyTo(memory[current]);
-						gpuImage[current].upload(memory[current], stream[current]);
+						//image.copyTo(memory[current]);
+						//gpuImage[current].upload(memory[current], stream[current]);
 						this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
