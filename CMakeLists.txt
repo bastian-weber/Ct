@@ -102,6 +102,7 @@ endif()
 ################################################ Configuration ################################################
 
 cuda_add_executable(${EXECUTABLE_NAME_1} ${SOURCEFILES_CT})
+cuda_add_cufft_to_target(${EXECUTABLE_NAME_1})
 add_executable(${EXECUTABLE_NAME_2} ${SOURCEFILES_CTVIEWER})
 
 include_directories("./Common")

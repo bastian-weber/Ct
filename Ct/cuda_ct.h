@@ -7,6 +7,8 @@
 
 //CUDA
 #include <cuda_runtime.h>
+#include <cufft.h>
+#include <cuda_profiler_api.h>
 
 //OpenCV
 #include <opencv2/core/cuda.hpp>
