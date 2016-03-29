@@ -735,20 +735,47 @@ namespace ct {
 		//convert to 32bit
 		image.convertTo(tmp1, CV_32FC1, 1.0/scalingFactor, stream);
 		//logarithmic scale
-		cv::cuda::log(tmp1, tmp1, stream);
+//		cv::cuda::log(tmp1, tmp1, stream);
 		//multiply by -1
-		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+//		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
 		//transform to frequency domain
-		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
+		//cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
+
+		{
+			cufftHandle plan;
+			cufftPlan1d(&plan, image.size().width, CUFFT_R2C, image.size().height);
+			cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
+			cufftExecR2C(plan, tmp1.ptr<cufftReal>(), tmp2.ptr<cufftComplex>());
+			cufftDestroy(plan);
+		}
+
 		bool successLocal;
 		//apply frequency filter
-		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+//		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
 		//transform back to spatial domain
-		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		//cv::cuda::dft(tmp2, tmp1, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+
+		{
+			cufftHandle plan;
+			cufftPlan1d(&plan, image.size().width, CUFFT_C2R, image.size().height);
+			cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
+			cufftExecC2R(plan, tmp2.ptr<cufftComplex>(), tmp1.ptr<cufftReal>());
+			cufftDestroy(plan);
+		}
+
+		//stream.waitForCompletion();
+		//cv::Mat result;
+		//tmp1.download(result);
+		//cv::normalize(result, result, 0, 1, cv::NORM_MINMAX);
+		////result.convertTo(result, CV_8U, 0.005);
+		//cv::imshow("", result);
+		//cv::waitKey();
+
 		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+//		ct::cuda::applyFeldkampWeightFiltering(tmp1, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
 		success = success && successLocal;
+		success = true; //remove later
 	}
 
 	bool CtVolume::reconstructionCore() {
@@ -897,8 +924,8 @@ namespace ct {
 			tmp1[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			tmp1[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			std::vector<cv::cuda::GpuMat> tmp2(2);
-			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
-			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
+			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -967,6 +994,7 @@ namespace ct {
 						return false;
 					}
 					try {
+						stream[current].waitForCompletion();
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
 						this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
@@ -986,38 +1014,38 @@ namespace ct {
 					}
 					
 
-					//start reconstruction with current image
-					ct::cuda::startReconstruction(gpuImage[current],
-												  gpuVolumePtr,
-												  xDimension,
-												  yDimension,
-												  zDimension,
-												  currentSlice,
-												  radiusSquared,
-												  sine,
-												  cosine,
-												  this->sinogram[projection].heightOffset,
-												  this->uOffset,
-												  this->SD,
-												  imageLowerBoundU,
-												  imageUpperBoundU,
-												  imageLowerBoundV,
-												  imageUpperBoundV,
-												  this->volumeToWorldXPrecomputed,
-												  this->volumeToWorldYPrecomputed,
-												  this->volumeToWorldZPrecomputed,
-												  this->imageToMatUPrecomputed,
-												  this->imageToMatVPrecomputed,
-												  cv::cuda::StreamAccessor::getStream(stream[current]),
-												  success);
+					////start reconstruction with current image
+					//ct::cuda::startReconstruction(tmp1[current],
+					//							  gpuVolumePtr,
+					//							  xDimension,
+					//							  yDimension,
+					//							  zDimension,
+					//							  currentSlice,
+					//							  radiusSquared,
+					//							  sine,
+					//							  cosine,
+					//							  this->sinogram[projection].heightOffset,
+					//							  this->uOffset,
+					//							  this->SD,
+					//							  imageLowerBoundU,
+					//							  imageUpperBoundU,
+					//							  imageLowerBoundV,
+					//							  imageUpperBoundV,
+					//							  this->volumeToWorldXPrecomputed,
+					//							  this->volumeToWorldYPrecomputed,
+					//							  this->volumeToWorldZPrecomputed,
+					//							  this->imageToMatUPrecomputed,
+					//							  this->imageToMatVPrecomputed,
+					//							  cv::cuda::StreamAccessor::getStream(stream[current]),
+					//							  success);
 
-					if (!success) {
-						this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
-						stopCudaThreads = true;
-						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
-						return false;
-					}
+					//if (!success) {
+					//	this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+					//	stopCudaThreads = true;
+					//	ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					//	if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+					//	return false;
+					//}
 
 				}
 
@@ -1062,7 +1090,7 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-
+		cudaProfilerStart();
 		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
@@ -1085,7 +1113,7 @@ namespace ct {
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
 		}
-
+		cudaProfilerStop();
 		return result;
 	}
 
