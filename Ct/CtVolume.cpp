@@ -897,8 +897,8 @@ namespace ct {
 			tmp1[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			tmp1[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			std::vector<cv::cuda::GpuMat> tmp2(2);
-			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
-			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 - 1, CV_32FC2);
+			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
