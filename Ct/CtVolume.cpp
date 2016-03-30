@@ -38,15 +38,25 @@ namespace ct {
 
 	//internal class FftFilter
 
-	CtVolume::FftFilter::FftFilter(int width, int height, bool& success) : width(width), height(height) {
-		success = true;
-		success = success && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, width, CUFFT_R2C, height));
-		success = success && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, width, CUFFT_C2R, height));
+	CtVolume::FftFilter::FftFilter(FftFilter const& other) {
+		this->width = other.width;
+		this->height = other.height;
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, this->width, CUFFT_R2C, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, this->width, CUFFT_C2R, this->height));
+	}
+
+	CtVolume::FftFilter::FftFilter(int width, int height) : width(width), height(height) {
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, width, CUFFT_R2C, height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, width, CUFFT_C2R, height));
 	}
 
 	CtVolume::FftFilter::~FftFilter() {
 		cufftDestroy(this->forwardPlan);
 		cufftDestroy(this->inversePlan);
+	}
+
+	bool CtVolume::FftFilter::good() {
+		return this->isGood;
 	}
 
 	void CtVolume::FftFilter::setStream(cudaStream_t stream, bool& success) {
@@ -774,8 +784,6 @@ namespace ct {
 		success = true;
 		bool successLocal;
 		cudaStream_t cudaStream = cv::cuda::StreamAccessor::getStream(stream);
-		fftFilter.setStream(cudaStream, successLocal);
-		success = success && successLocal;
 		//images must be scaled in case different depths are mixed (-> equal value range)
 		double scalingFactor = 1.0;
 		if (imageIn.depth() == CV_8U) {
@@ -953,11 +961,23 @@ namespace ct {
 			std::vector<cv::cuda::GpuMat> fftTmp(2);
 			fftTmp[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
 			fftTmp[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
-			FftFilter fftFilter(this->imageWidth, this->imageHeight, success);
-			if(!success){
+			std::vector<FftFilter> fftFilter(2, FftFilter(this->imageWidth, this->imageHeight));
+			if(!fftFilter[0].good() || !fftFilter[1].good()){
 				this->lastErrorMessage = "An error occured during creation of the FFT filter. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
 				stopCudaThreads = true;
 				return false;
+			}
+			{
+				bool successLocal = true;
+				fftFilter[0].setStream(cv::cuda::StreamAccessor::getStream(stream[0]), success);
+				successLocal = successLocal && success;
+				fftFilter[1].setStream(cv::cuda::StreamAccessor::getStream(stream[1]), success);
+				successLocal = successLocal && success;
+				if (!successLocal) {
+					this->lastErrorMessage = "An error occured while assigning the streams for the FFT filters.";
+					stopCudaThreads = true;
+					return false;
+				}
 			}
 
 			size_t sliceCnt = getMaxChunkSize();
@@ -1030,7 +1050,7 @@ namespace ct {
 						stream[current].waitForCompletion();
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
-						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter, success, stream[current]);
+						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
