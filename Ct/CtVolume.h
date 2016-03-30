@@ -24,6 +24,7 @@
 
 //CUDA
 #include <cuda_runtime.h>
+#include <cufft.h>
 
 #include "Volume.h"
 #include "utility.h"
@@ -124,6 +125,22 @@ namespace ct {
 			double heightOffset;													//for random trajectory
 		};
 
+		//FFT filter class
+		class FftFilter {
+		public:
+			FftFilter() = delete;
+			FftFilter(int width, int height, bool& success);
+			~FftFilter();
+			void setStream(cudaStream_t& stream, bool& success);
+			void applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const;
+			void applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const;
+		private:
+			cufftHandle forwardPlan;
+			cufftHandle inversePlan;
+			int width;
+			int height;
+		};
+
 		//=========================================== PRIVATE FUNCTIONS ===========================================\\
 		
 		//related to parsing of config file
@@ -147,9 +164,10 @@ namespace ct {
 		static double hannWindowFilter(double n, double N);						
 		
 		//related to the GPU image preprocessing
-		void cudaPreprocessImage(cv::cuda::GpuMat& image,
-								 cv::cuda::GpuMat& tmp1,
-								 cv::cuda::GpuMat& tmp2,
+		void cudaPreprocessImage(cv::cuda::GpuMat& imageIn,
+								 cv::cuda::GpuMat& imageOut,
+								 cv::cuda::GpuMat& dftTmp,
+								 FftFilter& fftFilter,
 								 bool& success,
 								 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 

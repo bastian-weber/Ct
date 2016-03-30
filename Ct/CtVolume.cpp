@@ -36,6 +36,53 @@ namespace ct {
 		return ct::Projection(this->getImage(), angle, heightOffset);
 	}
 
+	//internal class FftFilter
+
+	CtVolume::FftFilter::FftFilter(int width, int height, bool& success) : width(width), height(height) {
+		success = true;
+		success = success && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, width, CUFFT_R2C, height));
+		success = success && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, width, CUFFT_C2R, height));
+	}
+
+	CtVolume::FftFilter::~FftFilter() {
+		cufftDestroy(this->forwardPlan);
+		cufftDestroy(this->inversePlan);
+	}
+
+	void CtVolume::FftFilter::setStream(cudaStream_t& stream, bool& success) {
+		success = true;
+		success = success && (CUFFT_SUCCESS == cufftSetStream(this->forwardPlan, stream));
+		success = success && (CUFFT_SUCCESS == cufftSetStream(this->inversePlan, stream));
+	}
+
+	void CtVolume::FftFilter::applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const {
+		success = true;		
+		if (imageIn.cols != this->width || imageIn.rows != this->height || imageIn.type() != CV_32FC1 || !imageIn.isContinuous()) {
+			std::cout << "Input image for FFT filter does not meet requirements (correct width, height, type CV_32FC1 and continuous in memory)." << std::endl;
+			success = false;
+		}
+		if (dftSpectrumOut.cols != this->width/2 + 1 || dftSpectrumOut.rows != this->height || dftSpectrumOut.type() != CV_32FC2 || !dftSpectrumOut.isContinuous()) {
+			std::cout << "Output image for FFT filter does not meet requirements (correct width (N/2 + 1), height, type CV_32FC2 and continuous in memory)." << std::endl;
+			success = false;
+		}
+		success = success && (CUFFT_SUCCESS == cufftExecR2C(this->forwardPlan, imageIn.ptr<cufftReal>(), dftSpectrumOut.ptr<cufftComplex>()));
+	}
+
+	void CtVolume::FftFilter::applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const {
+		success = true;
+		if (dftSpectrumIn.cols != this->width / 2 + 1 || dftSpectrumIn.rows != this->height || dftSpectrumIn.type() != CV_32FC2 || !dftSpectrumIn.isContinuous()) {
+			std::cout << "Output image for FFT filter does not meet requirements (correct width (N/2 + 1), height, type CV_32FC2 and continuous in memory)." << std::endl;
+			success = false;
+			return;
+		}
+		if (imageOut.cols != this->width || imageOut.rows != this->height || imageOut.type() != CV_32FC1 || !imageOut.isContinuous()) {
+			std::cout << "Input image for FFT filter does not meet requirements (correct width, height, type CV_32FC1 and continuous in memory)." << std::endl;
+			success = false;
+			return;
+		}
+		success = success && (CUFFT_SUCCESS == cufftExecC2R(this->inversePlan, dftSpectrumIn.ptr<cufftComplex>(), imageOut.ptr<cufftReal>()));
+	}
+
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
@@ -723,31 +770,38 @@ namespace ct {
 		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
 	}
 
-	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
+	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& imageOut, cv::cuda::GpuMat& dftTmp, FftFilter& fftFilter, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
+		bool successLocal;
+		cudaStream_t cudaStream = cv::cuda::StreamAccessor::getStream(stream);
+		fftFilter.setStream(cudaStream, successLocal);
+		success = success && successLocal;
 		//images must be scaled in case different depths are mixed (-> equal value range)
 		double scalingFactor = 1.0;
-		if (image.depth() == CV_8U) {
+		if (imageIn.depth() == CV_8U) {
 			scalingFactor = 255.0;
-		} else if (image.depth() == CV_16U) {
+		} else if (imageIn.depth() == CV_16U) {
 			scalingFactor = 65535.0;
 		}
 		//convert to 32bit
-		image.convertTo(tmp1, CV_32FC1, 1.0/scalingFactor, stream);
+		imageIn.convertTo(imageOut, CV_32FC1, 1.0/scalingFactor, stream);
 		//logarithmic scale
-		cv::cuda::log(tmp1, tmp1, stream);
+		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
-		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		imageOut.convertTo(imageOut, imageOut.type(), -1, stream);
 		//transform to frequency domain
-		cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
-		bool successLocal;
+		//cv::cuda::dft(imageOut, dftTmp, image.size(), cv::DFT_ROWS, stream);
+		fftFilter.applyForward(imageOut, dftTmp, successLocal);
+		success = success && successLocal;
 		//apply frequency filter
-		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFrequencyFiltering(dftTmp, int(this->filterType), cudaStream, successLocal);
 		success = success && successLocal;
 		//transform back to spatial domain
-		cv::cuda::dft(tmp2, image, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		//cv::cuda::dft(dftTmp, imageOut, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
+		success = success && successLocal;
 		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(image, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cudaStream, successLocal);
 		success = success && successLocal;
 	}
 
@@ -893,12 +947,18 @@ namespace ct {
 			//streams for alternation
 			std::vector<cv::cuda::Stream> stream(2);
 			//temporary gpu mats for preprocessing
-			std::vector<cv::cuda::GpuMat> tmp1(2);
-			tmp1[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
-			tmp1[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
-			std::vector<cv::cuda::GpuMat> tmp2(2);
-			tmp2[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
-			tmp2[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			std::vector<cv::cuda::GpuMat> preprocessedGpuImage(2);
+			preprocessedGpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			preprocessedGpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			std::vector<cv::cuda::GpuMat> fftTmp(2);
+			fftTmp[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			fftTmp[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			FftFilter fftFilter(this->imageWidth, this->imageHeight, success);
+			if(!success){
+				this->lastErrorMessage = "An error occured during creation of the FFT filter. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				stopCudaThreads = true;
+				return false;
+			}
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
@@ -967,9 +1027,10 @@ namespace ct {
 						return false;
 					}
 					try {
+						stream[current].waitForCompletion();
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
-						this->cudaPreprocessImage(gpuImage[current], tmp1[current], tmp2[current], success, stream[current]);
+						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter, success, stream[current]);
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
@@ -987,7 +1048,7 @@ namespace ct {
 					
 
 					//start reconstruction with current image
-					ct::cuda::startReconstruction(gpuImage[current],
+					ct::cuda::startReconstruction(preprocessedGpuImage[current],
 												  gpuVolumePtr,
 												  xDimension,
 												  yDimension,
