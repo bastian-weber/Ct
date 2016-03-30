@@ -49,7 +49,7 @@ namespace ct {
 		cufftDestroy(this->inversePlan);
 	}
 
-	void CtVolume::FftFilter::setStream(cudaStream_t& stream, bool& success) {
+	void CtVolume::FftFilter::setStream(cudaStream_t stream, bool& success) {
 		success = true;
 		success = success && (CUFFT_SUCCESS == cufftSetStream(this->forwardPlan, stream));
 		success = success && (CUFFT_SUCCESS == cufftSetStream(this->inversePlan, stream));
@@ -1045,7 +1045,6 @@ namespace ct {
 						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 						return false;
 					}
-					
 
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(preprocessedGpuImage[current],

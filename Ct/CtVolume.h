@@ -133,7 +133,7 @@ namespace ct {
 			FftFilter(int width, int height, bool& success);
 			~FftFilter();
 			FftFilter& operator=(FftFilter const& other) = delete;
-			void setStream(cudaStream_t& stream, bool& success);
+			void setStream(cudaStream_t stream, bool& success);
 			void applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const;
 			void applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const;
 		private:
