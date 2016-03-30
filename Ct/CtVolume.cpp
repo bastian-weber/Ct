@@ -1301,6 +1301,7 @@ namespace ct {
 		}
 		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
+		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
 		if (this->emitSignals) {
 			if (emitCrossSection) {
 				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
