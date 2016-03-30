@@ -1178,7 +1178,7 @@ namespace ct {
 		for (int i = 0; i < devices.size(); ++i) {
 			multiprocessorCnt[devices[i]] = ct::cuda::getMultiprocessorCnt(devices[i]);
 			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
-			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i])*ct::cuda::getMemoryClockRate(devices[i]);
+			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i]);
 			totalBandWidth += bandwidth[devices[i]];
 			std::cout << "GPU" << devices[i] << std::endl;
 			cudaSetDevice(devices[i]);
