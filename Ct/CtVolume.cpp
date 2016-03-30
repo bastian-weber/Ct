@@ -942,7 +942,7 @@ namespace ct {
 			double imageUpperBoundV = this->matToImageV(0);
 			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
-			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102, static_cast<size_t>(1));
+			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102 / this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
 			//image in RAM
 			cv::Mat image;
@@ -1026,7 +1026,7 @@ namespace ct {
 					//emit progress update
 					if (projection % progressUpdateRate == 0) {
 						double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
-						double currentChunk = (lastSlice - currentSlice)*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+						double currentChunk = zDimension*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
 						double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
@@ -1301,7 +1301,6 @@ namespace ct {
 		}
 		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
-		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
 		if (this->emitSignals) {
 			if (emitCrossSection) {
 				emit(reconstructionProgress(totalProgress, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
