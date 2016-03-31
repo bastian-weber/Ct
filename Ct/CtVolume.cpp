@@ -987,7 +987,7 @@ namespace ct {
 				}
 			}
 
-			size_t sliceCnt = getMaxChunkSize(fftFilter[0].getWorkSize());
+			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
 
 			if (sliceCnt < 1) {
@@ -1206,7 +1206,7 @@ namespace ct {
 		return scalingFactors;
 	}
 
-	size_t CtVolume::getMaxChunkSize(size_t fftSize) const {
+	size_t CtVolume::getMaxChunkSize() const {
 		if (this->sinogram.size() < 1) return 0;
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
