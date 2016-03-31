@@ -41,13 +41,13 @@ namespace ct {
 	CtVolume::FftFilter::FftFilter(FftFilter const& other) {
 		this->width = other.width;
 		this->height = other.height;
-		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, this->width, CUFFT_R2C, this->height));
-		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, this->width, CUFFT_C2R, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->forwardPlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->inversePlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, this->height));
 	}
 
 	CtVolume::FftFilter::FftFilter(int width, int height) : width(width), height(height) {
-		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->forwardPlan, width, CUFFT_R2C, height));
-		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlan1d(&this->inversePlan, width, CUFFT_C2R, height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->forwardPlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->inversePlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, this->height));
 	}
 
 	CtVolume::FftFilter::~FftFilter() {
