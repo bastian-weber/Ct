@@ -59,6 +59,13 @@ namespace ct {
 		return this->isGood;
 	}
 
+	size_t CtVolume::FftFilter::getWorkSize() const {
+		size_t forwardFftSize, inverseFftSize;
+		cufftGetSize(this->forwardPlan, &forwardFftSize);
+		cufftGetSize(this->inversePlan, &inverseFftSize);
+		return forwardFftSize + inverseFftSize;
+	}
+
 	void CtVolume::FftFilter::setStream(cudaStream_t stream, bool& success) {
 		success = true;
 		success = success && (CUFFT_SUCCESS == cufftSetStream(this->forwardPlan, stream));
@@ -980,7 +987,7 @@ namespace ct {
 				}
 			}
 
-			size_t sliceCnt = getMaxChunkSize();
+			size_t sliceCnt = getMaxChunkSize(fftFilter[0].getWorkSize());
 			size_t currentSlice = threadZMin;
 
 			if (sliceCnt < 1) {
@@ -1199,15 +1206,15 @@ namespace ct {
 		return scalingFactors;
 	}
 
-	size_t CtVolume::getMaxChunkSize() const {
+	size_t CtVolume::getMaxChunkSize(size_t fftSize) const {
 		if (this->sinogram.size() < 1) return 0;
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
 		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
 		//spare memory gpu mats, intermediate images and dft result
-		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 5 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
+		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 4 + this->imageWidth/2 + 1 * this->imageHeight * 4);
 		//estimate for memory consumed by fft
-		freeMemory -= sizeof(float)*this->imageWidth*this->imageHeight*17;
+		freeMemory -= fftSize * 2;
 		if (freeMemory < 0) return 0;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
