@@ -135,14 +135,14 @@ namespace ct {
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			status = cudaMalloc3D(&ptr, extent);
-			if (status != cudaSuccess && verbose) {
-				std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
+			if (status != cudaSuccess) {
+				if (verbose) std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
 			if (success) {
 				status = cudaMemset3D(ptr, 0, extent);
-				if (status != cudaSuccess && verbose) {
-					std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				if (status != cudaSuccess) {
+					if(verbose) std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
 					success = false;
 				}
 			}
