@@ -63,6 +63,7 @@ namespace ct {
 		hb::Timer timer;
 		hb::Timer predictionTimer;
 		bool predictionTimerSet;
+		double predictionTimerStartPercentage;
 		std::shared_ptr<QSettings> settings;
 
 		//interface widgets

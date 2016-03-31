@@ -198,8 +198,8 @@ namespace ct {
 		this->rightLayout->addSpacing(20);
 		this->rightLayout->addWidget(this->infoGroupBox);
 		this->rightLayout->addStretch(1);
-		this->rightLayout->addLayout(this->progressLayout);
 		this->rightLayout->addWidget(this->statusLabel);
+		this->rightLayout->addLayout(this->progressLayout);
 
 		this->imageView = new hb::ImageView(this);
 		this->imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
@@ -975,12 +975,17 @@ namespace ct {
 		if (percentage >= 1 && !this->predictionTimerSet) {
 			this->predictionTimer.reset();
 			this->predictionTimerSet = true;
+			this->predictionTimerStartPercentage = percentage;
 		}
 		if (percentage >= 3.0 && this->predictionTimerSet) {
-			double remaining = double(this->predictionTimer.getTime()) * ((100.0 - percentage) / (percentage - 1.0));
-			int mins = std::floor(remaining / 60.0);
-			int secs = std::floor(remaining - (mins * 60.0) + 0.5);
-			this->setStatus(tr("Backprojecting... (app. %1:%2 min left)").arg(mins).arg(secs, 2, 10, QChar('0')));
+			long double time = this->predictionTimer.getTime();
+			double remaining = time * ((100.0 - percentage) / (percentage - this->predictionTimerStartPercentage));
+			int leftMins = std::floor(remaining / 60.0);
+			int leftSecs = std::floor(remaining - (leftMins * 60.0) + 0.5);
+			double total = time + remaining;
+			int totalMins = std::floor(total / 60.0);
+			int totalSecs = std::floor(total - (totalMins * 60.0) + 0.5);
+			this->setStatus(tr("<p style=\"margin-bottom:2px\">Backprojecting... (app. %1:%2 min left)</p><p style=\"margin-top:0px\">Estimated total duration: %3:%4 min</p>").arg(leftMins).arg(leftSecs, 2, 10, QChar('0')).arg(totalMins).arg(totalSecs, 2, 10, QChar('0')));
 		}
 		if (crossSection.data) {
 			cv::Mat normalized;
