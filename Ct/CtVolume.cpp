@@ -59,10 +59,10 @@ namespace ct {
 		return this->isGood;
 	}
 
-	size_t CtVolume::FftFilter::getWorkSize() const {
+	size_t CtVolume::FftFilter::getWorkSizeEstimate(int width, int height) {
 		size_t forwardFftSize, inverseFftSize;
-		cufftGetSize(this->forwardPlan, &forwardFftSize);
-		cufftGetSize(this->inversePlan, &inverseFftSize);
+		cufftEstimateMany(1, &width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, height, &forwardFftSize);
+		cufftEstimateMany(1, &width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, height, &inverseFftSize);
 		return forwardFftSize + inverseFftSize;
 	}
 
