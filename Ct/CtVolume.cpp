@@ -989,6 +989,8 @@ namespace ct {
 
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
+			//slice count equivalent to 100mb memory usage
+			size_t decreaseSliceStep = (150 * 1024 * 1024) / (this->xMax*this->yMax*sizeof(float));
 
 			if (sliceCnt < 1) {
 				//too little memory
@@ -1000,15 +1002,34 @@ namespace ct {
 
 			while (currentSlice < threadZMax) {
 
-				size_t const lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+				size_t lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
 				size_t const xDimension = this->xMax;
 				size_t const yDimension = this->yMax;
-				size_t const zDimension = lastSlice - currentSlice;
+				size_t zDimension = lastSlice - currentSlice;
+
+				std::cout << std::endl;
+				//allocate volume part memory on gpu
+				cudaPitchedPtr gpuVolumePtr;
+				do {
+					std::cout << "Try allocating " << zDimension << " slices. ";
+					gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success, false);
+					if (!success) {
+						std::cout << "FAIL" << std::endl;
+						if (decreaseSliceStep < sliceCnt && decreaseSliceStep > 0) {
+							sliceCnt -= decreaseSliceStep;
+							lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+							zDimension = lastSlice - currentSlice;
+							//this resets sticky errors
+							cudaGetLastError();
+						} else {
+							break;
+						}
+					} else {
+						std::cout << "SUCCESS" << std::endl;
+					}
+				} while (!success);
 
 				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
-
-				//allocate volume part memory on gpu
-				cudaPitchedPtr gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success);
 
 				if (!success) {
 					this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";

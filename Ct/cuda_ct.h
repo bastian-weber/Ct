@@ -33,7 +33,8 @@ namespace ct {
 										  bool& success);
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize,				//allocates a 3d volume on the gpu and initialises it with 0
 										   size_t zSize, 
-										   bool& success);
+										   bool& success,
+										   bool verbose = true);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);			//deletes the 3d volume from the gpu memory
 		void download3dVolume(cudaPitchedPtr devicePtr,
 							  float* hostPtr,
