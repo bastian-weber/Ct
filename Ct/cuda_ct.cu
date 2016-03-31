@@ -129,20 +129,22 @@ namespace ct {
 			}
 		}
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
+		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success, bool verbose) {
 			success = true;
 			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			status = cudaMalloc3D(&ptr, extent);
-			if (status != cudaSuccess) {
+			if (status != cudaSuccess && verbose) {
 				std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
-			status = cudaMemset3D(ptr, 0, extent);
-			if (status != cudaSuccess) {
-				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
-				success = false;
+			if (success) {
+				status = cudaMemset3D(ptr, 0, extent);
+				if (status != cudaSuccess && verbose) {
+					std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+					success = false;
+				}
 			}
 			//if something went wrong try to deallocate memory
 			if (!success) cudaFree(ptr.ptr);
