@@ -272,7 +272,7 @@ namespace ct {
 						return false;
 					}
 					double percentage = std::round(double(i) / double(size) * 100);
-					if(this->emitSignals) emit(savingProgress(percentage));
+					if(this->emitSignals) emit(loadingProgress(percentage));
 				}
 				//load one U of data
 				in >> tmp;
@@ -347,7 +347,7 @@ namespace ct {
 								return false;
 							}
 							double percentage = std::round(double(i) / double(size) * 100);
-							if(this->emitSignals) emit(savingProgress(percentage));
+							if(this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
 						}
 						//save one T of data
 						out << (*volumePtr);
@@ -360,7 +360,7 @@ namespace ct {
 							return false;
 						}
 						double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-						if (this->emitSignals) emit(savingProgress(percentage));
+						if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
 						for (int y = 0; y < this->ySize(); ++y) {
 							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 								//save one T of data
