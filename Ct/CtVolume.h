@@ -134,6 +134,7 @@ namespace ct {
 			~FftFilter();
 			FftFilter& operator=(FftFilter const& other) = delete;
 			bool good();
+			size_t getWorkSize() const;
 			void setStream(cudaStream_t stream, bool& success);
 			void applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const;
 			void applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const;
@@ -190,7 +191,7 @@ namespace ct {
 									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
-		size_t getMaxChunkSize() const;											//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
+		size_t getMaxChunkSize(size_t fftSize) const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
