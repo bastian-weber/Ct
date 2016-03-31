@@ -191,7 +191,7 @@ namespace ct {
 									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
-		size_t getMaxChunkSize(size_t fftSize) const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
+		size_t getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
