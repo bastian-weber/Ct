@@ -647,7 +647,7 @@ namespace ct {
 
 	void CtVolume::initialise() {
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
-		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)), Qt::QueuedConnection);
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
 	}
@@ -949,7 +949,7 @@ namespace ct {
 			double imageUpperBoundV = this->matToImageV(0);
 			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
-			const size_t progressUpdateRate = std::max(this->sinogram.size() / 102 / this->getActiveCudaDevices().size(), static_cast<size_t>(1));
+			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
 			//image in RAM
 			cv::Mat image;
@@ -1011,10 +1011,9 @@ namespace ct {
 				//allocate volume part memory on gpu
 				cudaPitchedPtr gpuVolumePtr;
 				do {
-					std::cout << "Try allocating " << zDimension << " slices. ";
 					gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success, false);
 					if (!success) {
-						std::cout << "FAIL" << std::endl;
+						std::cout << "GPU" << deviceId << " tries allocating " << zDimension << " slices. FAIL" << std::endl;;
 						if (decreaseSliceStep < sliceCnt && decreaseSliceStep > 0) {
 							sliceCnt -= decreaseSliceStep;
 							lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
@@ -1025,9 +1024,9 @@ namespace ct {
 							break;
 						}
 					} else {
-						std::cout << "SUCCESS" << std::endl;
+						std::cout << "GPU" << deviceId << " tries allocating " << zDimension << " slices. SUCCESS" << std::endl;
 					}
-				} while (!success);
+				} while (!success && cudaGetLastError() == cudaSuccess);
 
 				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
