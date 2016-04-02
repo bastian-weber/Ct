@@ -117,7 +117,7 @@ namespace ct {
 
 	template<typename T>
 	void ViewerInterface::initialiseVolume() {
-		this->volume = std::shared_ptr<Volume<float>>(new Volume<T>());
+		this->volume = std::shared_ptr<Volume<T>>(new Volume<T>());
 		this->volume->setEmitSignals(true);
 		QObject::connect(this->volume.get(), SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
 		QObject::connect(this->volume.get(), SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
