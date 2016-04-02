@@ -451,7 +451,7 @@ namespace ct {
 					innerMax = &zUpperBound, outerMax = &xUpperBound;
 				}
 				if (this->mode == indexOrder) {
-					float* volumePtr = this->volume;
+					T* volumePtr = this->volume;
 					size_t size = this->xMax*this->yMax*this->zMax;
 					for (int i = 0; i < size; ++i, ++volumePtr) {
 						if (i % 100000 == 0) {
