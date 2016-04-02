@@ -61,8 +61,6 @@ namespace ct {
 		void toggleFullscreen();
 
 		Volume<float> volume;
-		float minValue = 1;
-		float maxValue = 1;
 		std::atomic<bool> volumeLoaded{ false };
 		std::atomic<bool> loadingActive{ false };
 		bool globalNormalisation = false;

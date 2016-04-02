@@ -192,10 +192,9 @@ namespace ct {
 					}
 					if (xCoordinate >= 0 && xCoordinate < this->volume.xSize() && yCoordinate >= 0 && yCoordinate < this->volume.ySize() && zCoordinate >= 0 && zCoordinate < this->volume.zSize()) {
 						float dataValue = this->volume.at(xCoordinate, yCoordinate, zCoordinate);
-						float span = this->maxValue - this->minValue;
-						float relativeDataValue = ((dataValue - this->minValue) / span) * 100.0;
+						float relativeDataValue = this->volume.atRelative(xCoordinate, yCoordinate, zCoordinate) * 100.0;
 						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
-						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->minValue))), std::ceil(std::log10(std::abs(this->maxValue))) });
+						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->volume.minFloat()))), std::ceil(std::log10(std::abs(this->volume.maxFloat()))) });
 						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5 %)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
 						canvas.drawText(QPoint(20, 15 + textHeight), valueText);
 					}
@@ -365,11 +364,11 @@ namespace ct {
 		if (this->globalNormalisation) {
 			double min, max;
 			cv::minMaxLoc(crossSection, &min, &max);
-			float span = this->maxValue - this->minValue;
+			float span = this->volume.maxFloat() - this->volume.minFloat();
 			float minGrey, maxGrey;
 			if (span != 0) {
-				minGrey = ((min - this->minValue) / span) * 255;
-				maxGrey = ((max - this->minValue) / span) * 255;
+				minGrey = ((min - this->volume.minFloat()) / span) * 255;
+				maxGrey = ((max - this->volume.minFloat()) / span) * 255;
 			} else {
 				minGrey = 0;
 				maxGrey = 255;
@@ -525,7 +524,7 @@ namespace ct {
 		}
 		this->volume.setMemoryLayout(indexOrder);
 		std::function<bool()> callLoadProcedure = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, &this->minValue, &this->maxValue); 
+			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder); 
 		};
 		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();
