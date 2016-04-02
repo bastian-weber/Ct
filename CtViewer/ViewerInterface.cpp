@@ -12,11 +12,8 @@ namespace ct {
 		this->openWithFilename = openWithFilename;
 		QObject::connect(this, SIGNAL(windowLoaded()), this, SLOT(loadOpenWithFile()), Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
 
-		this->volume.setEmitSignals(true);
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
 		qRegisterMetaType<cv::Mat>("cv::Mat");
-		QObject::connect(&this->volume, SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
-		QObject::connect(&this->volume, SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
 
 		this->progressDialog = new QProgressDialog(tr("Reading volume from disk into RAM..."), tr("Stop"), 0, 100, this, Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 		QObject::connect(this->progressDialog, SIGNAL(canceled()), this, SLOT(stop()));
@@ -151,8 +148,8 @@ namespace ct {
 
 			//draw slice number
 			{
-				int digits = std::ceil(std::log10(this->volume.getSizeAlongDimension(this->currentAxis)));
-				canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(this->getCurrentSliceOfCurrentAxis() + 1, digits, 10, QChar('0')).arg(this->volume.getSizeAlongDimension(this->currentAxis), digits, 10, QChar('0')));
+				int digits = std::ceil(std::log10(this->volume->getSizeAlongDimension(this->currentAxis)));
+				canvas.drawText(QPoint(20, canvas.device()->height() - 15), QString("Slice %L1/%L2").arg(this->getCurrentSliceOfCurrentAxis() + 1, digits, 10, QChar('0')).arg(this->volume->getSizeAlongDimension(this->currentAxis), digits, 10, QChar('0')));
 				//draw axis name
 				QString axisStr;
 				switch (this->currentAxis) {
@@ -180,22 +177,22 @@ namespace ct {
 					if (this->currentAxis == Axis::X) {
 						xCoordinate = this->getCurrentSliceOfCurrentAxis();
 						yCoordinate = imageCoord.x();
-						zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+						zCoordinate = this->volume->zSize() - 1 - imageCoord.y();
 					} else if (this->currentAxis == Axis::Y) {
-						xCoordinate = this->volume.xSize() - 1 - imageCoord.x();
+						xCoordinate = this->volume->xSize() - 1 - imageCoord.x();
 						yCoordinate = this->getCurrentSliceOfCurrentAxis();
-						zCoordinate = this->volume.zSize() - 1 - imageCoord.y();
+						zCoordinate = this->volume->zSize() - 1 - imageCoord.y();
 					} else {
 						xCoordinate = imageCoord.y();
 						yCoordinate = imageCoord.x();
 						zCoordinate = this->getCurrentSliceOfCurrentAxis();
 					}
-					if (xCoordinate >= 0 && xCoordinate < this->volume.xSize() && yCoordinate >= 0 && yCoordinate < this->volume.ySize() && zCoordinate >= 0 && zCoordinate < this->volume.zSize()) {
-						float dataValue = this->volume.at(xCoordinate, yCoordinate, zCoordinate);
-						float relativeDataValue = this->volume.atRelative(xCoordinate, yCoordinate, zCoordinate) * 100.0;
-						int digitsCoord = std::max({ std::ceil(std::log10(this->volume.xSize())), std::ceil(std::log10(this->volume.ySize())), std::ceil(std::log10(this->volume.zSize())) });
-						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->volume.minFloat()))), std::ceil(std::log10(std::abs(this->volume.maxFloat()))) });
-						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5 %)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue, 0, 'f', 2).arg(relativeDataValue, 3, 'f', 2);
+					if (xCoordinate >= 0 && xCoordinate < this->volume->xSize() && yCoordinate >= 0 && yCoordinate < this->volume->ySize() && zCoordinate >= 0 && zCoordinate < this->volume->zSize()) {
+						QString dataValue = this->getVolumeDataValue(xCoordinate, yCoordinate, zCoordinate);
+						float relativeDataValue = this->volume->atRelative(xCoordinate, yCoordinate, zCoordinate) * 100.0;
+						int digitsCoord = std::max({ std::ceil(std::log10(this->volume->xSize())), std::ceil(std::log10(this->volume->ySize())), std::ceil(std::log10(this->volume->zSize())) });
+						int digitsValue = std::max({ std::ceil(std::log10(std::abs(this->volume->minFloat()))), std::ceil(std::log10(std::abs(this->volume->maxFloat()))) });
+						QString valueText = QString::fromWCharArray(L"[%1 %2 %3] \u2192 %4 (%5 %)").arg(xCoordinate, digitsCoord, 10, QChar('0')).arg(yCoordinate, digitsCoord, 10, QChar('0')).arg(zCoordinate, digitsCoord, 10, QChar('0')).arg(dataValue).arg(relativeDataValue, 3, 'f', 2);
 						canvas.drawText(QPoint(20, 15 + textHeight), valueText);
 					}
 				}
@@ -290,13 +287,13 @@ namespace ct {
 				if (e->delta() > 0) {
 					signum = -1;
 				}
-				size_t value = (this->volume.getSizeAlongDimension(this->currentAxis) / 10);
+				size_t value = (this->volume->getSizeAlongDimension(this->currentAxis) / 10);
 				size_t currentSlice = this->getCurrentSliceOfCurrentAxis();
 				size_t nextSlice = this->getCurrentSliceOfCurrentAxis() + value*signum;
 				if (signum < 0 && value > currentSlice) {
 					nextSlice = 0;
 				}
-				if (nextSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume.getSizeAlongDimension(this->currentAxis) - 1;
+				if (nextSlice >= this->volume->getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume->getSizeAlongDimension(this->currentAxis) - 1;
 				this->setCurrentSliceOfCurrentAxis(nextSlice);
 				this->updateImage();
 				e->accept();
@@ -346,6 +343,13 @@ namespace ct {
 		}
 	}
 
+	QString ct::ViewerInterface::getVolumeDataValue(size_t x, size_t y, size_t z) const {
+		if (auto* ptr = dynamic_cast<Volume<float>*>(this->volume.get())) {
+			return QString("%1").arg(ptr->at(x, y, z), 0, 'f', 2);
+		}
+		return QString();
+	}
+
 	void ViewerInterface::interfaceInitialState() {
 		this->saveImageAction->setEnabled(false);
 		this->axisActionGroup->setEnabled(false);
@@ -359,16 +363,16 @@ namespace ct {
 	}
 
 	cv::Mat ViewerInterface::getNormalisedCrossSection() const {
-		cv::Mat crossSection = this->volume.getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis(), CoordinateSystemOrientation::LEFT_HANDED);
+		cv::Mat crossSection = this->volume->getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis(), CoordinateSystemOrientation::LEFT_HANDED);
 		cv::Mat normalized;
 		if (this->globalNormalisation) {
 			double min, max;
 			cv::minMaxLoc(crossSection, &min, &max);
-			float span = this->volume.maxFloat() - this->volume.minFloat();
+			float span = this->volume->maxFloat() - this->volume->minFloat();
 			float minGrey, maxGrey;
 			if (span != 0) {
-				minGrey = ((min - this->volume.minFloat()) / span) * 255;
-				maxGrey = ((max - this->volume.minFloat()) / span) * 255;
+				minGrey = ((min - this->volume->minFloat()) / span) * 255;
+				maxGrey = ((max - this->volume->minFloat()) / span) * 255;
 			} else {
 				minGrey = 0;
 				maxGrey = 255;
@@ -381,8 +385,8 @@ namespace ct {
 	}
 
 	void ViewerInterface::updateImage() {
-		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
-			this->setCurrentSliceOfCurrentAxis(volume.getSizeAlongDimension(this->currentAxis) / 2);
+		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume->getSizeAlongDimension(this->currentAxis)) {
+			this->setCurrentSliceOfCurrentAxis(volume->getSizeAlongDimension(this->currentAxis) / 2);
 		}
 		cv::Mat crossSection = this->getNormalisedCrossSection();
 		this->imageView->setImage(crossSection);
@@ -390,7 +394,7 @@ namespace ct {
 
 	void ViewerInterface::setNextSlice() {
 		size_t nextSlice = this->getCurrentSliceOfCurrentAxis() + 1;
-		if (nextSlice >= this->volume.getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume.getSizeAlongDimension(this->currentAxis) - 1;
+		if (nextSlice >= this->volume->getSizeAlongDimension(this->currentAxis)) nextSlice = this->volume->getSizeAlongDimension(this->currentAxis) - 1;
 		this->setCurrentSliceOfCurrentAxis(nextSlice);
 		this->updateImage();
 	}
@@ -522,9 +526,11 @@ namespace ct {
 			this->loadingActive = false;
 			return false;
 		}
-		this->volume.setMemoryLayout(indexOrder);
 		std::function<bool()> callLoadProcedure = [=]() { 
-			return this->volume.loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder); 
+			//if float
+			this->initialiseVolume<float>();
+			this->volume->setMemoryLayout(indexOrder);
+			return dynamic_cast<Volume<float>*>(this->volume.get())->loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
 		};
 		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();
@@ -535,9 +541,9 @@ namespace ct {
 	}
 
 	void ViewerInterface::reset() {
+		if (volumeLoaded) this->volume->clear();
 		this->volumeLoaded = false;
 		this->imageView->resetImage();
-		this->volume.clear();
 	}
 
 	void ViewerInterface::enterFullscreen() {
@@ -582,9 +588,9 @@ namespace ct {
 		this->taskbarProgress->reset();
 #endif
 		if (status.successful) {
-			this->currentSliceX = this->volume.getSizeAlongDimension(Axis::X) / 2;
-			this->currentSliceY = this->volume.getSizeAlongDimension(Axis::Y) / 2;
-			this->currentSliceZ = this->volume.getSizeAlongDimension(Axis::Z) / 2;
+			this->currentSliceX = this->volume->getSizeAlongDimension(Axis::X) / 2;
+			this->currentSliceY = this->volume->getSizeAlongDimension(Axis::Y) / 2;
+			this->currentSliceZ = this->volume->getSizeAlongDimension(Axis::Z) / 2;
 			this->volumeLoaded = true;
 			this->updateImage();
 			this->interfaceVolumeLoadedState();
@@ -598,7 +604,7 @@ namespace ct {
 	}
 
 	void ViewerInterface::stop() {
-		this->volume.stop();
+		this->volume->stop();
 	}
 
 	void ViewerInterface::showContextMenu(QPoint const& pos) {
@@ -652,7 +658,7 @@ namespace ct {
 	}
 
 	bool ViewerInterface::saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth) {
-		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume.getSizeAlongDimension(this->currentAxis)) {
+		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume->getSizeAlongDimension(this->currentAxis)) {
 			return false;
 		}
 		cv::Mat crossSection = this->getNormalisedCrossSection();

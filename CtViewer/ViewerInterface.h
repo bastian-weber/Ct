@@ -46,6 +46,9 @@ namespace ct {
 		void changeEvent(QEvent* e);
 		void mouseMoveEvent(QMouseEvent* e);
 	private:
+		template <typename T>
+		void initialiseVolume();
+		QString getVolumeDataValue(size_t x, size_t y, size_t z) const;
 		void interfaceInitialState();
 		void interfaceVolumeLoadedState();
 		cv::Mat getNormalisedCrossSection() const;
@@ -60,7 +63,7 @@ namespace ct {
 		void exitFullscreen();
 		void toggleFullscreen();
 
-		Volume<float> volume;
+		std::shared_ptr<AbstractVolume> volume;
 		std::atomic<bool> volumeLoaded{ false };
 		std::atomic<bool> loadingActive{ false };
 		bool globalNormalisation = false;
@@ -108,6 +111,17 @@ namespace ct {
 		void windowLoaded();
 		void progressUpdate(int progress) const;
 	};
+
+
+	//Template function implementation
+
+	template<typename T>
+	void ViewerInterface::initialiseVolume() {
+		this->volume = std::shared_ptr<Volume<float>>(new Volume<T>());
+		this->volume->setEmitSignals(true);
+		QObject::connect(this->volume.get(), SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
+		QObject::connect(this->volume.get(), SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
+	}
 
 }
 
