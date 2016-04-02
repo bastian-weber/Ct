@@ -51,6 +51,12 @@ namespace ct {
 		virtual size_t xSize() const = 0;
 		virtual size_t ySize() const = 0;
 		virtual size_t zSize() const = 0;
+		virtual size_t sliceCnt() const = 0;
+		virtual size_t sliceSize() const = 0;
+		virtual size_t rowSize() const = 0;
+		virtual double atRelative(size_t x, size_t y, size_t z) const = 0;
+		virtual float minFloat() const = 0;
+		virtual float maxFloat() const = 0;
 		//setters
 		virtual void setMemoryLayout(IndexOrder indexOrder) = 0;
 		virtual void setEmitSignals(bool value) = 0;
@@ -80,9 +86,7 @@ namespace ct {
 								size_t zSize,
 								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
-								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
-								T* minValue = nullptr,
-								T* maxValue = nullptr);
+								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian);
 		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
 							  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
@@ -97,19 +101,34 @@ namespace ct {
 		size_t xSize() const;
 		size_t ySize() const;
 		size_t zSize() const;
+		size_t sliceCnt() const;
+		size_t sliceSize() const;
+		size_t rowSize() const;
 		T& at(size_t x, size_t y, size_t z);
 		T const& at(size_t x, size_t y, size_t z) const;
+		double atRelative(size_t x, size_t y, size_t z) const;
+		T min() const;
+		T max() const;
+		float minFloat() const;
+		float maxFloat() const;
 		T* data();
 		T const* data() const;
 		T* slicePtr(size_t sliceIndex);
-		T* const* slicePtr(size_t sliceIndex) const;
+		T const* slicePtr(size_t sliceIndex) const;
 		T* rowPtr(size_t sliceIndex, size_t rowIndex);
-		T* const* rowPtr(size_t sliceIndex, size_t rowIndex) const;
+		T const* rowPtr(size_t sliceIndex, size_t rowIndex) const;
 		//setters
 		void setMemoryLayout(IndexOrder indexOrder);
 		void setEmitSignals(bool value);
 	private:
+		//functions
+		void calculateMinMax() const;
+
+		//variables
 		T* volume = nullptr;
+		mutable T minValue = 0;
+		mutable T maxValue = 0;
+		mutable bool minMaxCalculated = false;
 		size_t xMax = 0, yMax = 0, zMax = 0, slicePitchXFastest = 0, slicePitchZFastest = 0;
 		IndexOrder mode = IndexOrder::Z_FASTEST;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
@@ -150,6 +169,7 @@ namespace ct {
 			this->xMax = 0;
 			this->yMax = 0;
 			this->zMax = 0;
+			this->minMaxCalculated = false;
 		}
 	}
 
@@ -161,6 +181,34 @@ namespace ct {
 	template<typename T>
 	void Volume<T>::setEmitSignals(bool value) {
 		this->emitSignals = value;
+	}
+
+	template<typename T>
+	void Volume<T>::calculateMinMax() const {
+		T threadMin = std::numeric_limits<T>::max();
+		T threadMax = std::numeric_limits<T>::lowest();
+		T min = std::numeric_limits<T>::max();
+		T max = std::numeric_limits<T>::lowest();
+		T const* ptr;
+#pragma omp parallel private(ptr, threadMin, threadMax)
+		{
+#pragma omp for
+			for (int slice = 0; slice < this->sliceCnt(); ++slice) {
+				ptr = this->slicePtr(slice);
+				for (int i = 0; i < this->sliceSize(); ++i, ++ptr) {
+					if (*ptr < threadMin) threadMin = *ptr;
+					if (*ptr > threadMax) threadMax = *ptr;
+				}
+			}
+#pragma omp critical(sync)
+			{
+				if (threadMin < min) min = threadMin;
+				if (threadMax > max) max = threadMax;
+			}
+		}
+		this->minValue = min;
+		this->maxValue = max;
+		this->minMaxCalculated = true;
 	}
 
 	template<typename T>
@@ -184,6 +232,24 @@ namespace ct {
 	}
 
 	template<typename T>
+	inline size_t Volume<T>::sliceCnt() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->zSize();
+		return this->xSize();
+	}
+
+	template<typename T>
+	inline size_t Volume<T>::sliceSize() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->ySize() * this->xSize();
+		return this->ySize() * this->zSize();
+	}
+
+	template<typename T>
+	inline size_t Volume<T>::rowSize() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->xSize();
+		return this->zSize();
+	}
+
+	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
 		if (this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
@@ -195,6 +261,35 @@ namespace ct {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
 		if(this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
 		return this->volume[z * this->slicePitchXFastest + y*this->xMax + x];
+	}
+
+	template<typename T>
+	inline double Volume<T>::atRelative(size_t x, size_t y, size_t z) const {
+		double min = static_cast<double>(this->min());
+		double span = static_cast<double>(this->max()) - min;
+		return (static_cast<double>(this->at(x, y, z)) - min) / span;
+	}
+
+	template<typename T>
+	inline T Volume<T>::min() const {
+		if (!this->minMaxCalculated) this->calculateMinMax();
+		return this->minValue;
+	}
+
+	template<typename T>
+	inline T Volume<T>::max() const {
+		if (!this->minMaxCalculated) this->calculateMinMax();
+		return this->maxValue;
+	}
+
+	template<typename T>
+	inline float Volume<T>::minFloat() const {
+		return static_cast<float>(this->min());
+	}
+
+	template<typename T>
+	inline float Volume<T>::maxFloat() const {
+		return static_cast<float>(this->max());
 	}
 
 	template<typename T>
@@ -214,7 +309,7 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline T* const * Volume<T>::slicePtr(size_t outerIndex) const {
+	inline T const* Volume<T>::slicePtr(size_t outerIndex) const {
 		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest];
 		return &this->volume[outerIndex * this->slicePitchXFastest];
 	}
@@ -226,14 +321,14 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline T* const * Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) const {
+	inline T const* Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) const {
 		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest + innerIndex*this->zMax];
 		return &this->volume[outerIndex * this->slicePitchXFastest + innerIndex*this->xMax];
 	}
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -322,8 +417,9 @@ namespace ct {
 			}
 		}
 		file.close();
-		if (minValue != nullptr) *minValue = min;
-		if (maxValue != nullptr) *maxValue = max;
+		this->minValue = min;
+		this->maxValue = max;
+		this->minMaxCalculated = true;
 		if (this->emitSignals) emit(loadingFinished());
 		return true;
 	}
