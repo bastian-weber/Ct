@@ -36,6 +36,24 @@ namespace ct {
 		Q_OBJECT
 	public:
 		virtual ~AbstractVolume() = default;
+		virtual void clear() = 0;
+		virtual bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
+									  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
+									  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
+									  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const = 0;
+		virtual cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
+											  size_t index,
+											  CoordinateSystemOrientation type) const = 0;
+		virtual size_t getSizeAlongDimension(Axis axis) const = 0;						//returns the size along the axis axis
+		virtual void stop() = 0;														//stops the saving function
+		//getters
+		virtual bool getEmitSignals() const = 0;
+		virtual size_t xSize() const = 0;
+		virtual size_t ySize() const = 0;
+		virtual size_t zSize() const = 0;
+		//setters
+		virtual void setMemoryLayout(IndexOrder indexOrder) = 0;
+		virtual void setEmitSignals(bool value) = 0;
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
