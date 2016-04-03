@@ -389,8 +389,8 @@ namespace ct {
 				}
 				//load one U of data
 				in >> tmp;
-				if (out.status() != QDataStream::Ok) {
-					if (out.status() == QDataStream::ReadCorruptData) {
+				if (in.status() != QDataStream::Ok) {
+					if (in.status() == QDataStream::ReadCorruptData) {
 						std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
 						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
 						return false;
@@ -419,8 +419,8 @@ namespace ct {
 					for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 						//load one U of data
 						in >> tmp;
-						if (out.status() != QDataStream::Ok) {
-							if (out.status() == QDataStream::ReadCorruptData) {
+						if (in.status() != QDataStream::Ok) {
+							if (in.status() == QDataStream::ReadCorruptData) {
 								std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
 								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
 								return false;

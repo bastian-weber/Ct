@@ -990,7 +990,7 @@ namespace ct {
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
 			//slice count equivalent to 25mb memory usage
-			size_t decreaseSliceStep = std::max((25 * 1024 * 1024) / (this->xMax*this->yMax*sizeof(float)), static_cast<size_t>(1));
+			size_t decreaseSliceStep = std::max((50 * 1024 * 1024) / (this->xMax*this->yMax*sizeof(float)), static_cast<size_t>(1));
 
 			if (sliceCnt < 1) {
 				//too little memory
@@ -1205,7 +1205,7 @@ namespace ct {
 		for (int i = 0; i < devices.size(); ++i) {
 			multiprocessorCnt[devices[i]] = ct::cuda::getMultiprocessorCnt(devices[i]);
 			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
-			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i]);
+			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i])*ct::cuda::getMemoryClockRate(devices[i]);
 			totalBandWidth += bandwidth[devices[i]];
 			std::cout << "GPU" << devices[i] << std::endl;
 			cudaSetDevice(devices[i]);
