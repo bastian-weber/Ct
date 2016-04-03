@@ -17,16 +17,11 @@
 #endif
 
 #include "ImageView.h"
-#include "Timer.h"
+#include "Types.h"
 #include "Volume.h"
 #include "ImportSettingsDialog.h"
 
 namespace ct {
-
-	enum class ImageBitDepth {
-		CHANNEL_8_BIT,
-		CHANNEL_16_BIT
-	};
 
 	class ViewerInterface : public QWidget {
 		Q_OBJECT
@@ -71,7 +66,6 @@ namespace ct {
 		size_t currentSliceX = 0;
 		size_t currentSliceY = 0;
 		size_t currentSliceZ = 0;
-		hb::Timer timer;
 		std::shared_ptr<QSettings> settings;
 		std::future<bool> loadVolumeThread;
 		QString openWithFilename;

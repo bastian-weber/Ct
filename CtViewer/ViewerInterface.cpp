@@ -346,6 +346,8 @@ namespace ct {
 	QString ct::ViewerInterface::getVolumeDataValue(size_t x, size_t y, size_t z) const {
 		if (auto* ptr = dynamic_cast<Volume<float>*>(this->volume.get())) {
 			return QString("%1").arg(ptr->at(x, y, z), 0, 'f', 2);
+		} else if (auto* ptr = dynamic_cast<Volume<int16_t>*>(this->volume.get())) {
+			return QString("%1").arg(ptr->at(x, y, z));
 		}
 		return QString();
 	}
@@ -455,6 +457,7 @@ namespace ct {
 		size_t zSize = 0;
 		QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
 		IndexOrder indexOrder = IndexOrder::Z_FASTEST;
+		DataType dataType = DataType::FLOAT32;
 		bool byteOrderFound = false, indexOrderFound = false;
 		bool success;
 		if (QFile::exists(infoFileName)) {
@@ -516,6 +519,7 @@ namespace ct {
 				zSize = this->settingsDialog->getZSize();
 				indexOrder = this->settingsDialog->getIndexOrder();
 				byteOrder = this->settingsDialog->getByteOrder();
+				dataType = this->settingsDialog->getDataType();
 			} else {
 				this->loadingActive = false;
 				return false;
@@ -528,9 +532,16 @@ namespace ct {
 		}
 		std::function<bool()> callLoadProcedure = [=]() { 
 			//if float
-			this->initialiseVolume<float>();
-			this->volume->setMemoryLayout(indexOrder);
-			return dynamic_cast<Volume<float>*>(this->volume.get())->loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+			if (dataType == DataType::FLOAT32) {
+				this->initialiseVolume<float>();
+				this->volume->setMemoryLayout(indexOrder);
+				return dynamic_cast<Volume<float>*>(this->volume.get())->loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+			} else if(dataType == DataType::INT16) {
+				this->initialiseVolume<int16_t>();
+				this->volume->setMemoryLayout(indexOrder);
+				return dynamic_cast<Volume<int16_t>*>(this->volume.get())->loadFromBinaryFile<int16_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+			}
+			return false;
 		};
 		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();

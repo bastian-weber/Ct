@@ -28,7 +28,7 @@
 
 #include "Volume.h"
 #include "utility.h"
-#include "CompletionStatus.h"
+#include "types.h"
 #include "cuda_ct.h"
 
 //undefines some macros of VC++ that cause naming conflicts

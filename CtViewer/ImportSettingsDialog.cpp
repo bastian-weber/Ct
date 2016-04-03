@@ -44,6 +44,11 @@ namespace ct {
 		this->requiredSizeLabel = new QLabel("");
 		this->actualSizeLabel = new QLabel("");
 
+		this->dataTypeComboBox = new QComboBox(this);
+		this->dataTypeComboBox->insertItem(0, "32bit float");
+		this->dataTypeComboBox->insertItem(1, "16bit integer");
+		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
+
 		this->mainLayout = new QVBoxLayout(this);
 
 		this->formLayout = new QFormLayout();
@@ -55,6 +60,7 @@ namespace ct {
 		this->formLayout->addRow("", this->bigEndianRadioButton);
 		this->formLayout->addRow(tr("Index order:"), this->xFastestRadioButton);
 		this->formLayout->addRow("", this->zFastestRadioButton);
+		this->formLayout->addRow("Data type:", this->dataTypeComboBox);
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
@@ -103,6 +109,15 @@ namespace ct {
 		return QDataStream::BigEndian;
 	}
 
+	DataType ImportSettingsDialog::getDataType() const {
+		if (this->dataTypeComboBox->currentIndex() == 0) {
+			return DataType::FLOAT32;
+		} else if (this->dataTypeComboBox->currentIndex() == 1) {
+			return DataType::INT16;
+		}
+		return DataType::FLOAT32;
+	}
+
 	void ImportSettingsDialog::setXSize(size_t xSize) {
 		this->xSpinBox->setValue(static_cast<int>(xSize));
 	}
@@ -147,7 +162,13 @@ namespace ct {
 	//============================================================================ PRIVATE SLOTS =============================================================================\\
 
 	void ImportSettingsDialog::updateSize() {
-		size_t currentSize = size_t(4) * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value());
+		size_t voxelSize = sizeof(float);
+		if (this->getDataType() == DataType::FLOAT32) {
+			voxelSize = sizeof(float);
+		} else if (this->getDataType() == DataType::INT16) {
+			voxelSize = sizeof(int16_t);
+		}
+		size_t currentSize = voxelSize * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value());
 		this->actualSizeLabel->setText(QString::number(currentSize).append(" bytes"));
 		if (currentSize == this->requiredSize) {
 			this->actualSizeLabel->setStyleSheet("QLabel { }");
