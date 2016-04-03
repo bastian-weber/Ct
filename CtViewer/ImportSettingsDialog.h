@@ -11,8 +11,12 @@
 #include <QtWidgets/QtWidgets>
 
 #include "Volume.h"
+#include "Types.h"
 
 namespace ct {
+
+	//forward declaration
+	enum class DataType;
 
 	class ImportSettingsDialog : public QDialog {
 		Q_OBJECT
@@ -24,6 +28,7 @@ namespace ct {
 		size_t getZSize() const;
 		IndexOrder getIndexOrder() const;
 		QDataStream::ByteOrder getByteOrder() const;
+		DataType getDataType() const;
 		void setXSize(size_t xSize);
 		void setYSize(size_t ySize);
 		void setZSize(size_t zSize);
@@ -52,6 +57,7 @@ namespace ct {
 		QRadioButton* zFastestRadioButton;
 		QButtonGroup* byteOrderGroup;
 		QButtonGroup* indexOrderGroup;
+		QComboBox* dataTypeComboBox;
 		QLabel* actualSizeLabel;
 		QLabel* requiredSizeLabel;
 	private slots:

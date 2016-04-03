@@ -19,6 +19,16 @@ namespace ct {
 		QString errorMessage;
 	};
 
+	enum class ImageBitDepth {
+		CHANNEL_8_BIT,
+		CHANNEL_16_BIT
+	};
+
+	enum class DataType {
+		FLOAT32,
+		INT16
+	};
+
 }
 
 #endif
