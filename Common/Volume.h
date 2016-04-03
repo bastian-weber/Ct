@@ -389,6 +389,17 @@ namespace ct {
 				}
 				//load one U of data
 				in >> tmp;
+				if (out.status() != QDataStream::Ok) {
+					if (out.status() == QDataStream::ReadCorruptData) {
+						std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
+						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+						return false;
+					} else {
+						std::cout << "An error occured while writing from the disk." << std::endl;
+						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+						return false;
+					}
+				}
 				converted = static_cast<T>(tmp);
 				if (converted < min) min = converted;
 				if (converted > max) max = converted;
@@ -408,6 +419,17 @@ namespace ct {
 					for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 						//load one U of data
 						in >> tmp;
+						if (out.status() != QDataStream::Ok) {
+							if (out.status() == QDataStream::ReadCorruptData) {
+								std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
+								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+								return false;
+							} else {
+								std::cout << "An error occured while writing from the disk." << std::endl;
+								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+								return false;
+							}
+						}
 						converted = static_cast<T>(tmp);
 						if (converted < min) min = converted;
 						if (converted > max) max = converted;
@@ -465,6 +487,17 @@ namespace ct {
 						}
 						//save one T of data
 						out << (*volumePtr);
+						if (out.status() != QDataStream::Ok) {
+							if (out.status() == QDataStream::WriteFailed) {
+								std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+								return false;
+							} else {
+								std::cout << "An error occured while writing to the disk." << std::endl;
+								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+								return false;
+							}
+						}
 					}
 				} else {
 					for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
@@ -479,6 +512,17 @@ namespace ct {
 							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 								//save one T of data
 								out << this->at(x, y, z);
+								if (out.status() != QDataStream::Ok) {
+									if (out.status() == QDataStream::WriteFailed) {
+										std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+										if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+										return false;
+									} else {
+										std::cout << "An error occured while writing to the disk." << std::endl;
+										if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+										return false;
+									}
+								}
 							}
 						}
 					}
