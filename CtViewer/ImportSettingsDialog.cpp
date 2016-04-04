@@ -47,12 +47,12 @@ namespace ct {
 		this->dataTypeComboBox = new QComboBox(this);
 		this->dataTypeComboBox->insertItem(0, tr("32 bit float"));
 		this->dataTypeComboBox->insertItem(1, tr("64 bit double"));
-		this->dataTypeComboBox->insertItem(2, tr("8 bit signed integer"));
 		this->dataTypeComboBox->insertItem(3, tr("8 bit unsigned integer"));
-		this->dataTypeComboBox->insertItem(4, tr("16 bit signed integer"));
+		this->dataTypeComboBox->insertItem(2, tr("8 bit signed integer"));
 		this->dataTypeComboBox->insertItem(5, tr("16 bit unsigned integer"));
-		this->dataTypeComboBox->insertItem(6, tr("32 bit signed integer"));
+		this->dataTypeComboBox->insertItem(4, tr("16 bit signed integer"));
 		this->dataTypeComboBox->insertItem(7, tr("32 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(6, tr("32 bit signed integer"));
 		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
 
 		headerSpinBox = new QSpinBox;
@@ -129,37 +129,35 @@ namespace ct {
 	}
 
 	DataType ImportSettingsDialog::getDataType() const {
-		int index = this->dataTypeComboBox->currentIndex();
-		if (index == 0) {
-			return DataType::FLOAT32;
-		} else if (index == 1) {
-			return DataType::DOUBLE64;
-		} else if (index == 2) {
-			return DataType::INT8;
-		} else if (index == 3) {
-			return DataType::UINT8;
-		} else if (index == 4) {
-			return DataType::INT16;
-		} else if (index == 5) {
-			return DataType::UINT16;
-		} else if (index == 6) {
-			return DataType::INT32;
-		} else if (index == 7) {
-			return DataType::UINT32;
-		}
-		return DataType::FLOAT32;
+		return static_cast<DataType>(this->dataTypeComboBox->currentIndex());
 	}
 
-	void ImportSettingsDialog::setXSize(size_t xSize) {
-		this->xSpinBox->setValue(static_cast<int>(xSize));
+	size_t ImportSettingsDialog::getHeaderOffset() const {
+		return this->headerSpinBox->value();
 	}
 
-	void ImportSettingsDialog::setYSize(size_t ySize) {
-		this->ySpinBox->setValue(static_cast<int>(ySize));
+	bool ImportSettingsDialog::getMirrorX() const {
+		return this->mirrorXCheckbox->isChecked();
 	}
 
-	void ImportSettingsDialog::setZSize(size_t zSize) {
-		this->zSpinBox->setValue(static_cast<int>(zSize));
+	bool ImportSettingsDialog::getMirrorY() const {
+		return this->mirrorYCheckbox->isChecked();
+	}
+
+	bool ImportSettingsDialog::getMirrorZ() const {
+		return this->mirrorZCheckbox->isChecked();
+	}
+
+	void ImportSettingsDialog::setXSize(int xSize) {
+		this->xSpinBox->setValue(xSize);
+	}
+
+	void ImportSettingsDialog::setYSize(int ySize) {
+		this->ySpinBox->setValue(ySize);
+	}
+
+	void ImportSettingsDialog::setZSize(int zSize) {
+		this->zSpinBox->setValue(zSize);
 	}
 
 	void ImportSettingsDialog::setIndexOrder(IndexOrder indexOrder) {
@@ -176,6 +174,26 @@ namespace ct {
 		} else {
 			this->bigEndianRadioButton->setChecked(true);
 		}
+	}
+
+	void ImportSettingsDialog::setDataType(DataType dataType) {
+		this->dataTypeComboBox->setCurrentIndex(static_cast<int>(dataType));
+	}
+
+	void ImportSettingsDialog::setHeaderOffset(int size) {
+		this->headerSpinBox->setValue(size);
+	}
+
+	void ImportSettingsDialog::setMirrorX(bool value) {
+		this->mirrorXCheckbox->setChecked(value);
+	}
+
+	void ImportSettingsDialog::setMirrorY(bool value) {
+		this->mirrorYCheckbox->setChecked(value);
+	}
+
+	void ImportSettingsDialog::setMirrorZ(bool value) {
+		this->mirrorZCheckbox->setChecked(value);
 	}
 
 	void ImportSettingsDialog::showEvent(QShowEvent * e) {

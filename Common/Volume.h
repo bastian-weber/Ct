@@ -83,6 +83,7 @@ namespace ct {
 								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
+								size_t headerOffset = 0,
 								U shift = 0,
 								U scale = 1);
 		template <typename U>
@@ -329,7 +330,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, U shift, U scale) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, U shift, U scale) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -341,7 +342,7 @@ namespace ct {
 		} else {
 			voxelSize = sizeof(U);
 		}
-		size_t totalFileSize = xSize * ySize * zSize * voxelSize;
+		size_t totalFileSize = xSize * ySize * zSize * voxelSize + headerOffset;
 		size_t actualFileSize = QFileInfo(filename).size();
 		QFile file(filename);
 		if (!file.open(QIODevice::ReadOnly)) {
@@ -349,7 +350,7 @@ namespace ct {
 			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
 			return false;
 		}
-		if (actualFileSize != totalFileSize) {
+		if (actualFileSize < totalFileSize) {
 			QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
 			std::cout << message.toStdString() << std::endl;
 			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
@@ -359,6 +360,8 @@ namespace ct {
 		QDataStream in(&file);
 		in.setFloatingPointPrecision(floatingPointPrecision);
 		in.setByteOrder(byteOrder);
+		//skip header bytes
+		in.skipRawData(headerOffset);
 		//iterate through the volume
 		int x, z;
 		int xUpperBound = this->xSize(), zUpperBound = this->zSize();
