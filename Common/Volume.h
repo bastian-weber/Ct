@@ -37,10 +37,6 @@ namespace ct {
 	public:
 		virtual ~AbstractVolume() = default;
 		virtual void clear() = 0;
-		virtual bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
-									  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
-									  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
-									  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const = 0;
 		virtual cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
 											  size_t index,
 											  CoordinateSystemOrientation type) const = 0;
@@ -86,11 +82,16 @@ namespace ct {
 								size_t zSize,
 								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
-								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian);
+								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
+								U shift = 0,
+								U scale = 1);
+		template <typename U>
 		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
 							  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
-							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
+							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
+							  T shift = 0,
+							  T scale = 1) const;				
 		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
 									  size_t index, 
 									  CoordinateSystemOrientation type) const;			
@@ -328,7 +329,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, U shift, U scale) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -400,7 +401,7 @@ namespace ct {
 						return false;
 					}
 				}
-				converted = static_cast<T>(tmp);
+				converted = static_cast<T>((tmp + shift) * scale);
 				if (converted < min) min = converted;
 				if (converted > max) max = converted;
 				(*volumePtr) = converted;
@@ -430,7 +431,7 @@ namespace ct {
 								return false;
 							}
 						}
-						converted = static_cast<T>(tmp);
+						converted = static_cast<T>((tmp + shift) * scale);
 						if (converted < min) min = converted;
 						if (converted > max) max = converted;
 						this->at(x, y, z) = converted;
@@ -447,7 +448,8 @@ namespace ct {
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
+	template <typename U>
+	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T shift, T scale) const {
 		this->stopActiveProcess = false;
 		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
 			{
@@ -486,7 +488,7 @@ namespace ct {
 							if(this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
 						}
 						//save one T of data
-						out << (*volumePtr);
+						out << static_cast<U>(((*volumePtr) + shift) * scale);
 						if (out.status() != QDataStream::Ok) {
 							if (out.status() == QDataStream::WriteFailed) {
 								std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
@@ -511,7 +513,7 @@ namespace ct {
 						for (int y = 0; y < this->ySize(); ++y) {
 							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
 								//save one T of data
-								out << this->at(x, y, z);
+								out << static_cast<U>((this->at(x, y, z) + shift) * scale);
 								if (out.status() != QDataStream::Ok) {
 									if (out.status() == QDataStream::WriteFailed) {
 										std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;

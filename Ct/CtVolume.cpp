@@ -666,7 +666,7 @@ namespace ct {
 		}
 
 		//write binary file
-		this->volume.saveToBinaryFile(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
+		this->volume.saveToBinaryFile<float>(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
 
 	}
 
