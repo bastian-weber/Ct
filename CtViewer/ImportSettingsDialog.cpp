@@ -17,13 +17,13 @@ namespace ct {
 		this->cancelButton = new QPushButton(tr("&Cancel"), this);
 		QObject::connect(this->cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
 
-		this->xSpinBox = new QSpinBox;
+		this->xSpinBox = new QSpinBox(this);
 		this->xSpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->xSpinBox->setSingleStep(1);
-		this->ySpinBox = new QSpinBox;
+		this->ySpinBox = new QSpinBox(this);
 		this->ySpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->ySpinBox->setSingleStep(1);
-		this->zSpinBox = new QSpinBox;
+		this->zSpinBox = new QSpinBox(this);
 		this->zSpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->zSpinBox->setSingleStep(1);
 		QObject::connect(this->xSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
@@ -45,15 +45,24 @@ namespace ct {
 		this->actualSizeLabel = new QLabel("");
 
 		this->dataTypeComboBox = new QComboBox(this);
-		this->dataTypeComboBox->insertItem(0, "32bit float");
-		this->dataTypeComboBox->insertItem(1, "64bit double");
-		this->dataTypeComboBox->insertItem(2, "8bit signed integer");
-		this->dataTypeComboBox->insertItem(3, "8bit unsigned integer");
-		this->dataTypeComboBox->insertItem(4, "16bit signed integer");
-		this->dataTypeComboBox->insertItem(5, "16bit unsigned integer");
-		this->dataTypeComboBox->insertItem(6, "32bit signed integer");
-		this->dataTypeComboBox->insertItem(7, "32bit unsigned integer");
+		this->dataTypeComboBox->insertItem(0, tr("32 bit float"));
+		this->dataTypeComboBox->insertItem(1, tr("64 bit double"));
+		this->dataTypeComboBox->insertItem(2, tr("8 bit signed integer"));
+		this->dataTypeComboBox->insertItem(3, tr("8 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(4, tr("16 bit signed integer"));
+		this->dataTypeComboBox->insertItem(5, tr("16 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(6, tr("32 bit signed integer"));
+		this->dataTypeComboBox->insertItem(7, tr("32 bit unsigned integer"));
 		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
+
+		headerSpinBox = new QSpinBox;
+		this->headerSpinBox->setRange(0, std::numeric_limits<int>::max());
+		headerSpinBox->setSuffix(" bytes");
+		this->headerSpinBox->setSingleStep(1);
+		QObject::connect(this->headerSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
+		mirrorXCheckbox = new QCheckBox(tr("Mirror x-axis"), this);
+		mirrorYCheckbox = new QCheckBox(tr("Mirror y-axis"), this);
+		mirrorZCheckbox = new QCheckBox(tr("Mirror z-axis"), this);
 
 		this->mainLayout = new QVBoxLayout(this);
 
@@ -66,7 +75,11 @@ namespace ct {
 		this->formLayout->addRow("", this->bigEndianRadioButton);
 		this->formLayout->addRow(tr("Index order:"), this->xFastestRadioButton);
 		this->formLayout->addRow("", this->zFastestRadioButton);
-		this->formLayout->addRow("Data type:", this->dataTypeComboBox);
+		this->formLayout->addRow(tr("Data type:"), this->dataTypeComboBox);
+		this->formLayout->addRow(tr("Header offset:"), this->headerSpinBox);
+		this->formLayout->addRow(tr("Axes orientation:"), this->mirrorXCheckbox);
+		this->formLayout->addRow("", this->mirrorYCheckbox);
+		this->formLayout->addRow("", this->mirrorZCheckbox);
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
@@ -201,7 +214,7 @@ namespace ct {
 			voxelSize = sizeof(int32_t);
 		}
 
-		size_t currentSize = voxelSize * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value());
+		size_t currentSize = voxelSize * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value()) + this->headerSpinBox->value();
 		this->actualSizeLabel->setText(QString::number(currentSize).append(" bytes"));
 		if (currentSize == this->requiredSize) {
 			this->actualSizeLabel->setStyleSheet("QLabel { }");

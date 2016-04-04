@@ -58,6 +58,10 @@ namespace ct {
 		QButtonGroup* byteOrderGroup;
 		QButtonGroup* indexOrderGroup;
 		QComboBox* dataTypeComboBox;
+		QSpinBox* headerSpinBox;
+		QCheckBox* mirrorXCheckbox;
+		QCheckBox* mirrorYCheckbox;
+		QCheckBox* mirrorZCheckbox;
 		QLabel* actualSizeLabel;
 		QLabel* requiredSizeLabel;
 	private slots:
