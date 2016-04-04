@@ -589,44 +589,81 @@ namespace ct {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 
-		//write information file
 		QFileInfo fileInfo(filename);
-		QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
-		QFile file(infoFileName);
-		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-			std::cout << "Could not write the info file." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
-			return;
+		{
+			//write information file
+			QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
+			QFile file(infoFileName);
+			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+				std::cout << "Could not write the info file." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
+				return;
+			}
+			QTextStream out(&file);
+			out << fileInfo.fileName() << endl << endl;
+			out << "[Image dimensions]" << endl;
+			out << "U resolution:\t" << this->imageWidth << endl;
+			out << "V resolution:\t" << this->imageHeight << endl << endl;
+			out << "[Reconstruction parameters]" << endl;
+			out << "SD:\t\t\t\t" << this->SD << endl;
+			out << "Pixel size:\t\t" << this->pixelSize << endl;
+			out << "U offset:\t\t" << this->uOffset << endl;
+			out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+			out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+			out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+			out << "[Volume dimensions]" << endl;
+			out << "X size:\t\t\t" << this->xMax << endl;
+			out << "Y size:\t\t\t" << this->yMax << endl;
+			out << "Z size:\t\t\t" << this->zMax << endl << endl;
+			out << "[Data format]" << endl;
+			out << "Data type:\t\t32bit IEEE 754 float" << endl;
+			if (byteOrder == QDataStream::LittleEndian) {
+				out << "Byte order:\t\tLittle endian" << endl;
+			} else {
+				out << "Byte order:\t\tBig endian" << endl;
+			}
+			if (indexOrder == IndexOrder::Z_FASTEST) {
+				out << "Index order:\tZ fastest";
+			} else {
+				out << "Index order:\tX fastest";
+			}
+			file.close();
 		}
-		QTextStream out(&file);
-		out << fileInfo.fileName() << endl << endl;
-		out << "[Image dimensions]" << endl;
-		out << "U resolution:\t" << this->imageWidth << endl;
-		out << "V resolution:\t" << this->imageHeight << endl << endl;
-		out << "[Reconstruction parameters]" << endl;
-		out << "SD:\t\t\t\t" << this->SD << endl;
-		out << "Pixel size:\t\t" << this->pixelSize << endl;
-		out << "U offset:\t\t" << this->uOffset << endl;
-		out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-		out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-		out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
-		out << "[Volume dimensions]" << endl;
-		out << "X size:\t\t\t" << this->xMax << endl;
-		out << "Y size:\t\t\t" << this->yMax << endl;
-		out << "Z size:\t\t\t" << this->zMax << endl << endl;
-		out << "[Data format]" << endl;
-		out << "Data type:\t\t32bit IEEE 754 float" << endl;
-		if (byteOrder == QDataStream::LittleEndian) {
-			out << "Byte order:\t\tLittle endian" << endl;
-		} else {
-			out << "Byte order:\t\tBig endian" << endl;
+		{
+		//write vgi file
+			QString vgiFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".vgi"));
+			QFile file(vgiFileName);
+			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+				std::cout << "Could not write the info file." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the vgi file.")));
+				return;
+			}
+			QTextStream out(&file);
+			QString contents = "{volume1}\n"
+				"[representation]\n"
+				"size = %1 %2 %3\n"
+				"bitsperelement = 32\n"
+				"datatype = float\n"
+				"datarange = %4 %5\n"
+				"[file1]\n"
+				"FileFormat = raw\n"
+				"Size = %1 %2 %3\n"
+				"Name = ./%7\n"
+				"bitsperelement = 32\n"
+				"datatype = float\n"
+				"datarange = %4 %5\n"
+				"{volumeprimitive}\n"
+				"[geometry]\n"
+				"clipbox = 0 0 0 %1 %2 %3\n"
+				"status = visible\n"
+				"resolution = %6 %6 %6\n"
+				"unit = mm\n"
+				"[volume]\n"
+				"volume = volume1";
+			contents = contents.arg(this->xMax).arg(this->yMax).arg(this->zMax).arg(this->volume.min()).arg(this->volume.max()).arg(this->pixelSize).arg(fileInfo.fileName());
+			out << contents;
+			file.close();
 		}
-		if (indexOrder == IndexOrder::Z_FASTEST) {
-			out << "Index order:\tZ fastest";
-		} else {
-			out << "Index order:\tX fastest";
-		}
-		file.close();
 
 		//write binary file
 		this->volume.saveToBinaryFile(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
