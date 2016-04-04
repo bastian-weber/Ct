@@ -26,7 +26,13 @@ namespace ct {
 
 	enum class DataType {
 		FLOAT32,
-		INT16
+		DOUBLE64,
+		UINT8,
+		INT8,
+		UINT16,
+		INT16,
+		UINT32,
+		INT32
 	};
 
 }
