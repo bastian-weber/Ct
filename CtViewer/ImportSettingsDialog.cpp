@@ -46,7 +46,13 @@ namespace ct {
 
 		this->dataTypeComboBox = new QComboBox(this);
 		this->dataTypeComboBox->insertItem(0, "32bit float");
-		this->dataTypeComboBox->insertItem(1, "16bit integer");
+		this->dataTypeComboBox->insertItem(1, "64bit double");
+		this->dataTypeComboBox->insertItem(2, "8bit signed integer");
+		this->dataTypeComboBox->insertItem(3, "8bit unsigned integer");
+		this->dataTypeComboBox->insertItem(4, "16bit signed integer");
+		this->dataTypeComboBox->insertItem(5, "16bit unsigned integer");
+		this->dataTypeComboBox->insertItem(6, "32bit signed integer");
+		this->dataTypeComboBox->insertItem(7, "32bit unsigned integer");
 		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
 
 		this->mainLayout = new QVBoxLayout(this);
@@ -110,10 +116,23 @@ namespace ct {
 	}
 
 	DataType ImportSettingsDialog::getDataType() const {
-		if (this->dataTypeComboBox->currentIndex() == 0) {
+		int index = this->dataTypeComboBox->currentIndex();
+		if (index == 0) {
 			return DataType::FLOAT32;
-		} else if (this->dataTypeComboBox->currentIndex() == 1) {
+		} else if (index == 1) {
+			return DataType::DOUBLE64;
+		} else if (index == 2) {
+			return DataType::INT8;
+		} else if (index == 3) {
+			return DataType::UINT8;
+		} else if (index == 4) {
 			return DataType::INT16;
+		} else if (index == 5) {
+			return DataType::UINT16;
+		} else if (index == 6) {
+			return DataType::INT32;
+		} else if (index == 7) {
+			return DataType::UINT32;
 		}
 		return DataType::FLOAT32;
 	}
@@ -162,12 +181,26 @@ namespace ct {
 	//============================================================================ PRIVATE SLOTS =============================================================================\\
 
 	void ImportSettingsDialog::updateSize() {
-		size_t voxelSize = sizeof(float);
-		if (this->getDataType() == DataType::FLOAT32) {
-			voxelSize = sizeof(float);
-		} else if (this->getDataType() == DataType::INT16) {
+		size_t voxelSize = 4;
+		DataType type = this->getDataType();
+		if (type == DataType::FLOAT32) {
+			voxelSize = 4;
+		} else if (type == DataType::DOUBLE64) {
+			voxelSize = 8;
+		} else if (type == DataType::UINT8) {
+			voxelSize = sizeof(uint8_t);
+		} else if (type == DataType::INT8) {
+			voxelSize = sizeof(int8_t);
+		} else if (type == DataType::UINT16) {
+			voxelSize = sizeof(uint16_t);
+		} else if (type == DataType::INT16) {
 			voxelSize = sizeof(int16_t);
+		} else if (type == DataType::UINT32) {
+			voxelSize = sizeof(uint32_t);
+		} else if (type == DataType::INT32) {
+			voxelSize = sizeof(int32_t);
 		}
+
 		size_t currentSize = voxelSize * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value());
 		this->actualSizeLabel->setText(QString::number(currentSize).append(" bytes"));
 		if (currentSize == this->requiredSize) {
