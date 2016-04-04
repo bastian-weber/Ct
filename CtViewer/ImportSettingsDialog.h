@@ -29,11 +29,20 @@ namespace ct {
 		IndexOrder getIndexOrder() const;
 		QDataStream::ByteOrder getByteOrder() const;
 		DataType getDataType() const;
-		void setXSize(size_t xSize);
-		void setYSize(size_t ySize);
-		void setZSize(size_t zSize);
+		size_t getHeaderOffset() const;
+		bool getMirrorX() const;
+		bool getMirrorY() const;
+		bool getMirrorZ() const;
+		void setXSize(int xSize);
+		void setYSize(int ySize);
+		void setZSize(int zSize);
 		void setIndexOrder(IndexOrder indexOrder);
 		void setByteOrder(QDataStream::ByteOrder byteOrder);
+		void setDataType(DataType dataType);
+		void setHeaderOffset(int size);
+		void setMirrorX(bool value);
+		void setMirrorY(bool value);
+		void setMirrorZ(bool value);
 	protected:
 		void showEvent(QShowEvent* e);
 	private:

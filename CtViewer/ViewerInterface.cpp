@@ -470,6 +470,8 @@ namespace ct {
 		QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
 		IndexOrder indexOrder = IndexOrder::Z_FASTEST;
 		DataType dataType = DataType::FLOAT32;
+		size_t headerOffset = 0;
+		bool mirrorX = false, mirrorY = false, mirrorZ = false;
 		bool byteOrderFound = false, indexOrderFound = false;
 		bool success;
 		if (QFile::exists(infoFileName)) {
@@ -517,6 +519,11 @@ namespace ct {
 					if (zSize != 0) this->settingsDialog->setZSize(zSize);
 					if (indexOrderFound) this->settingsDialog->setIndexOrder(indexOrder);
 					if (byteOrderFound) this->settingsDialog->setByteOrder(byteOrder);
+					this->settingsDialog->setDataType(DataType::FLOAT32);
+					this->settingsDialog->setHeaderOffset(0);
+					this->settingsDialog->setMirrorX(false);
+					this->settingsDialog->setMirrorY(false);
+					this->settingsDialog->setMirrorZ(false);
 				}
 			} else {
 				informationFound = false;
@@ -532,6 +539,7 @@ namespace ct {
 				indexOrder = this->settingsDialog->getIndexOrder();
 				byteOrder = this->settingsDialog->getByteOrder();
 				dataType = this->settingsDialog->getDataType();
+				headerOffset = this->settingsDialog->getHeaderOffset();
 			} else {
 				this->loadingActive = false;
 				return false;
@@ -547,35 +555,35 @@ namespace ct {
 			if (dataType == DataType::FLOAT32) {
 				this->initialiseVolume<float>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<float>*>(this->volume.get())->loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<float>*>(this->volume.get())->loadFromBinaryFile<float>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::DOUBLE64) {
 				this->initialiseVolume<double>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<double>*>(this->volume.get())->loadFromBinaryFile<double>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<double>*>(this->volume.get())->loadFromBinaryFile<double>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::UINT8) {
 				this->initialiseVolume<uint8_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<uint8_t>*>(this->volume.get())->loadFromBinaryFile<uint8_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<uint8_t>*>(this->volume.get())->loadFromBinaryFile<uint8_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::INT8) {
 				this->initialiseVolume<int8_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<int8_t>*>(this->volume.get())->loadFromBinaryFile<int8_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<int8_t>*>(this->volume.get())->loadFromBinaryFile<int8_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if(dataType == DataType::UINT16) {
 				this->initialiseVolume<uint16_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<uint16_t>*>(this->volume.get())->loadFromBinaryFile<uint16_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<uint16_t>*>(this->volume.get())->loadFromBinaryFile<uint16_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::INT16) {
 				this->initialiseVolume<int16_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<int16_t>*>(this->volume.get())->loadFromBinaryFile<int16_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<int16_t>*>(this->volume.get())->loadFromBinaryFile<int16_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::UINT32) {
 				this->initialiseVolume<uint32_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<uint32_t>*>(this->volume.get())->loadFromBinaryFile<uint32_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<uint32_t>*>(this->volume.get())->loadFromBinaryFile<uint32_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			} else if (dataType == DataType::INT32) {
 				this->initialiseVolume<int32_t>();
 				this->volume->setMemoryLayout(indexOrder);
-				return dynamic_cast<Volume<int32_t>*>(this->volume.get())->loadFromBinaryFile<int32_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder);
+				return dynamic_cast<Volume<int32_t>*>(this->volume.get())->loadFromBinaryFile<int32_t>(filename, xSize, ySize, zSize, indexOrder, QDataStream::SinglePrecision, byteOrder, headerOffset);
 			}
 			return false;
 		};
