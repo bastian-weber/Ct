@@ -35,6 +35,8 @@ namespace ct {
 										   size_t zSize, 
 										   bool& success,
 										   bool verbose = true);
+		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize,		//sets the volume to 0
+					   size_t zSize, bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);			//deletes the 3d volume from the gpu memory
 		void download3dVolume(cudaPitchedPtr devicePtr,
 							  float* hostPtr,
