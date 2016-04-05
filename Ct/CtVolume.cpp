@@ -1037,6 +1037,33 @@ namespace ct {
 				return false;
 			}
 
+			sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
+
+			std::cout << std::endl;
+			//allocate volume part memory on gpu
+			cudaPitchedPtr gpuVolumePtr;
+			do {
+				gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(this->xMax, this->yMax, sliceCnt, success, false);
+				if (!success) {
+					std::cout << "GPU" << deviceId << " tries allocating " << sliceCnt << " slices. FAIL" << std::endl;;
+					if (decreaseSliceStep < sliceCnt && decreaseSliceStep > 0) {
+						sliceCnt -= decreaseSliceStep;
+						//this resets sticky errors
+						cudaGetLastError();
+					} else {
+						break;
+					}
+				} else {
+					std::cout << "GPU" << deviceId << " tries allocating " << sliceCnt << " slices. SUCCESS" << std::endl;
+				}
+			} while (!success && cudaGetLastError() == cudaSuccess);
+
+			if (!success) {
+				this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				stopCudaThreads = true;
+				return false;
+			}
+
 			while (currentSlice < threadZMax) {
 
 				size_t lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
@@ -1044,31 +1071,13 @@ namespace ct {
 				size_t const yDimension = this->yMax;
 				size_t zDimension = lastSlice - currentSlice;
 
-				std::cout << std::endl;
-				//allocate volume part memory on gpu
-				cudaPitchedPtr gpuVolumePtr;
-				do {
-					gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(xDimension, yDimension, zDimension, success, false);
-					if (!success) {
-						std::cout << "GPU" << deviceId << " tries allocating " << zDimension << " slices. FAIL" << std::endl;;
-						if (decreaseSliceStep < sliceCnt && decreaseSliceStep > 0) {
-							sliceCnt -= decreaseSliceStep;
-							lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
-							zDimension = lastSlice - currentSlice;
-							//this resets sticky errors
-							cudaGetLastError();
-						} else {
-							break;
-						}
-					} else {
-						std::cout << "GPU" << deviceId << " tries allocating " << zDimension << " slices. SUCCESS" << std::endl;
-					}
-				} while (!success && cudaGetLastError() == cudaSuccess);
-
 				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
+				ct::cuda::setToZero(gpuVolumePtr, this->xMax, this->yMax, sliceCnt, success);
+
 				if (!success) {
-					this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+					this->lastErrorMessage = "An error occured during initialisation of the volume in the VRAM.";
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 					stopCudaThreads = true;
 					return false;
 				}
@@ -1176,9 +1185,6 @@ namespace ct {
 					return false;
 				}
 
-				//free volume part memory on gpu
-				ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
-
 				if (!success) {
 					this->lastErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
 					stopCudaThreads = true;
@@ -1187,6 +1193,9 @@ namespace ct {
 
 				currentSlice += sliceCnt;
 			}
+
+			//free volume part memory on gpu
+			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
 
 			std::cout << std::endl;
 			std::cout << "GPU" << deviceId << " finished." << std::endl;

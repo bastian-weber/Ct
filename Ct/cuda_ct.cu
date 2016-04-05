@@ -139,16 +139,20 @@ namespace ct {
 				if (verbose) std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
-			if (success) {
-				status = cudaMemset3D(ptr, 0, extent);
-				if (status != cudaSuccess) {
-					if(verbose) std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
-					success = false;
-				}
-			}
 			//if something went wrong try to deallocate memory
 			if (!success) cudaFree(ptr.ptr);
 			return ptr;
+		}
+
+		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
+			success = true;
+			cudaError_t status;
+			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);		
+			status = cudaMemset3D(devicePtr, 0, extent);
+			if (status != cudaSuccess) {
+				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 		}
 
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success) {
