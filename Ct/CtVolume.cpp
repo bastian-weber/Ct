@@ -1229,6 +1229,9 @@ namespace ct {
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
 
+		//more L1 cache; we don't need shared memory
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+
 		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
