@@ -441,6 +441,14 @@ namespace ct {
 		return this->gpuSpareMemory;
 	}
 
+	double CtVolume::getMultiprocessorCoefficient() const {
+		return this->multiprocessorCoefficient;
+	}
+
+	double CtVolume::getMemoryBandwidthCoefficient() const {
+		return this->memoryBandwidthCoefficient;
+	}
+
 	size_t CtVolume::getRequiredMemoryUpperBound() const {
 		//size of volume
 		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
@@ -488,6 +496,11 @@ namespace ct {
 
 	void CtVolume::setGpuSpareMemory(size_t amount) {
 		this->gpuSpareMemory = amount;
+	}
+
+	void CtVolume::setGpuCoefficients(double multiprocessorCoefficient, double memoryBandwidthCoefficient) {
+		this->multiprocessorCoefficient = multiprocessorCoefficient;
+		this->memoryBandwidthCoefficient = memoryBandwidthCoefficient;
 	}
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
@@ -1263,7 +1276,7 @@ namespace ct {
 		for (int i = 0; i < devices.size(); ++i) {
 			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
 			double busWidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
-			scalingFactors[devices[i]] = multiprocessorScalingFactor*busWidthScalingFactor;
+			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->getMultiprocessorCoefficient)*std::pow(busWidthScalingFactor, this->memoryBandwidthCoefficient);
 			scalingFactorSum += scalingFactors[devices[i]];
 		}
 		for (int i = 0; i < devices.size(); ++i) {
