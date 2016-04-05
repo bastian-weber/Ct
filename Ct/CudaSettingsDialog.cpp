@@ -39,7 +39,7 @@ namespace ct {
 
 		this->memorySpinBox = new QSpinBox(this);
 		this->memorySpinBox->setMinimum(0);
-		this->memorySpinBox->setMaximum(50000);
+		this->memorySpinBox->setMaximum(100000);
 		this->memorySpinBox->setSuffix(tr("Mb"));
 		this->memorySpinBox->setSingleStep(1);
 		this->memoryLayout = new QVBoxLayout;
@@ -47,9 +47,26 @@ namespace ct {
 		this->memoryGroupBox = new QGroupBox(tr("Amount of GPU memory to spare"), this);
 		this->memoryGroupBox->setLayout(this->memoryLayout);
 
+		this->memoryCoefficientSpinBox = new QDoubleSpinBox(this);
+		this->memoryCoefficientSpinBox->setValue(1);
+		this->memoryCoefficientSpinBox->setSingleStep(0.1);
+		this->memoryCoefficientSpinBox->setDecimals(3);
+		this->memoryCoefficientSpinBox->setRange(-100000, 100000);
+		this->multiprocessorSpinBox = new QDoubleSpinBox(this);
+		this->multiprocessorSpinBox->setValue(1);
+		this->multiprocessorSpinBox->setSingleStep(0.1);
+		this->multiprocessorSpinBox->setDecimals(3);
+		this->multiprocessorSpinBox->setRange(-100000, 100000);
+		this->coefficientsLayout = new QFormLayout;
+		this->coefficientsLayout->addRow(tr("Multiprocessor coefficient:"), this->multiprocessorSpinBox);
+		this->coefficientsLayout->addRow(tr("Memory bandwidth coefficient:"), this->memoryCoefficientSpinBox);
+		this->coefficientsGroupBox = new QGroupBox(tr("Multi-GPU coefficients"), this);
+		this->coefficientsGroupBox->setLayout(this->coefficientsLayout);
+
 		this->mainLayout = new QVBoxLayout;
 		this->mainLayout->addWidget(devicesGroupBox);
 		this->mainLayout->addWidget(memoryGroupBox);
+		this->mainLayout->addWidget(coefficientsGroupBox);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
@@ -77,6 +94,14 @@ namespace ct {
 		return this->memorySpinBox->value();
 	}
 
+	double CudaSettingsDialog::getMemoryBandwidthCoefficient() const {
+		return this->memoryCoefficientSpinBox->value();
+	}
+
+	double CudaSettingsDialog::getMultiprocessorCoefficient() const {
+		return this->multiprocessorSpinBox->value();
+	}
+
 	void CudaSettingsDialog::showEvent(QShowEvent * e) {
 		this->setDefaultValues();
 	}
@@ -90,6 +115,8 @@ namespace ct {
 		}
 
 		this->memorySpinBox->setValue(this->settings->value("gpuSpareMemory", 0).toLongLong());
+		this->multiprocessorSpinBox->setValue(this->settings->value("gpuMultiprocessorCoefficient", 1).toDouble());
+		this->memoryCoefficientSpinBox->setValue(this->settings->value("gpuMemoryBandwidthCoefficient", 1).toDouble());
 	}
 
 	void CudaSettingsDialog::reactToCheckboxToggle() {
@@ -119,6 +146,8 @@ namespace ct {
 		}
 		settings->setValue("activeCudaDevices", deviceIds);
 		settings->setValue("gpuSpareMemory", this->memorySpinBox->value());
+		settings->setValue("gpuMultiprocessorCoefficient", this->multiprocessorSpinBox->value());
+		settings->setValue("gpuMemoryBandwidthCoefficient", this->memoryCoefficientSpinBox->value());
 		emit(dialogConfirmed());
 		this->close();
 	}

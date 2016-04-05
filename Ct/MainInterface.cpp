@@ -661,6 +661,7 @@ namespace ct {
 		this->volume.setUseCuda(this->cudaCheckBox->isChecked());
 		if(this->cudaCheckBox->isChecked()) this->volume.setActiveCudaDevices(this->cudaSettingsDialog->getActiveCudaDevices());
 		this->volume.setGpuSpareMemory(this->cudaSettingsDialog->getSpareMemoryAmount());
+		this->volume.setGpuCoefficients(this->cudaSettingsDialog->getMultiprocessorCoefficient(), this->cudaSettingsDialog->getMemoryBandwidthCoefficient());
 	}
 
 	void MainInterface::reactToTextChange(QString text) {
