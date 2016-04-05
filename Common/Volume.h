@@ -84,6 +84,9 @@ namespace ct {
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
 								size_t headerOffset = 0,
+								bool mirrorX = false,
+								bool mirrorY = false,
+								bool mirrorZ = false,
 								U shift = 0,
 								U scale = 1);
 		template <typename U>
@@ -330,7 +333,7 @@ namespace ct {
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, U shift, U scale) {
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, bool mirrorX, bool mirrorY, bool mirrorZ, U shift, U scale) {
 		this->stopActiveProcess = false;
 		size_t voxelSize = 0;
 		if (std::is_floating_point<U>::value) {
@@ -377,7 +380,7 @@ namespace ct {
 		T max = std::numeric_limits<T>::lowest();
 		U tmp;
 		T converted;
-		if (this->mode == indexOrder) {
+		if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
 			T* volumePtr = this->volume;
 			size_t size = this->xMax*this->yMax*this->zMax;
 			for (int i = 0; i < size; ++i, ++volumePtr) {
@@ -437,7 +440,7 @@ namespace ct {
 						converted = static_cast<T>((tmp + shift) * scale);
 						if (converted < min) min = converted;
 						if (converted > max) max = converted;
-						this->at(x, y, z) = converted;
+						this->at(mirrorX ? this->xSize() - x - 1 : x, mirrorY ? this->ySize() - y - 1 : y, mirrorZ ? this->zSize() - z - 1 : z) = converted;
 					}
 				}
 			}
