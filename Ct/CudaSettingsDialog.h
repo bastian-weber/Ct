@@ -18,6 +18,8 @@ namespace ct {
 		CudaSettingsDialog(std::shared_ptr<QSettings> settings, std::vector<std::string> const& devices, QWidget* parent = 0);
 		std::vector<int> getActiveCudaDevices() const;
 		int getSpareMemoryAmount() const;
+		double getMemoryBandwidthCoefficient() const;
+		double getMultiprocessorCoefficient() const;
 	protected:
 		void showEvent(QShowEvent* e);
 	private:
@@ -30,10 +32,14 @@ namespace ct {
 		QVBoxLayout* mainLayout;
 		QVBoxLayout* devicesLayout;
 		QVBoxLayout* memoryLayout;
+		QFormLayout* coefficientsLayout;
 		QPushButton* okButton;
 		QGroupBox* devicesGroupBox;
 		QGroupBox* memoryGroupBox;
+		QGroupBox* coefficientsGroupBox;
 		QSpinBox* memorySpinBox;
+		QDoubleSpinBox* memoryCoefficientSpinBox;
+		QDoubleSpinBox* multiprocessorSpinBox;
 		std::vector<QCheckBox*> checkboxes;
 		QHBoxLayout* buttonLayout;
 		QPushButton* cancelButton;
