@@ -87,6 +87,8 @@ namespace ct {
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
+		double getMultiprocessorCoefficient() const;
+		double getMemoryBandwidthCoefficient() const;
 		size_t getRequiredMemoryUpperBound() const;
 
 		//setters
@@ -102,6 +104,8 @@ namespace ct {
 		void setUseCuda(bool value);
 		void setActiveCudaDevices(std::vector<int> devices);
 		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
+		void setGpuCoefficients(double multiprocessorCoefficient,
+								double memoryBandwidthCoefficient);
 		void setFrequencyFilterType(FilterType filterType);
 
 		//control functions
@@ -226,6 +230,7 @@ namespace ct {
 		bool useCuda = true;												//enables or disables the use of cuda
 		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
 		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
+		double multiprocessorCoefficient = 1, memoryBandwidthCoefficient = 1;//conrols the weighting of multiprocessor count and memory speed amongst multiple gpus
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
 		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
 		double yFrom_float = 0, yTo_float = 1;
