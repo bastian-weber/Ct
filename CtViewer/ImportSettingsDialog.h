@@ -47,6 +47,7 @@ namespace ct {
 		void showEvent(QShowEvent* e);
 	private:
 		//functions
+		void setDefaultValues();
 
 		//variables
 		std::shared_ptr<QSettings> settings;
@@ -75,6 +76,7 @@ namespace ct {
 		QLabel* requiredSizeLabel;
 	private slots:
 		void updateSize();
+		void saveSettings();
 	};
 }
 #endif
