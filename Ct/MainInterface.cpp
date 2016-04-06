@@ -146,9 +146,9 @@ namespace ct {
 		this->buttonGroupBox = new QGroupBox(tr("Commands"), this);
 		this->buttonGroupBox->setLayout(this->buttonLayout);
 
-		this->runAllButton = new QPushButton(tr("R&un All Steps and Save"), this);
+		this->runAllButton = new QPushButton(tr("Run &All Steps"), this);
 		QObject::connect(this->runAllButton, SIGNAL(clicked()), this, SLOT(executeRunAll()));
-		this->cmdButton = new QPushButton(tr("Save Current Settings as &Batch File"), this);
+		this->cmdButton = new QPushButton(tr("Create &Batch File"), this);
 		QObject::connect(this->cmdButton, SIGNAL(clicked()), this, SLOT(createBatchFile()));
 		this->advancedLayout = new QVBoxLayout;
 		this->advancedLayout->addWidget(this->runAllButton);
@@ -178,7 +178,7 @@ namespace ct {
 		this->progressLayout->addWidget(this->stopButton, 0);
 
 		this->leftLayout = new QVBoxLayout;
-		this->leftLayout->addStrut(250);
+		this->leftLayout->addStrut(200);
 		this->leftLayout->addWidget(this->loadGroupBox);
 		this->leftLayout->addSpacing(20);
 		this->leftLayout->addWidget(this->filterGroupBox);
@@ -191,7 +191,7 @@ namespace ct {
 		this->leftLayout->addStretch(1);
 
 		this->rightLayout = new QVBoxLayout;
-		this->rightLayout->addStrut(250);
+		this->rightLayout->addStrut(200);
 		this->rightLayout->addWidget(this->buttonGroupBox);
 		this->rightLayout->addSpacing(20);
 		this->rightLayout->addWidget(this->advancedGroupBox);
@@ -212,7 +212,7 @@ namespace ct {
 		setLayout(this->subLayout);
 
 		this->startupState();
-		this->inputFileEdit->setText(this->settings->value("last_path", "").toString());
+		this->inputFileEdit->setText(this->settings->value("lastPath", "").toString());
 		if(volume.cudaAvailable()) this->cudaCheckBox->setChecked(this->settings->value("useCuda", true).toBool());
 		QSize lastSize = this->settings->value("size", QSize(-1, -1)).toSize();
 		QPoint lastPos = this->settings->value("pos", QPoint(-1, -1)).toPoint();
@@ -670,7 +670,7 @@ namespace ct {
 		if (text != "" && fileInfo.exists() && mime.mimeTypeForFile(fileInfo).inherits("text/plain")) {
 			this->fileSelectedState();
 			this->inputFileEdit->setPalette(QPalette());
-			this->settings->setValue("last_path", text);
+			this->settings->setValue("lastPath", text);
 		} else {
 			this->startupState();
 			this->inputFileEdit->setFocus();
