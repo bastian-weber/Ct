@@ -1279,7 +1279,7 @@ namespace ct {
 		for (int i = 0; i < devices.size(); ++i) {
 			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
 			double busWidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
-			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient);
+			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient)*std::pow(busWidthScalingFactor, this->memoryBandwidthCoefficient);
 			scalingFactorSum += scalingFactors[devices[i]];
 		}
 		for (int i = 0; i < devices.size(); ++i) {
