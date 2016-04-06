@@ -14,6 +14,7 @@ namespace ct {
 		this->okButton = new QPushButton(tr("&Ok"), this);
 		this->okButton->setDefault(true);
 		QObject::connect(this->okButton, SIGNAL(clicked()), this, SLOT(accept()));
+		QObject::connect(this, SIGNAL(accepted()), this, SLOT(saveSettings()));
 		this->cancelButton = new QPushButton(tr("&Cancel"), this);
 		QObject::connect(this->cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
 
@@ -47,12 +48,12 @@ namespace ct {
 		this->dataTypeComboBox = new QComboBox(this);
 		this->dataTypeComboBox->insertItem(0, tr("32 bit float"));
 		this->dataTypeComboBox->insertItem(1, tr("64 bit double"));
-		this->dataTypeComboBox->insertItem(3, tr("8 bit unsigned integer"));
-		this->dataTypeComboBox->insertItem(2, tr("8 bit signed integer"));
-		this->dataTypeComboBox->insertItem(5, tr("16 bit unsigned integer"));
-		this->dataTypeComboBox->insertItem(4, tr("16 bit signed integer"));
-		this->dataTypeComboBox->insertItem(7, tr("32 bit unsigned integer"));
-		this->dataTypeComboBox->insertItem(6, tr("32 bit signed integer"));
+		this->dataTypeComboBox->insertItem(2, tr("8 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(3, tr("8 bit signed integer"));
+		this->dataTypeComboBox->insertItem(4, tr("16 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(5, tr("16 bit signed integer"));
+		this->dataTypeComboBox->insertItem(6, tr("32 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(7, tr("32 bit signed integer"));
 		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
 
 		headerSpinBox = new QSpinBox;
@@ -94,6 +95,8 @@ namespace ct {
 
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+
+		this->setDefaultValues();
 	}
 
 	int ImportSettingsDialog::execForFilesize(size_t requiredSize) {
@@ -201,6 +204,50 @@ namespace ct {
 			move(this->parentWidget()->window()->frameGeometry().topLeft() + this->parentWidget()->window()->rect().center() - this->rect().center());
 		}
 		this->updateSize();
+	}
+
+	void ImportSettingsDialog::setDefaultValues() {
+		this->settings->beginGroup("Import");
+		this->xSpinBox->setValue(this->settings->value("xSize", 1).toInt());
+		this->ySpinBox->setValue(this->settings->value("ySize", 1).toInt());
+		this->zSpinBox->setValue(this->settings->value("zSize", 1).toInt());
+		if (this->settings->value("byteOrder", "littleEndian").toString() == "littleEndian") {
+			this->littleEndianRadioButton->setChecked(true);
+		} else {
+			this->bigEndianRadioButton->setChecked(true);
+		}
+		if (this->settings->value("indexOrder", "xFastest").toString() == "xFastest") {
+			this->xFastestRadioButton->setChecked(true);
+		} else {
+			this->zFastestRadioButton->setChecked(true);
+		}
+		this->dataTypeComboBox->setCurrentIndex(this->settings->value("dataType", 0).toInt());
+		if (this->settings->value("mirrorX", true).toBool()) this->mirrorXCheckbox->setChecked(true);
+		if (this->settings->value("mirrorY", true).toBool()) this->mirrorYCheckbox->setChecked(true);
+		if (this->settings->value("mirrorZ", true).toBool()) this->mirrorZCheckbox->setChecked(true);
+		this->settings->endGroup();
+	}
+
+	void ImportSettingsDialog::saveSettings() {
+		this->settings->beginGroup("Import");
+		this->settings->setValue("xSize", this->xSpinBox->value());
+		this->settings->setValue("ySize", this->ySpinBox->value());
+		this->settings->setValue("zSize", this->zSpinBox->value());
+		if (this->littleEndianRadioButton->isChecked()) {
+			this->settings->setValue("byteOrder", "littleEndian");
+		} else {
+			this->settings->setValue("byteOrder", "bigEndian");
+		}
+		if (this->xFastestRadioButton->isChecked()) {
+			this->settings->setValue("indexOrder", "xFastest");
+		} else {
+			this->settings->setValue("indexOrder", "zFastest");
+		}
+		this->settings->setValue("dataType", this->dataTypeComboBox->currentIndex());
+		this->settings->setValue("mirrorX", this->mirrorXCheckbox->isChecked());
+		this->settings->setValue("mirrorY", this->mirrorYCheckbox->isChecked());
+		this->settings->setValue("mirrorZ", this->mirrorZCheckbox->isChecked());
+		this->settings->endGroup();
 	}
 	
 	//============================================================================== PROTECTED ==============================================================================\\
