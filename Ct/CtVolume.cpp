@@ -1269,21 +1269,23 @@ namespace ct {
 			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
 			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i])*ct::cuda::getMemoryClockRate(devices[i]);
 			totalBandWidth += bandwidth[devices[i]];
-			std::cout << "GPU" << devices[i] << std::endl;
-			cudaSetDevice(devices[i]);
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
 		}
 		std::map<int, double> scalingFactors;
 		double scalingFactorSum = 0;
 		for (int i = 0; i < devices.size(); ++i) {
 			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
-			double busWidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
-			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient)*std::pow(busWidthScalingFactor, this->memoryBandwidthCoefficient);
+			double bandwidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
+			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient)*std::pow(bandwidthScalingFactor, this->memoryBandwidthCoefficient);
 			scalingFactorSum += scalingFactors[devices[i]];
 		}
 		for (int i = 0; i < devices.size(); ++i) {
 			scalingFactors[devices[i]] /= scalingFactorSum;
+			std::cout << "GPU" << devices[i] << std::endl;
+			cudaSetDevice(devices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024.0 / 1024.0 / 1025.0 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
+			std::cout << "\tPeak memory bandwidth: " << (double(bandwidth[devices[i]]) * 2.0) / 8000000.0 << " Gb/s" << std::endl;
+			std::cout << "\tGPU weight: " << scalingFactors[devices[i]] << std::endl;
 		}
 		return scalingFactors;
 	}
