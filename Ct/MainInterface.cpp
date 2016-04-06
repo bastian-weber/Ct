@@ -795,10 +795,14 @@ namespace ct {
 #ifdef Q_OS_WIN
 		this->taskbarProgress->show();
 #endif
-		this->timer.reset();
+		if (this->volume.getCrossSectionAxis() == Axis::Z && this->cudaCheckBox->isChecked()) {
+			this->volume.setCrossSectionAxis(Axis::X);
+			this->setSlice(this->volume.getCrossSectionIndex());
+		}
 		this->predictionTimerSet = false;
 		this->reconstructionActive = true;
 		this->setVolumeSettings();
+		this->timer.reset();
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
 
