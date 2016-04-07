@@ -422,6 +422,10 @@ namespace ct {
 		return this->useCuda;
 	}
 
+	size_t CtVolume::getSkipProjections() const {
+		return this->projectionStep - 1;
+	}
+
 	std::vector<int> CtVolume::getActiveCudaDevices() const {
 		return this->activeCudaDevices;
 	}
@@ -505,6 +509,10 @@ namespace ct {
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
 		this->filterType = filterType;
+	}
+
+	void CtVolume::setSkipProjections(size_t value) {
+		this->projectionStep = value + 1;
 	}
 
 	void CtVolume::reconstructVolume() {
@@ -888,7 +896,7 @@ namespace ct {
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
 
-		for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+		for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
 			if (this->stopActiveProcess) {
 				return false;
 			}
@@ -906,8 +914,8 @@ namespace ct {
 			} else {
 				image = future.get();
 			}
-			if (projection + 1 != this->sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1);
+			if (projection + this->projectionStep < this->sinogram.size()) {
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + this->projectionStep);
 			}
 			//check if the image is good
 			if (!image.data) {
@@ -1095,7 +1103,7 @@ namespace ct {
 					return false;
 				}
 
-				for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+				for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
 
 					//if user interrupts
 					if (this->stopActiveProcess) {
