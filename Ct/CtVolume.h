@@ -84,6 +84,7 @@ namespace ct {
 		Axis getCrossSectionAxis() const;
 		bool getEmitSignals() const;
 		bool getUseCuda() const;
+		size_t getSkipProjections() const;
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
@@ -107,6 +108,7 @@ namespace ct {
 		void setGpuCoefficients(double multiprocessorCoefficient,
 								double memoryBandwidthCoefficient);
 		void setFrequencyFilterType(FilterType filterType);
+		void setSkipProjections(size_t value = 0);
 
 		//control functions
 		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
@@ -224,6 +226,7 @@ namespace ct {
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
+		size_t projectionStep = 1;											//controls how many projections are skipped during reconstruction
 		bool emitSignals = true;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
