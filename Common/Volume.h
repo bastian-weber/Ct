@@ -195,7 +195,7 @@ namespace ct {
 		T min = std::numeric_limits<T>::max();
 		T max = std::numeric_limits<T>::lowest();
 		T const* ptr;
-#pragma omp parallel private(ptr, threadMin, threadMax)
+#pragma omp parallel private(ptr) firstprivate(threadMin, threadMax)
 		{
 #pragma omp for
 			for (int slice = 0; slice < this->sliceCnt(); ++slice) {
@@ -277,12 +277,14 @@ namespace ct {
 
 	template<typename T>
 	inline T Volume<T>::min() const {
+		if (this->xSize() == 0) return 0;
 		if (!this->minMaxCalculated) this->calculateMinMax();
 		return this->minValue;
 	}
 
 	template<typename T>
 	inline T Volume<T>::max() const {
+		if (this->xSize() == 0) return 0;
 		if (!this->minMaxCalculated) this->calculateMinMax();
 		return this->maxValue;
 	}
