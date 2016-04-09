@@ -69,6 +69,7 @@ namespace ct {
 		std::shared_ptr<QSettings> settings;
 		std::future<bool> loadVolumeThread;
 		QString openWithFilename;
+		QString const title = "Ct Viewer";
 
 		//interface widgets
 		QHBoxLayout* mainLayout;
