@@ -590,11 +590,12 @@ namespace ct {
 			}
 			return false;
 		};
-		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
 		this->progressDialog->reset();
 #ifdef Q_OS_WIN
 		this->taskbarProgress->show();
 #endif
+		this->loadVolumeThread = std::async(std::launch::async, callLoadProcedure);
+		this->setWindowTitle(QString(this->title).append(" :: %1").arg(fileInfo.fileName()));
 		return true;
 	}
 
@@ -654,6 +655,7 @@ namespace ct {
 			this->interfaceVolumeLoadedState();
 		} else {
 			this->reset();
+			this->setWindowTitle(this->title);
 			if (!status.userInterrupted) {
 				QMessageBox::critical(this, tr("Error"), status.errorMessage, QMessageBox::Close);
 			}
