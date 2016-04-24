@@ -60,7 +60,8 @@ namespace ct {
 		}
 
 		__device__ float hannWindowFilter(float n, float Nreciprocal) {
-			return ramLakWindowFilter(n, Nreciprocal) * 0.5f*(1.0f + __cosf((2.0f * CUDART_PI_F * float(n)) * (Nreciprocal * 0.5f)));
+			float rl = ramLakWindowFilter(n, Nreciprocal);
+			return rl * 0.5f*(1.0f + __cosf(CUDART_PI_F * rl));
 		}
 
 		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
