@@ -842,7 +842,8 @@ namespace ct {
 	}
 
 	double CtVolume::hannWindowFilter(double n, double N) {
-		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
+		double rl = ramLakWindowFilter(n, N);
+		return rl * 0.5*(1 + cos(M_PI * rl));
 	}
 
 	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& imageOut, cv::cuda::GpuMat& dftTmp, FftFilter& fftFilter, bool& success, cv::cuda::Stream& stream) const {
