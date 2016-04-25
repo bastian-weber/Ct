@@ -11,7 +11,7 @@
 #include <QtWidgets/QtWidgets>
 
 #include "Volume.h"
-#include "Types.h"
+#include "types.h"
 
 namespace ct {
 

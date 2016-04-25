@@ -17,7 +17,7 @@
 #endif
 
 #include "ImageView.h"
-#include "Types.h"
+#include "types.h"
 #include "Volume.h"
 #include "ImportSettingsDialog.h"
 
