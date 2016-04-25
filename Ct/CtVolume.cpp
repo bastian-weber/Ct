@@ -1049,7 +1049,7 @@ namespace ct {
 			size_t sliceCnt = getMaxChunkSize();
 			size_t currentSlice = threadZMin;
 			//slice count equivalent to 150mb memory usage
-			size_t decreaseSliceStep = static_cast<size_t>(std::max(std::ceil(static_cast<long double>(150 * 1024 * 1024) / static_cast<long double>(this->xMax*this->yMax*sizeof(float))), long double(1.0)));
+			size_t decreaseSliceStep = static_cast<size_t>(std::max(std::ceil(150.0L * 1024.0L * 1024.0L / static_cast<long double>(this->xMax*this->yMax*sizeof(float))), 1.0L));
 
 			if (sliceCnt < 1) {
 				//too little memory
