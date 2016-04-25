@@ -11,7 +11,7 @@
 //Qt
 #include <QtCore/QtCore>
 
-#include "Types.h"
+#include "types.h"
 
 namespace ct {
 
