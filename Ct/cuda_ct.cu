@@ -245,7 +245,7 @@ namespace ct {
 					float v = ((z + heightOffset)*SD) / (SD - s);
 
 					//check if it's inside the image (before the coordinate transformation)
-					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
+					if (u >= imageLowerBoundU && u < imageUpperBoundU && v >= imageLowerBoundV && v < imageUpperBoundV) {
 
 						u += imageToMatUPrecomputed;
 						v = -v + imageToMatVPrecomputed;
