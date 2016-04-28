@@ -253,16 +253,11 @@ namespace ct {
 		std::string lastErrorMessage;										//if an error in one of the threads occurs, it will be saved here
 
 		//variables for precomputed parts of coordinate transformations
-		double worldToVolumeXPrecomputed;
-		double worldToVolumeYPrecomputed;
-		double worldToVolumeZPrecomputed;
-		double volumeToWorldXPrecomputed;
-		double volumeToWorldYPrecomputed;
-		double volumeToWorldZPrecomputed;
-		double imageToMatUPrecomputed;
-		double imageToMatVPrecomputed;
-		double matToImageUPreprocessed;
-		double matToImageVPreprocessed;
+		double xPrecomputed;
+		double yPrecomputed;
+		double zPrecomputed;
+		double uPrecomputed;
+		double vPrecomputed;
 	private slots:
 		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:

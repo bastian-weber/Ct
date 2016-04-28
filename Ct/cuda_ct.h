@@ -27,8 +27,8 @@ namespace ct {
 									 bool& success);
 		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image,			//applies the feldkamp weighting to an image
 										  float SD, 
-										  float matToImageUPreprocessed, 
-										  float matToImageVPreprocessed, 
+										  float uPrecomputed, 
+										  float vPrecomputed, 
 										  cudaStream_t stream, 
 										  bool& success);
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize,				//allocates a 3d volume on the gpu and initialises it with 0
@@ -60,11 +60,11 @@ namespace ct {
 								 float imageUpperBoundU,
 								 float imageLowerBoundV,
 								 float imageUpperBoundV,
-								 float volumeToWorldXPrecomputed,
-								 float volumeToWorldYPrecomputed,
-								 float volumeToWorldZPrecomputed,
-								 float imageToMatUPrecomputed,
-								 float imageToMatVPrecomputed,
+								 float xPrecomputed,
+								 float yPrecomputed,
+								 float zPrecomputed,
+								 float uPrecomputed,
+								 float vPrecomputed,
 								 cudaStream_t stream,
 								 bool& success);
 	

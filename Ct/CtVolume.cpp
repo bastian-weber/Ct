@@ -875,7 +875,7 @@ namespace ct {
 		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
 		success = success && successLocal;
 		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cudaStream, successLocal);
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
 		success = success && successLocal;
 	}
 
@@ -1172,11 +1172,11 @@ namespace ct {
 												  imageUpperBoundU,
 												  imageLowerBoundV,
 												  imageUpperBoundV,
-												  this->volumeToWorldXPrecomputed,
-												  this->volumeToWorldYPrecomputed,
-												  this->volumeToWorldZPrecomputed,
-												  this->imageToMatUPrecomputed,
-												  this->imageToMatVPrecomputed,
+												  this->xPrecomputed,
+												  this->yPrecomputed,
+												  this->zPrecomputed,
+												  this->uPrecomputed,
+												  this->vPrecomputed,
 												  cv::cuda::StreamAccessor::getStream(stream[current]),
 												  success);
 
@@ -1327,58 +1327,53 @@ namespace ct {
 			this->crossSectionIndex = this->zMax / 2;
 		}
 		//precompute some values for faster processing
-		this->worldToVolumeXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
-		this->worldToVolumeYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
-		this->worldToVolumeZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
-		this->volumeToWorldXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
-		this->volumeToWorldYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
-		this->volumeToWorldZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
-		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
-		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
-		this->matToImageUPreprocessed = double(this->imageWidth) / 2.0;
-		this->matToImageVPreprocessed = double(this->imageHeight / 2.0);
+		this->xPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
+		this->yPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
+		this->zPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
+		this->uPrecomputed = double(this->imageWidth) / 2.0;
+		this->vPrecomputed = double(this->imageHeight) / 2.0;
 	}
 
 	inline double CtVolume::worldToVolumeX(double xCoord) const {
-		return xCoord + this->worldToVolumeXPrecomputed;
+		return xCoord + this->xPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeY(double yCoord) const {
-		return yCoord + this->worldToVolumeYPrecomputed;
+		return yCoord + this->yPrecomputed;
 	}
 
 	inline double CtVolume::worldToVolumeZ(double zCoord) const {
-		return zCoord + this->worldToVolumeZPrecomputed;
+		return zCoord + this->zPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldX(double xCoord) const {
-		return xCoord - this->volumeToWorldXPrecomputed;
+		return xCoord - this->xPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - this->volumeToWorldYPrecomputed;
+		return yCoord - this->yPrecomputed;
 	}
 
 	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - this->volumeToWorldZPrecomputed;
+		return zCoord - this->zPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatU(double uCoord)const {
-		return uCoord + this->imageToMatUPrecomputed;
+		return uCoord + this->uPrecomputed;
 	}
 
 	inline double CtVolume::imageToMatV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*vCoord + this->imageToMatVPrecomputed;
+		return (-1)*vCoord + this->vPrecomputed;
 	}
 
 	inline double CtVolume::matToImageU(double uCoord)const {
-		return uCoord - this->matToImageUPreprocessed;
+		return uCoord - this->uPrecomputed;
 	}
 
 	inline double CtVolume::matToImageV(double vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*vCoord + this->matToImageVPreprocessed;
+		return (-1)*vCoord + this->vPrecomputed;
 	}
 
 	//============================================== PRIVATE SLOTS ==============================================\\
