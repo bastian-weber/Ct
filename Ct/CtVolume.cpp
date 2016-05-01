@@ -881,9 +881,9 @@ namespace ct {
 
 	bool CtVolume::reconstructionCore() {
 		double imageLowerBoundU = this->matToImageU(0);
-		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1);
+		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1);
+		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 		double imageUpperBoundV = this->matToImageV(0);
 
 		double volumeLowerBoundY = this->volumeToWorldY(0);
@@ -946,7 +946,7 @@ namespace ct {
 						double v = ((z + heightOffset)*SD) / (SD - s);
 
 						//check if it's inside the image (before the coordinate transformation)
-						if (u >= imageLowerBoundU && u < imageUpperBoundU && v >= imageLowerBoundV && v < imageUpperBoundV) {
+						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
@@ -996,9 +996,9 @@ namespace ct {
 
 			//precomputing some values
 			double imageLowerBoundU = this->matToImageU(0);
-			double imageUpperBoundU = this->matToImageU(this->imageWidth - 1);
+			double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
 			//inversed because of inversed v axis in mat/image coordinate system
-			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1);
+			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 			double imageUpperBoundV = this->matToImageV(0);
 			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
