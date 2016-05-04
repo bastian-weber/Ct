@@ -75,7 +75,6 @@ namespace ct {
 		size_t getYSize() const;
 		size_t getZSize() const;
 		double getUOffset() const;
-		double getVOffset() const;
 		double getPixelSize() const;
 		double getSO() const;
 		double getSD() const;
@@ -223,7 +222,7 @@ namespace ct {
 		double SD = 0;														//the distance of the source to the detector in pixel
 		double SO = 0;														//the distance of the source to the object in pixel
 		double pixelSize = 0;
-		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+		double uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used

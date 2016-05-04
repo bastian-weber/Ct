@@ -160,8 +160,6 @@ namespace ct {
 			rotationDirection = in.readLine().section('\t', 0, 0).toStdString();
 			this->uOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->vOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
-			totalSuccess = totalSuccess && success;
 			this->SO = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
 			this->SD = in.readLine().section('\t', 0, 0).toDouble(&success);
@@ -171,9 +169,8 @@ namespace ct {
 			//convert the distance
 			this->SD /= this->pixelSize;
 			this->SO /= this->pixelSize;
-			//convert uOffset and vOffset
+			//convert uOffset
 			this->uOffset /= this->pixelSize;
-			this->vOffset /= this->pixelSize;
 			if (!totalSuccess) {
 				std::cout << "Could not read the parameters from the CSV file successfully." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not read the parameters from the CSV file successfully.")));
@@ -357,10 +354,6 @@ namespace ct {
 
 	double CtVolume::getUOffset() const {
 		return this->uOffset;
-	}
-
-	double CtVolume::getVOffset() const {
-		return this->vOffset;
 	}
 
 	double CtVolume::getPixelSize() const {
