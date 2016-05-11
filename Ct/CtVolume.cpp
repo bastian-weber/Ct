@@ -1228,7 +1228,7 @@ namespace ct {
 		//more L1 cache; we don't need shared memory
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
-		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
+		this->cudaGpuWeights = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
 		this->cudaThreadProgress.clear();
@@ -1241,7 +1241,7 @@ namespace ct {
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			size_t sliceCnt = std::round(scalingFactors[this->activeCudaDevices[i]] * double(zMax));
+			size_t sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
 			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
@@ -1375,9 +1375,8 @@ namespace ct {
 		this->cudaThreadProgress[deviceId] = percentage;
 		double totalProgress = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]];
+			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]] * this->cudaGpuWeights[this->activeCudaDevices[i]];
 		}
-		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
 		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
 		if (this->emitSignals) {

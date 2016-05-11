@@ -246,7 +246,7 @@ namespace ct {
 		size_t zFrom = 0, zTo = 0;
 		size_t xMax = 0, yMax = 0, zMax = 0;								//the width, height and depth of the volume ROI that is going to be reconstructed
 		mutable std::pair<float, float> minMaxValues;						//stores the brightest and darkes value in all of the sinogram images (for normalisation)
-		std::map<int, double> cudaThreadProgress;							//for keeping track of the progress on multithread CUDA execution
+		std::map<int, double> cudaThreadProgress, cudaGpuWeights;			//for keeping track of the progress on multithread CUDA execution
 		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently
 		mutable std::atomic<bool> stopCudaThreads{ false };					//this will be set to true if all cuda threads shall be stopped
 		std::string lastErrorMessage;										//if an error in one of the threads occurs, it will be saved here
