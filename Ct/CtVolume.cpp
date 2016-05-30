@@ -1224,7 +1224,7 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-		cudaProfilerStart();
+
 		//more L1 cache; we don't need shared memory
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
@@ -1250,7 +1250,6 @@ namespace ct {
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
 		}
-		cudaProfilerStop();
 		return result;
 	}
 
