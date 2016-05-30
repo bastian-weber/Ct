@@ -25,7 +25,6 @@
 //CUDA
 #include <cuda_runtime.h>
 #include <cufft.h>
-#include <cuda_profiler_api.h>
 
 #include "Volume.h"
 #include "utility.h"
