@@ -336,218 +336,232 @@ namespace ct {
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, bool mirrorX, bool mirrorY, bool mirrorZ, U shift, U scale) {
-		this->stopActiveProcess = false;
-		size_t voxelSize = 0;
-		if (std::is_floating_point<U>::value) {
-			if (floatingPointPrecision == QDataStream::SinglePrecision) {
-				voxelSize = 4; //32 bit
+		try {
+			this->stopActiveProcess = false;
+			size_t voxelSize = 0;
+			if (std::is_floating_point<U>::value) {
+				if (floatingPointPrecision == QDataStream::SinglePrecision) {
+					voxelSize = 4; //32 bit
+				} else {
+					voxelSize = 8; //64 bit
+				}
 			} else {
-				voxelSize = 8; //64 bit
+				voxelSize = sizeof(U);
 			}
-		} else {
-			voxelSize = sizeof(U);
-		}
-		size_t totalFileSize = xSize * ySize * zSize * voxelSize + headerOffset;
-		size_t actualFileSize = QFileInfo(filename).size();
-		QFile file(filename);
-		if (!file.open(QIODevice::ReadOnly)) {
-			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
-			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
-			return false;
-		}
-		if (actualFileSize < totalFileSize) {
-			QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
-			std::cout << message.toStdString() << std::endl;
-			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
-			return false;
-		}
-		this->reinitialise(xSize, ySize, zSize);
-		QDataStream in(&file);
-		in.setFloatingPointPrecision(floatingPointPrecision);
-		in.setByteOrder(byteOrder);
-		//skip header bytes
-		in.skipRawData(headerOffset);
-		//iterate through the volume
-		int x, z;
-		int xUpperBound = this->xSize(), zUpperBound = this->zSize();
-		int* innerIndex, *innerMax, *outerIndex, *outerMax;
-		if (indexOrder == IndexOrder::X_FASTEST) {
-			innerIndex = &x, outerIndex = &z;
-			innerMax = &xUpperBound, outerMax = &zUpperBound;
-		} else {
-			innerIndex = &z, outerIndex = &x;
-			innerMax = &zUpperBound, outerMax = &xUpperBound;
-		}
-		T min = std::numeric_limits<T>::max();
-		T max = std::numeric_limits<T>::lowest();
-		U tmp;
-		T converted;
-		if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
-			T* volumePtr = this->volume;
-			size_t size = this->xMax*this->yMax*this->zMax;
-			for (int i = 0; i < size; ++i, ++volumePtr) {
-				if (i % 100000 == 0) {
+			size_t totalFileSize = xSize * ySize * zSize * voxelSize + headerOffset;
+			size_t actualFileSize = QFileInfo(filename).size();
+			QFile file(filename);
+			if (!file.open(QIODevice::ReadOnly)) {
+				std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
+				return false;
+			}
+			if (actualFileSize < totalFileSize) {
+				QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
+				std::cout << message.toStdString() << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
+				return false;
+			}
+			this->reinitialise(xSize, ySize, zSize);
+			QDataStream in(&file);
+			in.setFloatingPointPrecision(floatingPointPrecision);
+			in.setByteOrder(byteOrder);
+			//skip header bytes
+			in.skipRawData(headerOffset);
+			//iterate through the volume
+			int x, z;
+			int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+			int* innerIndex, *innerMax, *outerIndex, *outerMax;
+			if (indexOrder == IndexOrder::X_FASTEST) {
+				innerIndex = &x, outerIndex = &z;
+				innerMax = &xUpperBound, outerMax = &zUpperBound;
+			} else {
+				innerIndex = &z, outerIndex = &x;
+				innerMax = &zUpperBound, outerMax = &xUpperBound;
+			}
+			T min = std::numeric_limits<T>::max();
+			T max = std::numeric_limits<T>::lowest();
+			U tmp;
+			T converted;
+			if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
+				T* volumePtr = this->volume;
+				size_t size = this->xMax*this->yMax*this->zMax;
+				for (int i = 0; i < size; ++i, ++volumePtr) {
+					if (i % 100000 == 0) {
+						if (this->stopActiveProcess) {
+							this->clear();
+							std::cout << "User interrupted. Stopping." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+							return false;
+						}
+						double percentage = std::round(double(i) / double(size) * 100);
+						if (this->emitSignals) emit(loadingProgress(percentage));
+					}
+					//load one U of data
+					in >> tmp;
+					if (in.status() != QDataStream::Ok) {
+						if (in.status() == QDataStream::ReadCorruptData) {
+							std::cout << "An error occured while reading from the disk. The data seems to be corrupted." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+							return false;
+						} else {
+							std::cout << "An error occured while reading from the disk." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+							return false;
+						}
+					}
+					converted = static_cast<T>((tmp + shift) * scale);
+					if (converted < min) min = converted;
+					if (converted > max) max = converted;
+					(*volumePtr) = converted;
+				}
+			} else {
+				for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 					if (this->stopActiveProcess) {
 						this->clear();
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 						return false;
 					}
-					double percentage = std::round(double(i) / double(size) * 100);
-					if(this->emitSignals) emit(loadingProgress(percentage));
-				}
-				//load one U of data
-				in >> tmp;
-				if (in.status() != QDataStream::Ok) {
-					if (in.status() == QDataStream::ReadCorruptData) {
-						std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
-						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
-						return false;
-					} else {
-						std::cout << "An error occured while writing from the disk." << std::endl;
-						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
-						return false;
-					}
-				}
-				converted = static_cast<T>((tmp + shift) * scale);
-				if (converted < min) min = converted;
-				if (converted > max) max = converted;
-				(*volumePtr) = converted;
-			}
-		} else {
-			for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-				if (this->stopActiveProcess) {
-					this->clear();
-					std::cout << "User interrupted. Stopping." << std::endl;
-					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
-					return false;
-				}
-				double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-				if (this->emitSignals) emit(loadingProgress(percentage));
-				for (int y = 0; y < this->ySize(); ++y) {
-					for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-						//load one U of data
-						in >> tmp;
-						if (in.status() != QDataStream::Ok) {
-							if (in.status() == QDataStream::ReadCorruptData) {
-								std::cout << "An error occured while writing from the disk. The data seems to be corrupted." << std::endl;
-								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
-								return false;
-							} else {
-								std::cout << "An error occured while writing from the disk." << std::endl;
-								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
-								return false;
+					double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+					if (this->emitSignals) emit(loadingProgress(percentage));
+					for (int y = 0; y < this->ySize(); ++y) {
+						for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+							//load one U of data
+							in >> tmp;
+							if (in.status() != QDataStream::Ok) {
+								if (in.status() == QDataStream::ReadCorruptData) {
+									std::cout << "An error occured while reading from the disk. The data seems to be corrupted." << std::endl;
+									if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+									return false;
+								} else {
+									std::cout << "An error occured while reading from the disk." << std::endl;
+									if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+									return false;
+								}
 							}
+							converted = static_cast<T>((tmp + shift) * scale);
+							if (converted < min) min = converted;
+							if (converted > max) max = converted;
+							this->at(mirrorX ? this->xSize() - x - 1 : x, mirrorY ? this->ySize() - y - 1 : y, mirrorZ ? this->zSize() - z - 1 : z) = converted;
 						}
-						converted = static_cast<T>((tmp + shift) * scale);
-						if (converted < min) min = converted;
-						if (converted > max) max = converted;
-						this->at(mirrorX ? this->xSize() - x - 1 : x, mirrorY ? this->ySize() - y - 1 : y, mirrorZ ? this->zSize() - z - 1 : z) = converted;
 					}
 				}
 			}
+			file.close();
+			this->minValue = min;
+			this->maxValue = max;
+			this->minMaxCalculated = true;
+			if (this->emitSignals) emit(loadingFinished());
+			return true;
+		} catch (...) {
+			//something went wrong
+			std::cout << "An unknown error occured." << std::endl;
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An unknown error occured.")));
 		}
-		file.close();
-		this->minValue = min;
-		this->maxValue = max;
-		this->minMaxCalculated = true;
-		if (this->emitSignals) emit(loadingFinished());
-		return true;
+		return false;
 	}
 
 	template <typename T>
 	template <typename U>
 	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T shift, T scale) const {
-		this->stopActiveProcess = false;
-		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
-			{
-				//write binary file
-				QFile file(filename);
-				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-					if(this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
-					return false;
-				}
-				QDataStream out(&file);
-				out.setFloatingPointPrecision(floatingPointPrecision);
-				out.setByteOrder(byteOrder);
-				//iterate through the volume
-				int x, z;
-				int xUpperBound = this->xSize(), zUpperBound = this->zSize();
-				int* innerIndex, *innerMax, *outerIndex, *outerMax;
-				if (indexOrder == IndexOrder::X_FASTEST) {
-					innerIndex = &x, outerIndex = &z;
-					innerMax = &xUpperBound, outerMax = &zUpperBound;
-				} else {
-					innerIndex = &z, outerIndex = &x;
-					innerMax = &zUpperBound, outerMax = &xUpperBound;
-				}
-				if (this->mode == indexOrder) {
-					T* volumePtr = this->volume;
-					size_t size = this->xMax*this->yMax*this->zMax;
-					for (int i = 0; i < size; ++i, ++volumePtr) {
-						if (i % 100000 == 0) {
+		try {
+			this->stopActiveProcess = false;
+			if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
+				{
+					//write binary file
+					QFile file(filename);
+					if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+						std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
+						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+						return false;
+					}
+					QDataStream out(&file);
+					out.setFloatingPointPrecision(floatingPointPrecision);
+					out.setByteOrder(byteOrder);
+					//iterate through the volume
+					int x, z;
+					int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+					int* innerIndex, *innerMax, *outerIndex, *outerMax;
+					if (indexOrder == IndexOrder::X_FASTEST) {
+						innerIndex = &x, outerIndex = &z;
+						innerMax = &xUpperBound, outerMax = &zUpperBound;
+					} else {
+						innerIndex = &z, outerIndex = &x;
+						innerMax = &zUpperBound, outerMax = &xUpperBound;
+					}
+					if (this->mode == indexOrder) {
+						T* volumePtr = this->volume;
+						size_t size = this->xMax*this->yMax*this->zMax;
+						for (int i = 0; i < size; ++i, ++volumePtr) {
+							if (i % 100000 == 0) {
+								if (this->stopActiveProcess) {
+									std::cout << "User interrupted. Stopping." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+									return false;
+								}
+								double percentage = std::round(double(i) / double(size) * 100);
+								if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
+							}
+							//save one T of data
+							out << static_cast<U>(((*volumePtr) + shift) * scale);
+							if (out.status() != QDataStream::Ok) {
+								if (out.status() == QDataStream::WriteFailed) {
+									std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+									return false;
+								} else {
+									std::cout << "An error occured while writing to the disk." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+									return false;
+								}
+							}
+						}
+					} else {
+						for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 							if (this->stopActiveProcess) {
 								std::cout << "User interrupted. Stopping." << std::endl;
 								if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 								return false;
 							}
-							double percentage = std::round(double(i) / double(size) * 100);
-							if(this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
-						}
-						//save one T of data
-						out << static_cast<U>(((*volumePtr) + shift) * scale);
-						if (out.status() != QDataStream::Ok) {
-							if (out.status() == QDataStream::WriteFailed) {
-								std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
-								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
-								return false;
-							} else {
-								std::cout << "An error occured while writing to the disk." << std::endl;
-								if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
-								return false;
-							}
-						}
-					}
-				} else {
-					for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-						if (this->stopActiveProcess) {
-							std::cout << "User interrupted. Stopping." << std::endl;
-							if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
-							return false;
-						}
-						double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-						if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
-						for (int y = 0; y < this->ySize(); ++y) {
-							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-								//save one T of data
-								out << static_cast<U>((this->at(x, y, z) + shift) * scale);
-								if (out.status() != QDataStream::Ok) {
-									if (out.status() == QDataStream::WriteFailed) {
-										std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
-										if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
-										return false;
-									} else {
-										std::cout << "An error occured while writing to the disk." << std::endl;
-										if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
-										return false;
+							double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+							if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
+							for (int y = 0; y < this->ySize(); ++y) {
+								for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+									//save one T of data
+									out << static_cast<U>((this->at(x, y, z) + shift) * scale);
+									if (out.status() != QDataStream::Ok) {
+										if (out.status() == QDataStream::WriteFailed) {
+											std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+											if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+											return false;
+										} else {
+											std::cout << "An error occured while writing to the disk." << std::endl;
+											if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+											return false;
+										}
 									}
 								}
 							}
 						}
 					}
-				}
 
-				file.close();
+					file.close();
+				}
+			} else {
+				std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
+				return false;
 			}
-		} else {
-			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
-			return false;
+			std::cout << "Volume successfully saved." << std::endl;
+			if (this->emitSignals) emit(savingFinished());
+			return true;
+		} catch (...) {
+			//something went wrong
+			std::cout << "An unknown error occured." << std::endl;
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An unknown error occured.")));
 		}
-		std::cout << "Volume successfully saved." << std::endl;
-		if (this->emitSignals) emit(savingFinished());
-		return true;
+		return false;
 	}
 
 	template<typename T>
