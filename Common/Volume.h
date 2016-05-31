@@ -362,7 +362,14 @@ namespace ct {
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
 				return false;
 			}
-			this->reinitialise(xSize, ySize, zSize);
+			try {
+				this->reinitialise(xSize, ySize, zSize);
+			} catch (...) {
+				QString message = QString("The necessary memory for the volume could not be allocated. Maybe there is insufficient RAM.");
+				std::cout << message.toStdString() << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
+				return false;
+			}
 			QDataStream in(&file);
 			in.setFloatingPointPrecision(floatingPointPrecision);
 			in.setByteOrder(byteOrder);
