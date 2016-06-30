@@ -759,8 +759,8 @@ namespace ct {
 
 	void CtVolume::preprocessImage(cv::Mat& image) const {
 		applyLogScaling(image);
-		applyFourierFilter(image, this->filterType);
 		this->applyFeldkampWeight(image);
+		applyFourierFilter(image, this->filterType);
 	}
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
