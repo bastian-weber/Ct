@@ -887,7 +887,10 @@ namespace ct {
 		//copy some member variables to local variables, performance is better this way
 		double SD = this->SD;
 		double uOffset = this->uOffset;
-		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
+		double radius = this->imageWidth / 2;
+		radius = std::sqrt((SD*SD * radius*radius)/(SD*SD + radius*radius));
+		double radiusSquared = radius*radius;
 
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
@@ -1000,7 +1003,9 @@ namespace ct {
 			//inversed because of inversed v axis in mat/image coordinate system
 			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 			double imageUpperBoundV = this->matToImageV(0);
-			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+			double radius = this->imageWidth / 2;
+			radius = std::sqrt((this->SD*this->SD * radius*radius) / (this->SD*this->SD + radius*radius));
+			double radiusSquared = radius*radius;
 
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
