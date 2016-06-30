@@ -247,6 +247,10 @@ namespace ct {
 					//check if it's inside the image (before the coordinate transformation)
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
+						//calculate weight
+						double w = SD / (SD + t);
+						w = w*w;
+
 						u += uPrecomputed;
 						v = -v + vPrecomputed;
 
@@ -263,7 +267,7 @@ namespace ct {
 						float u0v1 = row[u0];
 						float u1v1 = row[u1];
 
-						float value = bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+						float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
 						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, value);
 					}

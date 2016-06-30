@@ -856,6 +856,9 @@ namespace ct {
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
 		imageOut.convertTo(imageOut, imageOut.type(), -1, stream);
+		//apply the feldkamp weights
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
+		success = success && successLocal;
 		//transform to frequency domain
 		//cv::cuda::dft(imageOut, dftTmp, image.size(), cv::DFT_ROWS, stream);
 		fftFilter.applyForward(imageOut, dftTmp, successLocal);
@@ -866,9 +869,6 @@ namespace ct {
 		//transform back to spatial domain
 		//cv::cuda::dft(dftTmp, imageOut, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
 		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
-		success = success && successLocal;
-		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
 		success = success && successLocal;
 	}
 
