@@ -884,6 +884,12 @@ namespace ct {
 		double volumeLowerBoundZ = this->volumeToWorldZ(0);
 		double volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
 
+		//copy some member variables to local variables, performance is better this way
+		double SD = this->SD;
+		double SDsquared = SD*SD;
+		double uOffset = this->uOffset;
+		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
 
@@ -913,11 +919,9 @@ namespace ct {
 				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				return false;
 			}
-			//copy some member variables to local variables, performance is better this way
+			//copy some member variables to local variables; performance is better this way
 			double heightOffset = this->sinogram[projection].heightOffset;
-			double uOffset = this->uOffset;
-			double SD = this->SD;
-			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+
 			float* volumePtr;
 #pragma omp parallel for private(volumePtr) schedule(dynamic)
 			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
@@ -941,6 +945,10 @@ namespace ct {
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
+							//calculate weight
+							double d = SD + t;
+							double w = SDsquared / (d*d);
+
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
 
@@ -961,7 +969,7 @@ namespace ct {
 							float u1v1 = row[u1];
 							//this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							//size_t index = this->worldToVolumeY(y)*this->zMax + this->worldToVolumeZ(z);
-							(*volumePtr) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+							(*volumePtr) += w * bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
