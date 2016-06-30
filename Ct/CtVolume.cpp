@@ -886,7 +886,6 @@ namespace ct {
 
 		//copy some member variables to local variables, performance is better this way
 		double SD = this->SD;
-		double SDsquared = SD*SD;
 		double uOffset = this->uOffset;
 		double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
 
@@ -946,8 +945,8 @@ namespace ct {
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 							//calculate weight
-							double d = SD + t;
-							double w = SDsquared / (d*d);
+							double w = SD / (SD + t);
+							w = w*w;
 
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
