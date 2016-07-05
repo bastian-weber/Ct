@@ -393,8 +393,8 @@ namespace ct {
 			if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
 				T* volumePtr = this->volume;
 				size_t size = this->xMax*this->yMax*this->zMax;
-				for (int i = 0; i < size; ++i, ++volumePtr) {
-					if (i % 100000 == 0) {
+				for (size_t i = 0; i < size; ++i, ++volumePtr) {
+					if (i % 100000ULL == 0) {
 						if (this->stopActiveProcess) {
 							this->clear();
 							std::cout << "User interrupted. Stopping." << std::endl;
@@ -500,8 +500,8 @@ namespace ct {
 					if (this->mode == indexOrder) {
 						T* volumePtr = this->volume;
 						size_t size = this->xMax*this->yMax*this->zMax;
-						for (int i = 0; i < size; ++i, ++volumePtr) {
-							if (i % 100000 == 0) {
+						for (size_t i = 0; i < size; ++i, ++volumePtr) {
+							if (i % 100000ULL == 0) {
 								if (this->stopActiveProcess) {
 									std::cout << "User interrupted. Stopping." << std::endl;
 									if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
