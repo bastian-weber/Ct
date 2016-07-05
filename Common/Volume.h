@@ -338,6 +338,8 @@ namespace ct {
 	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, bool mirrorX, bool mirrorY, bool mirrorZ, U shift, U scale) {
 		try {
 			this->stopActiveProcess = false;
+			if (this->emitSignals) emit(loadingProgress(0));
+
 			size_t voxelSize = 0;
 			if (std::is_floating_point<U>::value) {
 				if (floatingPointPrecision == QDataStream::SinglePrecision) {

@@ -616,30 +616,33 @@ namespace ct {
 			QTextStream out(&file);
 			out << fileInfo.fileName() << endl << endl;
 			out << "[Image dimensions]" << endl;
-			out << "U resolution:\t" << this->imageWidth << endl;
-			out << "V resolution:\t" << this->imageHeight << endl << endl;
+			out << "U resolution:\t\t" << this->imageWidth << endl;
+			out << "V resolution:\t\t" << this->imageHeight << endl << endl;
 			out << "[Reconstruction parameters]" << endl;
-			out << "SD:\t\t\t\t" << this->SD << endl;
-			out << "Pixel size:\t\t" << this->pixelSize << endl;
-			out << "U offset:\t\t" << this->uOffset << endl;
-			out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-			out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-			out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+			out << "SD:\t\t\t\t\t" << this->SD << endl;
+			out << "Pixel size:\t\t\t" << this->pixelSize << endl;
+			out << "U offset:\t\t\t" << this->uOffset << endl;
+			out << QString("X range relative:\t[%1 - %2]").arg(this->xFrom_float, 0, 'f', 3).arg(this->xTo_float, 0, 'f', 3) << endl;
+			out << QString("Y range relative:\t[%1 - %2]").arg(this->yFrom_float, 0, 'f', 3).arg(this->yTo_float, 0, 'f', 3) << endl;
+			out << QString("Z range relative:\t[%1 - %2]").arg(this->zFrom_float, 0, 'f', 3).arg(this->zTo_float, 0, 'f', 3) << endl;
+			out << "X range:\t\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+			out << "Y range:\t\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+			out << "Z range:\t\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
 			out << "[Volume dimensions]" << endl;
-			out << "X size:\t\t\t" << this->xMax << endl;
-			out << "Y size:\t\t\t" << this->yMax << endl;
-			out << "Z size:\t\t\t" << this->zMax << endl << endl;
+			out << "X size:\t\t\t\t" << this->xMax << endl;
+			out << "Y size:\t\t\t\t" << this->yMax << endl;
+			out << "Z size:\t\t\t\t" << this->zMax << endl << endl;
 			out << "[Data format]" << endl;
-			out << "Data type:\t\t32bit IEEE 754 float" << endl;
+			out << "Data type:\t\t\t32bit IEEE 754 float" << endl;
 			if (byteOrder == QDataStream::LittleEndian) {
-				out << "Byte order:\t\tLittle endian" << endl;
+				out << "Byte order:\t\t\tLittle endian" << endl;
 			} else {
-				out << "Byte order:\t\tBig endian" << endl;
+				out << "Byte order:\t\t\tBig endian" << endl;
 			}
 			if (indexOrder == IndexOrder::Z_FASTEST) {
-				out << "Index order:\tZ fastest";
+				out << "Index order:\t\tZ fastest";
 			} else {
-				out << "Index order:\tX fastest";
+				out << "Index order:\t\tX fastest";
 			}
 			file.close();
 		}
