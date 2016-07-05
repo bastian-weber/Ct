@@ -248,7 +248,7 @@ namespace ct {
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 						//calculate weight
-						double w = SD / (SD + t);
+						float w = SD / (SD + s);
 						w = w*w;
 
 						u += uPrecomputed;
