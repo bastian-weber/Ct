@@ -952,7 +952,7 @@ namespace ct {
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 							//calculate weight
-							double w = SD / (SD + t);
+							double w = SD / (SD + s);
 							w = w*w;
 
 							u = this->imageToMatU(u);
