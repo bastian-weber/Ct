@@ -656,6 +656,7 @@ namespace ct {
 				return;
 			}
 			QTextStream out(&file);
+			//note: the new line at the end is important for VG Studio to be able to read the file
 			QString contents = "{volume1}\n"
 				"[representation]\n"
 				"size = %1 %2 %3\n"
@@ -676,7 +677,7 @@ namespace ct {
 				"resolution = %6 %6 %6\n"
 				"unit = mm\n"
 				"[volume]\n"
-				"volume = volume1";
+				"volume = volume1\n";
 			contents = contents.arg(this->xMax).arg(this->yMax).arg(this->zMax).arg(this->volume.min()).arg(this->volume.max()).arg(this->pixelSize).arg(fileInfo.fileName());
 			out << contents;
 			file.close();
