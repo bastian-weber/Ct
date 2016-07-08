@@ -469,6 +469,10 @@ namespace ct {
 
 	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+		if (xFrom == xTo || yFrom == yTo || zFrom == zTo) {
+			std::cout << "ERROR: the lower and upper bounds must not be identical." << std::endl;
+			return;
+		}
 		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
 		this->xTo_float = std::max(this->xFrom_float, std::min(1.0, xTo));
 		this->yFrom_float = std::max(0.0, std::min(1.0, yFrom));
