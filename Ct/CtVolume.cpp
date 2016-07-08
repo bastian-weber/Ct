@@ -295,8 +295,10 @@ namespace ct {
 		//make sure the rotation direction is correct
 		this->correctAngleDirection(rotationDirection);
 		//Axes: breadth = x, width = y, height = z
-		this->xSize = this->imageWidth;
-		this->ySize = this->imageWidth;
+		double radius = this->imageWidth / 2;
+		radius = std::sqrt((SD*SD * radius*radius) / (SD*SD + radius*radius));
+		this->xSize = radius*2;
+		this->ySize = radius*2;
 		this->zSize = this->imageHeight;
 		this->updateBoundaries();
 		switch (this->crossSectionAxis) {
