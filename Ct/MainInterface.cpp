@@ -617,7 +617,8 @@ namespace ct {
 	}
 
 	void MainInterface::updateBoundsDisplay() {
-		double width = this->volume.getImageWidth();
+		double imageWidth = this->volume.getImageWidth();
+		double width = this->volume.getReconstructionCylinderRadius()*2;
 		double height = this->volume.getImageHeight();
 		double uOffset = this->volume.getUOffset();
 		double angleRad = (this->currentProjection.angle / 180.0) * M_PI;
@@ -627,10 +628,10 @@ namespace ct {
 		double xTo = width*this->xTo->value() - width / 2.0;
 		double yFrom = width*this->yFrom->value() - width / 2.0;
 		double yTo = width*this->yTo->value() - width / 2.0;
-		double t1 = (-1)*xFrom*sine + yFrom*cosine + width / 2.0 + uOffset;
-		double t2 = (-1)*xFrom*sine + yTo*cosine + width / 2.0 + uOffset;
-		double t3 = (-1)*xTo*sine + yFrom*cosine + width / 2.0 + uOffset;
-		double t4 = (-1)*xTo*sine + yTo*cosine + width / 2.0 + uOffset;
+		double t1 = (-1)*xFrom*sine + yFrom*cosine + imageWidth / 2.0 + uOffset;
+		double t2 = (-1)*xFrom*sine + yTo*cosine + imageWidth / 2.0 + uOffset;
+		double t3 = (-1)*xTo*sine + yFrom*cosine + imageWidth / 2.0 + uOffset;
+		double t4 = (-1)*xTo*sine + yTo*cosine + imageWidth / 2.0 + uOffset;
 		double zFrom = height * this->zFrom->value() + this->currentProjection.heightOffset;
 		double zTo = height * this->zTo->value() + this->currentProjection.heightOffset;
 		double left = std::min({ t1, t2, t3, t4 });

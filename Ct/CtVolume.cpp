@@ -354,6 +354,11 @@ namespace ct {
 		return this->zMax;
 	}
 
+	size_t CtVolume::getReconstructionCylinderRadius() const {
+		double radius = this->imageWidth / 2;
+		return std::sqrt((SD*SD * radius*radius) / (SD*SD + radius*radius));
+	}
+
 	double CtVolume::getUOffset() const {
 		return this->uOffset;
 	}
@@ -894,8 +899,7 @@ namespace ct {
 		double SD = this->SD;
 		double uOffset = this->uOffset;
 
-		double radius = this->imageWidth / 2;
-		radius = std::sqrt((SD*SD * radius*radius)/(SD*SD + radius*radius));
+		double radius = this->getReconstructionCylinderRadius();
 		double radiusSquared = radius*radius;
 
 		//for the preloading of the next projection
@@ -1009,8 +1013,7 @@ namespace ct {
 			//inversed because of inversed v axis in mat/image coordinate system
 			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 			double imageUpperBoundV = this->matToImageV(0);
-			double radius = this->imageWidth / 2;
-			radius = std::sqrt((this->SD*this->SD * radius*radius) / (this->SD*this->SD + radius*radius));
+			double radius = this->getReconstructionCylinderRadius();
 			double radiusSquared = radius*radius;
 
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));

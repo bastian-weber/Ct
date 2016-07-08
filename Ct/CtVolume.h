@@ -73,6 +73,7 @@ namespace ct {
 		size_t getXSize() const;
 		size_t getYSize() const;
 		size_t getZSize() const;
+		size_t getReconstructionCylinderRadius() const;
 		double getUOffset() const;
 		double getPixelSize() const;
 		double getSO() const;
