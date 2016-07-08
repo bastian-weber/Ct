@@ -71,7 +71,7 @@ namespace ct {
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float2 pixel = image(yIndex, xIndex);
-				float Nreciprocal = 1.0 / static_cast<float>(image.cols);
+				float Nreciprocal = 1.0f / static_cast<float>(image.cols);
 				float factor;
 				if (filterType == 0) {
 					factor = ramLakWindowFilter(xIndex, Nreciprocal);
