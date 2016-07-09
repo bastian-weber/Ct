@@ -160,15 +160,12 @@ namespace ct {
 			rotationDirection = in.readLine().section('\t', 0, 0).toStdString();
 			this->uOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->SO = in.readLine().section('\t', 0, 0).toDouble(&success);
-			totalSuccess = totalSuccess && success;
-			this->SD = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->FCD = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
 			//leave out one line
 			in.readLine();
 			//convert the distance
-			this->SD /= this->pixelSize;
-			this->SO /= this->pixelSize;
+			this->FCD /= this->pixelSize;
 			//convert uOffset
 			this->uOffset /= this->pixelSize;
 			if (!totalSuccess) {
@@ -296,7 +293,7 @@ namespace ct {
 		this->correctAngleDirection(rotationDirection);
 		//Axes: breadth = x, width = y, height = z
 		double radius = this->imageWidth / 2;
-		radius = std::sqrt((SD*SD * radius*radius) / (SD*SD + radius*radius));
+		radius = std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
 		this->xSize = radius*2;
 		this->ySize = radius*2;
 		this->zSize = this->imageHeight;
@@ -356,7 +353,7 @@ namespace ct {
 
 	size_t CtVolume::getReconstructionCylinderRadius() const {
 		double radius = this->imageWidth / 2;
-		return std::sqrt((SD*SD * radius*radius) / (SD*SD + radius*radius));
+		return std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
 	}
 
 	double CtVolume::getUOffset() const {
@@ -367,12 +364,8 @@ namespace ct {
 		return this->pixelSize;
 	}
 
-	double CtVolume::getSO() const {
-		return this->SO;
-	}
-
-	double CtVolume::getSD() const {
-		return this->SD;
+	double CtVolume::getFCD() const {
+		return this->FCD;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
@@ -630,7 +623,7 @@ namespace ct {
 			out << "U resolution:\t\t" << this->imageWidth << endl;
 			out << "V resolution:\t\t" << this->imageHeight << endl << endl;
 			out << "[Reconstruction parameters]" << endl;
-			out << "SD:\t\t\t\t\t" << this->SD << endl;
+			out << "FCD:\t\t\t\t\t" << this->FCD << endl;
 			out << "Pixel size:\t\t\t" << this->pixelSize << endl;
 			out << "U offset:\t\t\t" << this->uOffset << endl;
 			out << QString("X range relative:\t[%1 - %2]").arg(this->xFrom_float, 0, 'f', 3).arg(this->xTo_float, 0, 'f', 3) << endl;
@@ -796,7 +789,7 @@ namespace ct {
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
-				ptr[c] = ptr[c] * W(this->SD, this->matToImageU(c), this->matToImageV(r));
+				ptr[c] = ptr[c] * W(this->FCD, this->matToImageU(c), this->matToImageV(r));
 			}
 		}
 	}
@@ -872,7 +865,7 @@ namespace ct {
 		//multiply by -1
 		imageOut.convertTo(imageOut, imageOut.type(), -1, stream);
 		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->FCD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
 		success = success && successLocal;
 		//transform to frequency domain
 		//cv::cuda::dft(imageOut, dftTmp, image.size(), cv::DFT_ROWS, stream);
@@ -900,7 +893,7 @@ namespace ct {
 		float volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
 
 		//copy some member variables to local variables, performance is better this way
-		float SD = this->SD;
+		float FCD = this->FCD;
 		float uOffset = this->uOffset;
 
 		float radius = this->getReconstructionCylinderRadius();
@@ -955,14 +948,14 @@ namespace ct {
 						//correct the u-offset
 						t += uOffset;
 						float s = x*cosine + y*sine;
-						float u = (t*SD) / (SD - s);
-						float v = ((z + heightOffset)*SD) / (SD - s);
+						float u = (t*FCD) / (FCD - s);
+						float v = ((z + heightOffset)*FCD) / (FCD - s);
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 							//calculate weight
-							float w = SD / (SD + s);
+							float w = FCD / (FCD + s);
 							w = w*w;
 
 							u = this->imageToMatU(u);
@@ -1185,7 +1178,7 @@ namespace ct {
 												  cosine,
 												  this->sinogram[projection].heightOffset,
 												  this->uOffset,
-												  this->SD,
+												  this->FCD,
 												  imageLowerBoundU,
 												  imageUpperBoundU,
 												  imageLowerBoundV,
