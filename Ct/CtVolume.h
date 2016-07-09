@@ -96,12 +96,12 @@ namespace ct {
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
-		void setVolumeBounds(double xFrom,
-							 double xTo,
-							 double yFrom,
-							 double yTo,
-							 double zFrom,
-							 double zTo);
+		void setVolumeBounds(float xFrom,
+							 float xTo,
+							 float yFrom,
+							 float yTo,
+							 float zFrom,
+							 float zTo);
 		void setUseCuda(bool value);
 		void setActiveCudaDevices(std::vector<int> devices);
 		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
@@ -184,8 +184,8 @@ namespace ct {
 
 		//related to the CPU reconstruction
 		bool reconstructionCore();												//does the actual reconstruction
-		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
-										   double v,
+		static float bilinearInterpolation(float u,							//interpolates bilinear between those four intensities
+										   float v,
 										   float u0v0,
 										   float u1v0,
 										   float u0v1,
@@ -201,16 +201,16 @@ namespace ct {
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
-		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to
-		double worldToVolumeY(double yCoord) const;								//the coordinates of the "world" and the other way around
-		double worldToVolumeZ(double zCoord) const;
-		double volumeToWorldX(double xCoord) const;
-		double volumeToWorldY(double yCoord) const;
-		double volumeToWorldZ(double zCoord) const;
-		double imageToMatU(double uCoord)const;									//coordinate transformations from the coordinates of the image
-		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
-		double matToImageU(double uCoord)const;
-		double matToImageV(double vCoord)const;
+		float worldToVolumeX(float xCoord) const;								//coordinate transformations from the coordinates of the vector to
+		float worldToVolumeY(float yCoord) const;								//the coordinates of the "world" and the other way around
+		float worldToVolumeZ(float zCoord) const;
+		float volumeToWorldX(float xCoord) const;
+		float volumeToWorldY(float yCoord) const;
+		float volumeToWorldZ(float zCoord) const;
+		float imageToMatU(float uCoord)const;									//coordinate transformations from the coordinates of the image
+		float imageToMatV(float vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
+		float matToImageU(float uCoord)const;
+		float matToImageV(float vCoord)const;
 		
 		//=========================================== PRIVATE VARIABLES ===========================================\\
 
@@ -219,10 +219,10 @@ namespace ct {
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
 		int imageType;														//assumed type of all the images (taken from the first image)
-		double SD = 0;														//the distance of the source to the detector in pixel
-		double SO = 0;														//the distance of the source to the object in pixel
-		double pixelSize = 0;
-		double uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+		float SD = 0;														//the distance of the source to the detector in pixel
+		float SO = 0;														//the distance of the source to the object in pixel
+		float pixelSize = 0;
+		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
@@ -235,9 +235,9 @@ namespace ct {
 		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
 		double multiprocessorCoefficient = 1, memoryBandwidthCoefficient = 1;//conrols the weighting of multiprocessor count and memory speed amongst multiple gpus
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
-		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
-		double yFrom_float = 0, yTo_float = 1;
-		double zFrom_float = 0, zTo_float = 1;
+		float xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
+		float yFrom_float = 0, yTo_float = 1;
+		float zFrom_float = 0, zTo_float = 1;
 
 		//variables that are only internally used
 		Volume<float> volume;												//holds the reconstructed volume
@@ -252,11 +252,11 @@ namespace ct {
 		std::string lastErrorMessage;										//if an error in one of the threads occurs, it will be saved here
 
 		//variables for precomputed parts of coordinate transformations
-		double xPrecomputed;
-		double yPrecomputed;
-		double zPrecomputed;
-		double uPrecomputed;
-		double vPrecomputed;
+		float xPrecomputed;
+		float yPrecomputed;
+		float zPrecomputed;
+		float uPrecomputed;
+		float vPrecomputed;
 	private slots:
 		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:
