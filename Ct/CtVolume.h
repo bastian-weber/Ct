@@ -167,12 +167,12 @@ namespace ct {
 		void preprocessImage(cv::Mat& image) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
-		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume		
+		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		
 		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
 		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
-		static double ramLakWindowFilter(double n, double N);					//these functions return the scaling coefficients for the
-		static double sheppLoganWindowFilter(double n, double N);				//fourier filters for each n out of N
-		static double hannWindowFilter(double n, double N);						
+		static float ramLakWindowFilter(float n, float N);					//these functions return the scaling coefficients for the
+		static float sheppLoganWindowFilter(float n, float N);				//fourier filters for each n out of N
+		static float hannWindowFilter(float n, float N);
 		
 		//related to the GPU image preprocessing
 		void cudaPreprocessImage(cv::cuda::GpuMat& imageIn,
