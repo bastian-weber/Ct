@@ -801,7 +801,7 @@ namespace ct {
 		}
 	}
 
-	inline double CtVolume::W(double D, double u, double v) {
+	inline float CtVolume::W(float D, float u, float v) {
 		return D / sqrt(D*D + u*u + v*v);
 	}
 
@@ -835,23 +835,23 @@ namespace ct {
 		image *= -1;
 	}
 
-	double CtVolume::ramLakWindowFilter(double n, double N) {
-		return double(n) / double(N);
+	float CtVolume::ramLakWindowFilter(float n, float N) {
+		return n / N;
 	}
 
-	double CtVolume::sheppLoganWindowFilter(double n, double N) {
+	float CtVolume::sheppLoganWindowFilter(float n, float N) {
 		if (n == 0) {
-			return 0;
+			return 0.0f;
 		} else {
-			double rl = ramLakWindowFilter(n, N);
-			return (rl)* (sin(rl*0.5*M_PI)) / (rl*0.5*M_PI);
+			float rl = ramLakWindowFilter(n, N);
+			return (rl)* (sin(rl*0.5f*M_PI)) / (rl*0.5f*M_PI);
 		}
 
 	}
 
-	double CtVolume::hannWindowFilter(double n, double N) {
-		double rl = ramLakWindowFilter(n, N);
-		return rl * 0.5*(1 + cos(M_PI * rl));
+	float CtVolume::hannWindowFilter(float n, float N) {
+		float rl = ramLakWindowFilter(n, N);
+		return rl * 0.5f*(1.0f + cos(M_PI * rl));
 	}
 
 	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& imageOut, cv::cuda::GpuMat& dftTmp, FftFilter& fftFilter, bool& success, cv::cuda::Stream& stream) const {
