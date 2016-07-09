@@ -103,7 +103,7 @@ namespace ct {
 			return D * rsqrtf(D*D + u*u + v*v);
 		}
 
-		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float SD, float uPrecomputed, float vPrecomputed) {
+		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float FCD, float uPrecomputed, float vPrecomputed) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
@@ -111,17 +111,17 @@ namespace ct {
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float u = float(xIndex) - uPrecomputed;
 				float v = -float(yIndex) + vPrecomputed;
-				image(yIndex, xIndex) *= W(SD, u, v);
+				image(yIndex, xIndex) *= W(FCD, u, v);
 			}
 
 		}
 
-		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float SD, float uPrecomputed, float vPrecomputed, cudaStream_t stream, bool& success) {
+		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float FCD, float uPrecomputed, float vPrecomputed, cudaStream_t stream, bool& success) {
 			success = true;
 			dim3 threads(32, 1);
 			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
 						std::ceil(float(image.rows) / float(threads.y)));
-			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, SD, uPrecomputed, vPrecomputed);
+			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, FCD, uPrecomputed, vPrecomputed);
 
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
@@ -208,7 +208,7 @@ namespace ct {
 											 float cosine,
 											 float heightOffset,
 											 float uOffset,
-											 float SD,
+											 float FCD,
 											 float imageLowerBoundU,
 											 float imageUpperBoundU,
 											 float imageLowerBoundV,
@@ -241,14 +241,14 @@ namespace ct {
 					float t = -x*sine + y*cosine;
 					t += uOffset;
 					float s = x*cosine + y*sine;
-					float u = (t*SD) / (SD - s);
-					float v = ((z + heightOffset)*SD) / (SD - s);
+					float u = (t*FCD) / (FCD - s);
+					float v = ((z + heightOffset)*FCD) / (FCD - s);
 
 					//check if it's inside the image (before the coordinate transformation)
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 						//calculate weight
-						float w = SD / (SD + s);
+						float w = FCD / (FCD + s);
 						w = w*w;
 
 						u += uPrecomputed;
@@ -291,7 +291,7 @@ namespace ct {
 								 float cosine,
 								 float heightOffset,
 								 float uOffset,
-								 float SD,
+								 float FCD,
 								 float imageLowerBoundU,
 								 float imageUpperBoundU,
 								 float imageLowerBoundV,
@@ -319,7 +319,7 @@ namespace ct {
 																	  cosine,
 																	  heightOffset,
 																	  uOffset,
-																	  SD,
+																	  FCD,
 																	  imageLowerBoundU,
 																	  imageUpperBoundU,
 																	  imageLowerBoundV,

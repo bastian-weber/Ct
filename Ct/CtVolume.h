@@ -76,8 +76,7 @@ namespace ct {
 		size_t getReconstructionCylinderRadius() const;
 		double getUOffset() const;
 		double getPixelSize() const;
-		double getSO() const;
-		double getSD() const;
+		double getFCD() const;
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
@@ -219,8 +218,7 @@ namespace ct {
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
 		int imageType;														//assumed type of all the images (taken from the first image)
-		float SD = 0;														//the distance of the source to the detector in pixel
-		float SO = 0;														//the distance of the source to the object in pixel
+		float FCD = 0;														//the distance of the source to the detector in pixel
 		float pixelSize = 0;
 		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
 
