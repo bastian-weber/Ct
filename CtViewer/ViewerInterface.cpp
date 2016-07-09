@@ -376,24 +376,33 @@ namespace ct {
 		this->normActionGroup->setEnabled(true);
 	}
 
-	cv::Mat ViewerInterface::getNormalisedCrossSection() const {
+	cv::Mat ViewerInterface::getNormalisedCrossSection(ImageBitDepth depth) const {
 		cv::Mat crossSection = this->volume->getVolumeCrossSection(this->currentAxis, this->getCurrentSliceOfCurrentAxis(), CoordinateSystemOrientation::LEFT_HANDED);
 		cv::Mat normalized;
+		float maxValue;
+		int type;
+		if (depth == ImageBitDepth::CHANNEL_16_BIT) {
+			maxValue = 65535;
+			type = CV_16UC1;
+		} else {
+			maxValue = 255;
+			type = CV_8UC1;
+		}
 		if (this->globalNormalisation) {
 			double min, max;
 			cv::minMaxLoc(crossSection, &min, &max);
 			float span = this->volume->maxFloat() - this->volume->minFloat();
 			float minGrey, maxGrey;
 			if (span != 0) {
-				minGrey = ((min - this->volume->minFloat()) / span) * 255;
-				maxGrey = ((max - this->volume->minFloat()) / span) * 255;
+				minGrey = ((min - this->volume->minFloat()) / span) * maxValue;
+				maxGrey = ((max - this->volume->minFloat()) / span) * maxValue;
 			} else {
 				minGrey = 0;
-				maxGrey = 255;
+				maxGrey = maxValue;
 			}
-			cv::normalize(crossSection, normalized, minGrey, maxGrey, cv::NORM_MINMAX, CV_8UC1);
+			cv::normalize(crossSection, normalized, minGrey, maxGrey, cv::NORM_MINMAX, type);
 		} else {
-			cv::normalize(crossSection, normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+			cv::normalize(crossSection, normalized, 0, maxValue, cv::NORM_MINMAX, type);
 		}
 		return normalized;
 	}
@@ -717,11 +726,11 @@ namespace ct {
 		this->saveCurrentSliceAsImage(path, depth);
 	}
 
-	bool ViewerInterface::saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth) {
+	bool ViewerInterface::saveCurrentSliceAsImage(QString filename, ImageBitDepth depth) {
 		if (this->getCurrentSliceOfCurrentAxis() < 0 || this->getCurrentSliceOfCurrentAxis() >= this->volume->getSizeAlongDimension(this->currentAxis)) {
 			return false;
 		}
-		cv::Mat crossSection = this->getNormalisedCrossSection();
+		cv::Mat crossSection = this->getNormalisedCrossSection(depth);
 		try {
 			std::vector<uchar> buffer;
 
