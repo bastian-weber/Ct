@@ -822,6 +822,7 @@ namespace ct {
 			}
 		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
+		image *= 1.0 / static_cast<float>(image.cols);
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) const {
@@ -866,7 +867,7 @@ namespace ct {
 		//logarithmic scale
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
-		imageOut.convertTo(imageOut, imageOut.type(), -1, stream);
+		cv::cuda::multiply(imageOut, -1, imageOut, 1.0, -1, stream);
 		//apply the feldkamp weights
 		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->FCD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
 		success = success && successLocal;
@@ -881,6 +882,8 @@ namespace ct {
 		//cv::cuda::dft(dftTmp, imageOut, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
 		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
 		success = success && successLocal;
+		//scale FFT result
+		cv::cuda::multiply(imageOut, 1.0 / this->imageWidth, imageOut, 1.0, -1, stream);
 	}
 
 	bool CtVolume::reconstructionCore() {
