@@ -162,6 +162,8 @@ namespace ct {
 			totalSuccess = totalSuccess && success;
 			this->FCD = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
+			this->blackLevel = in.readLine().section('\t', 0, 0).toDouble(&success);
+			totalSuccess = totalSuccess && success;
 			//leave out one line
 			in.readLine();
 			//convert the distance
@@ -356,15 +358,15 @@ namespace ct {
 		return std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
 	}
 
-	double CtVolume::getUOffset() const {
+	float CtVolume::getUOffset() const {
 		return this->uOffset;
 	}
 
-	double CtVolume::getPixelSize() const {
+	float CtVolume::getPixelSize() const {
 		return this->pixelSize;
 	}
 
-	double CtVolume::getFCD() const {
+	float CtVolume::getFCD() const {
 		return this->FCD;
 	}
 
@@ -766,7 +768,7 @@ namespace ct {
 	}
 
 	void CtVolume::preprocessImage(cv::Mat& image) const {
-		applyLogScaling(image);
+		this->applyLogScaling(image);
 		this->applyFeldkampWeight(image);
 		applyFourierFilter(image, this->filterType);
 	}
@@ -822,7 +824,8 @@ namespace ct {
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
 	}
 
-	void CtVolume::applyLogScaling(cv::Mat& image) {
+	void CtVolume::applyLogScaling(cv::Mat& image) const {
+		image *= 1/this->blackLevel;
 		// -ln(x)
 		cv::log(image, image);
 		image *= -1;
@@ -852,14 +855,14 @@ namespace ct {
 		bool successLocal;
 		cudaStream_t cudaStream = cv::cuda::StreamAccessor::getStream(stream);
 		//images must be scaled in case different depths are mixed (-> equal value range)
-		double scalingFactor = 1.0;
+		float scalingFactor = 1.0;
 		if (imageIn.depth() == CV_8U) {
 			scalingFactor = 255.0;
 		} else if (imageIn.depth() == CV_16U) {
 			scalingFactor = 65535.0;
 		}
-		//convert to 32bit
-		imageIn.convertTo(imageOut, CV_32FC1, 1.0/scalingFactor, stream);
+		//convert to 32bit and normalise black
+		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->blackLevel), stream);
 		//logarithmic scale
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1

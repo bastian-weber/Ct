@@ -74,9 +74,9 @@ namespace ct {
 		size_t getYSize() const;
 		size_t getZSize() const;
 		size_t getReconstructionCylinderRadius() const;
-		double getUOffset() const;
-		double getPixelSize() const;
-		double getFCD() const;
+		float getUOffset() const;
+		float getPixelSize() const;
+		float getFCD() const;
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
@@ -168,7 +168,7 @@ namespace ct {
 		void applyFeldkampWeight(cv::Mat& image) const;
 		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		
 		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
-		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
+		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 		static float ramLakWindowFilter(float n, float N);					//these functions return the scaling coefficients for the
 		static float sheppLoganWindowFilter(float n, float N);				//fourier filters for each n out of N
 		static float hannWindowFilter(float n, float N);
@@ -221,6 +221,7 @@ namespace ct {
 		float FCD = 0;														//the distance of the source to the detector in pixel
 		float pixelSize = 0;
 		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+		float blackLevel = 0;												//the intensity of just air
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
