@@ -162,7 +162,7 @@ namespace ct {
 			totalSuccess = totalSuccess && success;
 			this->FCD = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->blackLevel = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->baseIntensity = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
 			//leave out one line
 			in.readLine();
@@ -368,6 +368,10 @@ namespace ct {
 
 	float CtVolume::getFCD() const {
 		return this->FCD;
+	}
+
+	float CtVolume::getBaseIntensity() const {
+		return this->baseIntensity;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
@@ -827,7 +831,7 @@ namespace ct {
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) const {
-		image *= 1/this->blackLevel;
+		image *= 1/this->baseIntensity;
 		// -ln(x)
 		cv::log(image, image);
 		image *= -1;
@@ -864,7 +868,7 @@ namespace ct {
 			scalingFactor = 65535.0;
 		}
 		//convert to 32bit and normalise black
-		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->blackLevel), stream);
+		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->baseIntensity), stream);
 		//logarithmic scale
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
