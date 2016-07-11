@@ -77,6 +77,7 @@ namespace ct {
 		float getUOffset() const;
 		float getPixelSize() const;
 		float getFCD() const;
+		float getBaseIntensity() const;
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
@@ -221,7 +222,7 @@ namespace ct {
 		float FCD = 0;														//the distance of the source to the detector in pixel
 		float pixelSize = 0;
 		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
-		float blackLevel = 0;												//the intensity of just air
+		float baseIntensity = 0;												//the intensity of just air
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
