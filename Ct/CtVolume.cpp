@@ -822,7 +822,8 @@ namespace ct {
 			}
 		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
-		image *= 1.0 / static_cast<float>(image.cols);
+		//scale FFT result
+		//image *= 1.0 / static_cast<float>(image.cols);
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) const {
@@ -883,7 +884,7 @@ namespace ct {
 		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
 		success = success && successLocal;
 		//scale FFT result
-		cv::cuda::multiply(imageOut, 1.0 / this->imageWidth, imageOut, 1.0, -1, stream);
+		//cv::cuda::multiply(imageOut, 1.0 / static_cast<float>(this->imageWidth), imageOut, 1.0, -1, stream);
 	}
 
 	bool CtVolume::reconstructionCore() {
