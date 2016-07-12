@@ -295,7 +295,7 @@ namespace ct {
 		this->correctAngleDirection(rotationDirection);
 		//Axes: breadth = x, width = y, height = z
 		double radius = this->imageWidth / 2;
-		radius = std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
+		radius = this->getReconstructionCylinderRadius();
 		this->xSize = radius*2;
 		this->ySize = radius*2;
 		this->zSize = this->imageHeight;

@@ -64,14 +64,13 @@ namespace ct {
 			return rl * 0.5f*(1.0f + __cosf(CUDART_PI_F * rl));
 		}
 
-		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
+		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType, float Nreciprocal) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float2 pixel = image(yIndex, xIndex);
-				float Nreciprocal = 1.0f / static_cast<float>(image.cols);
 				float factor;
 				if (filterType == 0) {
 					factor = ramLakWindowFilter(xIndex, Nreciprocal);
@@ -90,7 +89,8 @@ namespace ct {
 			dim3 threads(32, 1);
 			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
 						std::ceil(float(image.rows) / float(threads.y)));
-			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType);
+			float Nreciprocal = 1.0f / static_cast<float>(image.cols);
+			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType, Nreciprocal);
 
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
