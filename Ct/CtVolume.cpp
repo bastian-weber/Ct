@@ -921,9 +921,9 @@ namespace ct {
 			float percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
 			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
-			float beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-			float sine = sin(beta_rad);
-			float cosine = cos(beta_rad);
+			float angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+			float sine = sin(angle_rad);
+			float cosine = cos(angle_rad);
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
@@ -1144,9 +1144,9 @@ namespace ct {
 
 					int current = projection % 2;
 
-					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-					double sine = sin(beta_rad);
-					double cosine = cos(beta_rad);
+					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+					double sine = sin(angle_rad);
+					double cosine = cos(angle_rad);
 
 					//prepare and upload next image
 					image = this->sinogram[projection].getImage();
