@@ -55,13 +55,13 @@ namespace ct {
 			coordLabel->setStyleSheet(coordCss);
 			toLabel = new QLabel("to", this);
 			from = new QDoubleSpinBox(this);
-			from->setRange(0, 1);
+			from->setRange(0, 0.999);
 			from->setValue(this->settings->value(settingsIdFrom, 0).toDouble());
 			from->setDecimals(3);
 			from->setSingleStep(0.01);
 			QObject::connect(from, SIGNAL(valueChanged(double)), this, slot);
 			to = new QDoubleSpinBox(this);
-			to->setRange(0, 1);
+			to->setRange(0.001, 1);
 			to->setValue(this->settings->value(settingsIdTo, 1).toDouble());
 			to->setDecimals(3);
 			to->setSingleStep(0.01);
@@ -617,7 +617,8 @@ namespace ct {
 	}
 
 	void MainInterface::updateBoundsDisplay() {
-		double width = this->volume.getImageWidth();
+		double imageWidth = this->volume.getImageWidth();
+		double width = this->volume.getReconstructionCylinderRadius()*2;
 		double height = this->volume.getImageHeight();
 		double uOffset = this->volume.getUOffset();
 		double angleRad = (this->currentProjection.angle / 180.0) * M_PI;
@@ -627,10 +628,10 @@ namespace ct {
 		double xTo = width*this->xTo->value() - width / 2.0;
 		double yFrom = width*this->yFrom->value() - width / 2.0;
 		double yTo = width*this->yTo->value() - width / 2.0;
-		double t1 = (-1)*xFrom*sine + yFrom*cosine + width / 2.0 + uOffset;
-		double t2 = (-1)*xFrom*sine + yTo*cosine + width / 2.0 + uOffset;
-		double t3 = (-1)*xTo*sine + yFrom*cosine + width / 2.0 + uOffset;
-		double t4 = (-1)*xTo*sine + yTo*cosine + width / 2.0 + uOffset;
+		double t1 = (-1)*xFrom*sine + yFrom*cosine + imageWidth / 2.0 + uOffset;
+		double t2 = (-1)*xFrom*sine + yTo*cosine + imageWidth / 2.0 + uOffset;
+		double t3 = (-1)*xTo*sine + yFrom*cosine + imageWidth / 2.0 + uOffset;
+		double t4 = (-1)*xTo*sine + yTo*cosine + imageWidth / 2.0 + uOffset;
 		double zFrom = height * this->zFrom->value() + this->currentProjection.heightOffset;
 		double zTo = height * this->zTo->value() + this->currentProjection.heightOffset;
 		double left = std::min({ t1, t2, t3, t4 });
@@ -702,12 +703,13 @@ namespace ct {
 	}
 
 	void MainInterface::reactToBoundsChange() {
-		if (this->xFrom != QObject::sender()) this->xFrom->setMaximum(this->xTo->value());
-		if (this->xTo != QObject::sender()) this->xTo->setMinimum(this->xFrom->value());
-		if (this->yFrom != QObject::sender()) this->yFrom->setMaximum(this->yTo->value());
-		if (this->yTo != QObject::sender()) this->yTo->setMinimum(this->yFrom->value());
-		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value());
-		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value());
+		double delta = 0.001;
+		if (this->xFrom != QObject::sender()) this->xFrom->setMaximum(this->xTo->value() - delta);
+		if (this->xTo != QObject::sender()) this->xTo->setMinimum(this->xFrom->value() + delta);
+		if (this->yFrom != QObject::sender()) this->yFrom->setMaximum(this->yTo->value() - delta);
+		if (this->yTo != QObject::sender()) this->yTo->setMinimum(this->yFrom->value() + delta);
+		if (this->zFrom != QObject::sender()) this->zFrom->setMaximum(this->zTo->value() - delta);
+		if (this->zTo != QObject::sender()) this->zTo->setMinimum(this->zFrom->value() + delta);
 		this->saveBounds();
 		if (this->volume.getSinogramSize() > 0) {
 			this->setVolumeSettings();

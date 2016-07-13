@@ -26,7 +26,7 @@ namespace ct {
 									 cudaStream_t stream, 
 									 bool& success);
 		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image,			//applies the feldkamp weighting to an image
-										  float SD, 
+										  float FCD, 
 										  float uPrecomputed, 
 										  float vPrecomputed, 
 										  cudaStream_t stream, 
@@ -55,7 +55,7 @@ namespace ct {
 								 float cosine,
 								 float heightOffset,
 								 float uOffset,
-								 float SD,
+								 float FCD,
 								 float imageLowerBoundU,
 								 float imageUpperBoundU,
 								 float imageLowerBoundV,

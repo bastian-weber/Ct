@@ -338,6 +338,8 @@ namespace ct {
 	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, bool mirrorX, bool mirrorY, bool mirrorZ, U shift, U scale) {
 		try {
 			this->stopActiveProcess = false;
+			if (this->emitSignals) emit(loadingProgress(0));
+
 			size_t voxelSize = 0;
 			if (std::is_floating_point<U>::value) {
 				if (floatingPointPrecision == QDataStream::SinglePrecision) {
@@ -393,8 +395,8 @@ namespace ct {
 			if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
 				T* volumePtr = this->volume;
 				size_t size = this->xMax*this->yMax*this->zMax;
-				for (int i = 0; i < size; ++i, ++volumePtr) {
-					if (i % 100000 == 0) {
+				for (size_t i = 0; i < size; ++i, ++volumePtr) {
+					if (i % 100000ULL == 0) {
 						if (this->stopActiveProcess) {
 							this->clear();
 							std::cout << "User interrupted. Stopping." << std::endl;
@@ -500,8 +502,8 @@ namespace ct {
 					if (this->mode == indexOrder) {
 						T* volumePtr = this->volume;
 						size_t size = this->xMax*this->yMax*this->zMax;
-						for (int i = 0; i < size; ++i, ++volumePtr) {
-							if (i % 100000 == 0) {
+						for (size_t i = 0; i < size; ++i, ++volumePtr) {
+							if (i % 100000ULL == 0) {
 								if (this->stopActiveProcess) {
 									std::cout << "User interrupted. Stopping." << std::endl;
 									if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
