@@ -46,7 +46,7 @@ namespace ct {
 		QString getVolumeDataValue(size_t x, size_t y, size_t z) const;
 		void interfaceInitialState();
 		void interfaceVolumeLoadedState();
-		cv::Mat getNormalisedCrossSection() const;
+		cv::Mat getNormalisedCrossSection(ImageBitDepth depth = ImageBitDepth::CHANNEL_8_BIT) const;
 		void updateImage();
 		void setNextSlice();
 		void setPreviousSlice();
@@ -101,7 +101,7 @@ namespace ct {
 		void changeNormalisation();
 		void openDialog();
 		void saveImageDialog();
-		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth);
+		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth depth);
 	signals:
 		void windowLoaded();
 		void progressUpdate(int progress) const;

@@ -160,15 +160,14 @@ namespace ct {
 			rotationDirection = in.readLine().section('\t', 0, 0).toStdString();
 			this->uOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->SO = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->FCD = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->SD = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->baseIntensity = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
 			//leave out one line
 			in.readLine();
 			//convert the distance
-			this->SD /= this->pixelSize;
-			this->SO /= this->pixelSize;
+			this->FCD /= this->pixelSize;
 			//convert uOffset
 			this->uOffset /= this->pixelSize;
 			if (!totalSuccess) {
@@ -295,8 +294,10 @@ namespace ct {
 		//make sure the rotation direction is correct
 		this->correctAngleDirection(rotationDirection);
 		//Axes: breadth = x, width = y, height = z
-		this->xSize = this->imageWidth;
-		this->ySize = this->imageWidth;
+		double radius = this->imageWidth / 2;
+		radius = this->getReconstructionCylinderRadius();
+		this->xSize = radius*2;
+		this->ySize = radius*2;
 		this->zSize = this->imageHeight;
 		this->updateBoundaries();
 		switch (this->crossSectionAxis) {
@@ -352,20 +353,25 @@ namespace ct {
 		return this->zMax;
 	}
 
-	double CtVolume::getUOffset() const {
+	size_t CtVolume::getReconstructionCylinderRadius() const {
+		double radius = this->imageWidth / 2;
+		return std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
+	}
+
+	float CtVolume::getUOffset() const {
 		return this->uOffset;
 	}
 
-	double CtVolume::getPixelSize() const {
+	float CtVolume::getPixelSize() const {
 		return this->pixelSize;
 	}
 
-	double CtVolume::getSO() const {
-		return this->SO;
+	float CtVolume::getFCD() const {
+		return this->FCD;
 	}
 
-	double CtVolume::getSD() const {
-		return this->SD;
+	float CtVolume::getBaseIntensity() const {
+		return this->baseIntensity;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
@@ -460,14 +466,18 @@ namespace ct {
 		return requiredMemory;
 	}
 
-	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
+	void CtVolume::setVolumeBounds(float xFrom, float xTo, float yFrom, float yTo, float zFrom, float zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
-		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
-		this->xTo_float = std::max(this->xFrom_float, std::min(1.0, xTo));
-		this->yFrom_float = std::max(0.0, std::min(1.0, yFrom));
-		this->yTo_float = std::max(this->xFrom_float, std::min(1.0, yTo));
-		this->zFrom_float = std::max(0.0, std::min(1.0, zFrom));
-		zTo_float = std::max(this->xFrom_float, std::min(1.0, zTo));
+		if (xFrom == xTo || yFrom == yTo || zFrom == zTo) {
+			std::cout << "ERROR: the lower and upper bounds must not be identical." << std::endl;
+			return;
+		}
+		this->xFrom_float = std::max(0.0f, std::min(1.0f, xFrom));
+		this->xTo_float = std::max(this->xFrom_float, std::min(1.0f, xTo));
+		this->yFrom_float = std::max(0.0f, std::min(1.0f, yFrom));
+		this->yTo_float = std::max(this->xFrom_float, std::min(1.0f, yTo));
+		this->zFrom_float = std::max(0.0f, std::min(1.0f, zFrom));
+		zTo_float = std::max(this->xFrom_float, std::min(1.0f, zTo));
 		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
@@ -616,30 +626,33 @@ namespace ct {
 			QTextStream out(&file);
 			out << fileInfo.fileName() << endl << endl;
 			out << "[Image dimensions]" << endl;
-			out << "U resolution:\t" << this->imageWidth << endl;
-			out << "V resolution:\t" << this->imageHeight << endl << endl;
+			out << "U resolution:\t\t" << this->imageWidth << endl;
+			out << "V resolution:\t\t" << this->imageHeight << endl << endl;
 			out << "[Reconstruction parameters]" << endl;
-			out << "SD:\t\t\t\t" << this->SD << endl;
-			out << "Pixel size:\t\t" << this->pixelSize << endl;
-			out << "U offset:\t\t" << this->uOffset << endl;
-			out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-			out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-			out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+			out << "FCD:\t\t\t\t\t" << this->FCD << endl;
+			out << "Pixel size:\t\t\t" << this->pixelSize << endl;
+			out << "U offset:\t\t\t" << this->uOffset << endl;
+			out << QString("X range relative:\t[%1 - %2]").arg(this->xFrom_float, 0, 'f', 3).arg(this->xTo_float, 0, 'f', 3) << endl;
+			out << QString("Y range relative:\t[%1 - %2]").arg(this->yFrom_float, 0, 'f', 3).arg(this->yTo_float, 0, 'f', 3) << endl;
+			out << QString("Z range relative:\t[%1 - %2]").arg(this->zFrom_float, 0, 'f', 3).arg(this->zTo_float, 0, 'f', 3) << endl;
+			out << "X range:\t\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+			out << "Y range:\t\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+			out << "Z range:\t\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
 			out << "[Volume dimensions]" << endl;
-			out << "X size:\t\t\t" << this->xMax << endl;
-			out << "Y size:\t\t\t" << this->yMax << endl;
-			out << "Z size:\t\t\t" << this->zMax << endl << endl;
+			out << "X size:\t\t\t\t" << this->xMax << endl;
+			out << "Y size:\t\t\t\t" << this->yMax << endl;
+			out << "Z size:\t\t\t\t" << this->zMax << endl << endl;
 			out << "[Data format]" << endl;
-			out << "Data type:\t\t32bit IEEE 754 float" << endl;
+			out << "Data type:\t\t\t32bit IEEE 754 float" << endl;
 			if (byteOrder == QDataStream::LittleEndian) {
-				out << "Byte order:\t\tLittle endian" << endl;
+				out << "Byte order:\t\t\tLittle endian" << endl;
 			} else {
-				out << "Byte order:\t\tBig endian" << endl;
+				out << "Byte order:\t\t\tBig endian" << endl;
 			}
 			if (indexOrder == IndexOrder::Z_FASTEST) {
-				out << "Index order:\tZ fastest";
+				out << "Index order:\t\tZ fastest";
 			} else {
-				out << "Index order:\tX fastest";
+				out << "Index order:\t\tX fastest";
 			}
 			file.close();
 		}
@@ -653,6 +666,7 @@ namespace ct {
 				return;
 			}
 			QTextStream out(&file);
+			//note: the new line at the end is important for VG Studio to be able to read the file
 			QString contents = "{volume1}\n"
 				"[representation]\n"
 				"size = %1 %2 %3\n"
@@ -673,7 +687,7 @@ namespace ct {
 				"resolution = %6 %6 %6\n"
 				"unit = mm\n"
 				"[volume]\n"
-				"volume = volume1";
+				"volume = volume1\n";
 			contents = contents.arg(this->xMax).arg(this->yMax).arg(this->zMax).arg(this->volume.min()).arg(this->volume.max()).arg(this->pixelSize).arg(fileInfo.fileName());
 			out << contents;
 			file.close();
@@ -758,9 +772,9 @@ namespace ct {
 	}
 
 	void CtVolume::preprocessImage(cv::Mat& image) const {
-		applyLogScaling(image);
-		applyFourierFilter(image, this->filterType);
+		this->applyLogScaling(image);
 		this->applyFeldkampWeight(image);
+		applyFourierFilter(image, this->filterType);
 	}
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
@@ -781,12 +795,12 @@ namespace ct {
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
-				ptr[c] = ptr[c] * W(this->SD, this->matToImageU(c), this->matToImageV(r));
+				ptr[c] = ptr[c] * W(this->FCD, this->matToImageU(c), this->matToImageV(r));
 			}
 		}
 	}
 
-	inline double CtVolume::W(double D, double u, double v) {
+	inline float CtVolume::W(float D, float u, float v) {
 		return D / sqrt(D*D + u*u + v*v);
 	}
 
@@ -812,31 +826,34 @@ namespace ct {
 			}
 		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
+		//scale FFT result
+		//image *= 1.0 / static_cast<float>(image.cols);
 	}
 
-	void CtVolume::applyLogScaling(cv::Mat& image) {
+	void CtVolume::applyLogScaling(cv::Mat& image) const {
+		image *= 1/this->baseIntensity;
 		// -ln(x)
 		cv::log(image, image);
 		image *= -1;
 	}
 
-	double CtVolume::ramLakWindowFilter(double n, double N) {
-		return double(n) / double(N);
+	float CtVolume::ramLakWindowFilter(float n, float N) {
+		return n / N;
 	}
 
-	double CtVolume::sheppLoganWindowFilter(double n, double N) {
+	float CtVolume::sheppLoganWindowFilter(float n, float N) {
 		if (n == 0) {
-			return 0;
+			return 0.0f;
 		} else {
-			double rl = ramLakWindowFilter(n, N);
-			return (rl)* (sin(rl*0.5*M_PI)) / (rl*0.5*M_PI);
+			float rl = ramLakWindowFilter(n, N);
+			return (rl)* (sin(rl*0.5f*M_PI)) / (rl*0.5f*M_PI);
 		}
 
 	}
 
-	double CtVolume::hannWindowFilter(double n, double N) {
-		double rl = ramLakWindowFilter(n, N);
-		return rl * 0.5*(1 + cos(M_PI * rl));
+	float CtVolume::hannWindowFilter(float n, float N) {
+		float rl = ramLakWindowFilter(n, N);
+		return rl * 0.5f*(1.0f + cos(M_PI * rl));
 	}
 
 	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& imageOut, cv::cuda::GpuMat& dftTmp, FftFilter& fftFilter, bool& success, cv::cuda::Stream& stream) const {
@@ -844,18 +861,21 @@ namespace ct {
 		bool successLocal;
 		cudaStream_t cudaStream = cv::cuda::StreamAccessor::getStream(stream);
 		//images must be scaled in case different depths are mixed (-> equal value range)
-		double scalingFactor = 1.0;
+		float scalingFactor = 1.0;
 		if (imageIn.depth() == CV_8U) {
 			scalingFactor = 255.0;
 		} else if (imageIn.depth() == CV_16U) {
 			scalingFactor = 65535.0;
 		}
-		//convert to 32bit
-		imageIn.convertTo(imageOut, CV_32FC1, 1.0/scalingFactor, stream);
+		//convert to 32bit and normalise black
+		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->baseIntensity), stream);
 		//logarithmic scale
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
-		imageOut.convertTo(imageOut, imageOut.type(), -1, stream);
+		cv::cuda::multiply(imageOut, -1, imageOut, 1.0, -1, stream);
+		//apply the feldkamp weights
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->FCD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
+		success = success && successLocal;
 		//transform to frequency domain
 		//cv::cuda::dft(imageOut, dftTmp, image.size(), cv::DFT_ROWS, stream);
 		fftFilter.applyForward(imageOut, dftTmp, successLocal);
@@ -867,22 +887,28 @@ namespace ct {
 		//cv::cuda::dft(dftTmp, imageOut, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
 		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
 		success = success && successLocal;
-		//apply the feldkamp weights
-		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->SD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
-		success = success && successLocal;
+		//scale FFT result
+		//cv::cuda::multiply(imageOut, 1.0 / static_cast<float>(this->imageWidth), imageOut, 1.0, -1, stream);
 	}
 
 	bool CtVolume::reconstructionCore() {
-		double imageLowerBoundU = this->matToImageU(0);
-		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+		float imageLowerBoundU = this->matToImageU(0);
+		float imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
-		double imageUpperBoundV = this->matToImageV(0);
+		float imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+		float imageUpperBoundV = this->matToImageV(0);
 
-		double volumeLowerBoundY = this->volumeToWorldY(0);
-		double volumeUpperBoundY = this->volumeToWorldY(this->yMax);
-		double volumeLowerBoundZ = this->volumeToWorldZ(0);
-		double volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
+		float volumeLowerBoundY = this->volumeToWorldY(0);
+		float volumeUpperBoundY = this->volumeToWorldY(this->yMax);
+		float volumeLowerBoundZ = this->volumeToWorldZ(0);
+		float volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
+
+		//copy some member variables to local variables, performance is better this way
+		float FCD = this->FCD;
+		float uOffset = this->uOffset;
+
+		float radius = this->getReconstructionCylinderRadius();
+		float radiusSquared = radius*radius;
 
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
@@ -892,12 +918,12 @@ namespace ct {
 				return false;
 			}
 			//output percentage
-			double percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
+			float percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
 			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
-			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-			double sine = sin(beta_rad);
-			double cosine = cos(beta_rad);
+			float angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+			float sine = sin(angle_rad);
+			float cosine = cos(angle_rad);
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
@@ -913,33 +939,35 @@ namespace ct {
 				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				return false;
 			}
-			//copy some member variables to local variables, performance is better this way
-			double heightOffset = this->sinogram[projection].heightOffset;
-			double uOffset = this->uOffset;
-			double SD = this->SD;
-			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+			//copy some member variables to local variables; performance is better this way
+			float heightOffset = this->sinogram[projection].heightOffset;
+
 			float* volumePtr;
 #pragma omp parallel for private(volumePtr) schedule(dynamic)
 			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
-				double x = this->volumeToWorldX(xIndex);
+				float x = this->volumeToWorldX(xIndex);
 				volumePtr = this->volume.slicePtr(xIndex);
-				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
+				for (float y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
 					if ((x*x + y*y) >= radiusSquared) {
 						volumePtr += this->zMax;
 						continue;
 					}
 					//if the voxel is inside the reconstructable cylinder
-					for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
+					for (float z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
-						double t = (-1)*x*sine + y*cosine;
+						float t = (-1)*x*sine + y*cosine;
 						//correct the u-offset
 						t += uOffset;
-						double s = x*cosine + y*sine;
-						double u = (t*SD) / (SD - s);
-						double v = ((z + heightOffset)*SD) / (SD - s);
+						float s = x*cosine + y*sine;
+						float u = (t*FCD) / (FCD - s);
+						float v = ((z + heightOffset)*FCD) / (FCD - s);
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
+
+							//calculate weight
+							float w = FCD / (FCD + s);
+							w = w*w;
 
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
@@ -961,7 +989,7 @@ namespace ct {
 							float u1v1 = row[u1];
 							//this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							//size_t index = this->worldToVolumeY(y)*this->zMax + this->worldToVolumeZ(z);
-							(*volumePtr) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+							(*volumePtr) += w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
@@ -971,12 +999,12 @@ namespace ct {
 		return true;
 	}
 
-	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
+	inline float CtVolume::bilinearInterpolation(float u, float v, float u0v0, float u1v0, float u0v1, float u1v1) {
 		//the two interpolations on the u axis
-		double v0 = (1.0 - u)*u0v0 + u*u1v0;
-		double v1 = (1.0 - u)*u0v1 + u*u1v1;
+		double v0 = (1.0f - u)*u0v0 + u*u1v0;
+		double v1 = (1.0f - u)*u0v1 + u*u1v1;
 		//interpolation on the v axis between the two u-interpolated values
-		return (1.0 - v)*v0 + v*v1;
+		return (1.0f - v)*v0 + v*v1;
 	}
 
 	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
@@ -993,7 +1021,8 @@ namespace ct {
 			//inversed because of inversed v axis in mat/image coordinate system
 			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
 			double imageUpperBoundV = this->matToImageV(0);
-			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+			double radius = this->getReconstructionCylinderRadius();
+			double radiusSquared = radius*radius;
 
 			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
@@ -1115,9 +1144,9 @@ namespace ct {
 
 					int current = projection % 2;
 
-					double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-					double sine = sin(beta_rad);
-					double cosine = cos(beta_rad);
+					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+					double sine = sin(angle_rad);
+					double cosine = cos(angle_rad);
 
 					//prepare and upload next image
 					image = this->sinogram[projection].getImage();
@@ -1160,7 +1189,7 @@ namespace ct {
 												  cosine,
 												  this->sinogram[projection].heightOffset,
 												  this->uOffset,
-												  this->SD,
+												  this->FCD,
 												  imageLowerBoundU,
 												  imageUpperBoundU,
 												  imageLowerBoundV,
@@ -1319,51 +1348,51 @@ namespace ct {
 			this->crossSectionIndex = this->zMax / 2;
 		}
 		//precompute some values for faster processing
-		this->xPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
-		this->yPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
-		this->zPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
-		this->uPrecomputed = double(this->imageWidth) / 2.0;
-		this->vPrecomputed = double(this->imageHeight) / 2.0;
+		this->xPrecomputed = (float(this->xSize) / 2.0) - float(this->xFrom);
+		this->yPrecomputed = (float(this->ySize) / 2.0) - float(this->yFrom);
+		this->zPrecomputed = (float(this->zSize) / 2.0) - float(this->zFrom);
+		this->uPrecomputed = float(this->imageWidth) / 2.0;
+		this->vPrecomputed = float(this->imageHeight) / 2.0;
 	}
 
-	inline double CtVolume::worldToVolumeX(double xCoord) const {
+	inline float CtVolume::worldToVolumeX(float xCoord) const {
 		return xCoord + this->xPrecomputed;
 	}
 
-	inline double CtVolume::worldToVolumeY(double yCoord) const {
+	inline float CtVolume::worldToVolumeY(float yCoord) const {
 		return yCoord + this->yPrecomputed;
 	}
 
-	inline double CtVolume::worldToVolumeZ(double zCoord) const {
+	inline float CtVolume::worldToVolumeZ(float zCoord) const {
 		return zCoord + this->zPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldX(double xCoord) const {
+	inline float CtVolume::volumeToWorldX(float xCoord) const {
 		return xCoord - this->xPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldY(double yCoord) const {
+	inline float CtVolume::volumeToWorldY(float yCoord) const {
 		return yCoord - this->yPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldZ(double zCoord) const {
+	inline float CtVolume::volumeToWorldZ(float zCoord) const {
 		return zCoord - this->zPrecomputed;
 	}
 
-	inline double CtVolume::imageToMatU(double uCoord)const {
+	inline float CtVolume::imageToMatU(float uCoord)const {
 		return uCoord + this->uPrecomputed;
 	}
 
-	inline double CtVolume::imageToMatV(double vCoord)const {
+	inline float CtVolume::imageToMatV(float vCoord)const {
 		//factor -1 because of different z-axis direction
 		return (-1)*vCoord + this->vPrecomputed;
 	}
 
-	inline double CtVolume::matToImageU(double uCoord)const {
+	inline float CtVolume::matToImageU(float uCoord)const {
 		return uCoord - this->uPrecomputed;
 	}
 
-	inline double CtVolume::matToImageV(double vCoord)const {
+	inline float CtVolume::matToImageV(float vCoord)const {
 		//factor -1 because of different z-axis direction
 		return (-1)*vCoord + this->vPrecomputed;
 	}
