@@ -1177,6 +1177,20 @@ namespace ct {
 						return false;
 					}
 
+					float maxValue = 65535;
+					int type = CV_16UC1;
+					cv::Mat mat;
+					cv::Mat normalized;
+					preprocessedGpuImage[current].download(mat);
+					float minGrey = 0;
+					float maxGrey = maxValue;
+					cv::normalize(mat, normalized, minGrey, maxGrey, cv::NORM_MINMAX, type);
+					cv::imwrite("C:/Users/bastian/Desktop/image.tif", normalized);
+					stopCudaThreads = true;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) this->lastErrorMessage += std::string("Done.");
+					return false;
+
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(preprocessedGpuImage[current],
 												  gpuVolumePtr,
