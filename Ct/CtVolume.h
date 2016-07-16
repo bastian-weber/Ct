@@ -68,23 +68,23 @@ namespace ct {
 		static int getCudaDeviceCount(bool verbose = false);
 		ct::Projection getProjectionAt(size_t index) const;
 		size_t getSinogramSize() const;
-		size_t getImageWidth() const;
-		size_t getImageHeight() const;
-		size_t getXSize() const;
-		size_t getYSize() const;
-		size_t getZSize() const;
-		size_t getReconstructionCylinderRadius() const;
+		unsigned int getImageWidth() const;
+		unsigned int getImageHeight() const;
+		unsigned int getXSize() const;
+		unsigned int getYSize() const;
+		unsigned int getZSize() const;
+		unsigned int getReconstructionCylinderRadius() const;
 		float getUOffset() const;
 		float getPixelSize() const;
 		float getFCD() const;
 		float getBaseIntensity() const;
-		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
-		size_t getCrossSectionIndex() const;
-		size_t getCrossSectionSize() const;
+		cv::Mat getVolumeCrossSection(Axis axis, unsigned int index) const;
+		unsigned int getCrossSectionIndex() const;
+		unsigned int getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
 		bool getEmitSignals() const;
 		bool getUseCuda() const;
-		size_t getSkipProjections() const;
+		unsigned int getSkipProjections() const;
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
@@ -93,7 +93,7 @@ namespace ct {
 		size_t getRequiredMemoryUpperBound() const;
 
 		//setters
-		void setCrossSectionIndex(size_t index);
+		void setCrossSectionIndex(unsigned int index);
 		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
 		void setVolumeBounds(float xFrom,
@@ -108,7 +108,7 @@ namespace ct {
 		void setGpuCoefficients(double multiprocessorCoefficient,
 								double memoryBandwidthCoefficient);
 		void setFrequencyFilterType(FilterType filterType);
-		void setSkipProjections(size_t value = 0);
+		void setSkipProjections(unsigned int value = 0);
 
 		//control functions
 		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
@@ -160,12 +160,12 @@ namespace ct {
 		void correctAngleDirection(std::string rotationDirection);
 		
 		//related to CPU image preprocessing
-		cv::Mat normalizeImage(cv::Mat const& image,							//returns a new image which is a version of the old image that is normalized by min and max value
+		cv::Mat normalizeImage(cv::Mat const& image,						//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		cv::Mat prepareProjection(size_t index) const;							//returns the image of the projection at position index preprocessed and converted
+		cv::Mat prepareProjection(unsigned int index) const;						//returns the image of the projection at position index preprocessed and converted
 		void preprocessImage(cv::Mat& image) const;
-		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
+		static void convertTo32bit(cv::Mat& img);							//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
 		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		
 		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
@@ -183,7 +183,7 @@ namespace ct {
 								 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 
 		//related to the CPU reconstruction
-		bool reconstructionCore();												//does the actual reconstruction
+		bool reconstructionCore();											//does the actual reconstruction
 		static float bilinearInterpolation(float u,							//interpolates bilinear between those four intensities
 										   float v,
 										   float u0v0,
@@ -192,12 +192,12 @@ namespace ct {
 										   float u1v1);
 
 		//related to the GPU reconstruction
-		bool cudaReconstructionCore(size_t threadZMin, 
-									size_t threadZMax, 
+		bool cudaReconstructionCore(unsigned int threadZMin,
+									unsigned int threadZMax,
 									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
-		size_t getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
+		unsigned int getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
@@ -216,19 +216,19 @@ namespace ct {
 
 		//parameters that are set when reading the config file/the images
 		std::vector<Projection> sinogram;									//here the images are stored
-		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
-		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
+		unsigned int xSize = 0, ySize = 0, zSize = 0;						//the size of the volume in x, y and z direction, is calculated when sinogram is created
+		unsigned int imageWidth = 0, imageHeight = 0;						//stores the height and width of the images in the sinogram
 		int imageType;														//assumed type of all the images (taken from the first image)
 		float FCD = 0;														//the distance of the source to the detector in pixel
 		float pixelSize = 0;
 		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
-		float baseIntensity = 0;												//the intensity of just air
+		float baseIntensity = 0;											//the intensity of just air
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
-		size_t projectionStep = 1;											//controls how many projections are skipped during reconstruction
+		unsigned int projectionStep = 1;									//controls how many projections are skipped during reconstruction
 		bool emitSignals = true;											//if true the object emits qt signals in certain functions
-		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
+		unsigned int crossSectionIndex = 0;									//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
 		bool useCuda = true;												//enables or disables the use of cuda
 		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
@@ -241,10 +241,10 @@ namespace ct {
 
 		//variables that are only internally used
 		Volume<float> volume;												//holds the reconstructed volume
-		size_t xFrom = 0, xTo = 0;											//the volume ROI in actual volume coordinates, calculated from the float ROI
-		size_t yFrom = 0, yTo = 0;
-		size_t zFrom = 0, zTo = 0;
-		size_t xMax = 0, yMax = 0, zMax = 0;								//the width, height and depth of the volume ROI that is going to be reconstructed
+		unsigned int xFrom = 0, xTo = 0;									//the volume ROI in actual volume coordinates, calculated from the float ROI
+		unsigned int yFrom = 0, yTo = 0;
+		unsigned int zFrom = 0, zTo = 0;
+		unsigned int xMax = 0, yMax = 0, zMax = 0;							//the width, height and depth of the volume ROI that is going to be reconstructed
 		mutable std::pair<float, float> minMaxValues;						//stores the brightest and darkes value in all of the sinogram images (for normalisation)
 		std::map<int, double> cudaThreadProgress, cudaGpuWeights;			//for keeping track of the progress on multithread CUDA execution
 		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently

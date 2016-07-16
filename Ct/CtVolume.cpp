@@ -221,8 +221,8 @@ namespace ct {
 
 		//load and check images
 		{
-			size_t cnt = 0;
-			size_t rows, cols;
+			unsigned int cnt = 0;
+			unsigned int rows, cols;
 			double min = std::numeric_limits<double>::quiet_NaN();
 			double max = std::numeric_limits<double>::quiet_NaN();
 			for (Projection const& projection : this->sinogram) {
@@ -333,27 +333,27 @@ namespace ct {
 		return 0;
 	}
 
-	size_t CtVolume::getImageWidth() const {
+	unsigned int CtVolume::getImageWidth() const {
 		return this->imageWidth;
 	}
 
-	size_t CtVolume::getImageHeight() const {
+	unsigned int CtVolume::getImageHeight() const {
 		return this->imageHeight;
 	}
 
-	size_t CtVolume::getXSize() const {
+	unsigned int CtVolume::getXSize() const {
 		return this->xMax;
 	}
 
-	size_t CtVolume::getYSize() const {
+	unsigned int CtVolume::getYSize() const {
 		return this->yMax;
 	}
 
-	size_t CtVolume::getZSize() const {
+	unsigned int CtVolume::getZSize() const {
 		return this->zMax;
 	}
 
-	size_t CtVolume::getReconstructionCylinderRadius() const {
+	unsigned int CtVolume::getReconstructionCylinderRadius() const {
 		double radius = this->imageWidth / 2;
 		return std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
 	}
@@ -374,11 +374,11 @@ namespace ct {
 		return this->baseIntensity;
 	}
 
-	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
+	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, unsigned int index) const {
 		return this->volume.getVolumeCrossSection(axis, index, CoordinateSystemOrientation::LEFT_HANDED);
 	}
 
-	void CtVolume::setCrossSectionIndex(size_t index) {
+	void CtVolume::setCrossSectionIndex(unsigned int index) {
 		if (index >= 0 && (this->crossSectionAxis == Axis::X && index < this->xMax) || (this->crossSectionAxis == Axis::Y && index < this->yMax) || (this->crossSectionAxis == Axis::Z && index < this->zMax)) {
 			this->crossSectionIndex = index;
 		}
@@ -395,11 +395,11 @@ namespace ct {
 		}
 	}
 
-	size_t CtVolume::getCrossSectionIndex() const {
+	unsigned int CtVolume::getCrossSectionIndex() const {
 		return this->crossSectionIndex;
 	}
 
-	size_t CtVolume::getCrossSectionSize() const {
+	unsigned int CtVolume::getCrossSectionSize() const {
 		if (this->crossSectionAxis == Axis::X) {
 			return this->xMax;
 		} else if (this->crossSectionAxis == Axis::Y) {
@@ -421,7 +421,7 @@ namespace ct {
 		return this->useCuda;
 	}
 
-	size_t CtVolume::getSkipProjections() const {
+	unsigned int CtVolume::getSkipProjections() const {
 		return this->projectionStep - 1;
 	}
 
@@ -514,7 +514,7 @@ namespace ct {
 		this->filterType = filterType;
 	}
 
-	void CtVolume::setSkipProjections(size_t value) {
+	void CtVolume::setSkipProjections(unsigned int value) {
 		this->projectionStep = value + 1;
 	}
 
@@ -762,7 +762,7 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	cv::Mat CtVolume::prepareProjection(size_t index) const {
+	cv::Mat CtVolume::prepareProjection(unsigned int index) const {
 		cv::Mat image = this->sinogram[index].getImage();
 		if (image.data) {
 			convertTo32bit(image);
@@ -1007,7 +1007,7 @@ namespace ct {
 		return (1.0f - v)*v0 + v*v1;
 	}
 
-	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
+	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId) {
 
 		try {
 
@@ -1024,7 +1024,7 @@ namespace ct {
 			double radius = this->getReconstructionCylinderRadius();
 			double radiusSquared = radius*radius;
 
-			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
+			const unsigned int progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
 			//image in RAM
 			cv::Mat image;
@@ -1062,10 +1062,10 @@ namespace ct {
 				}
 			}
 
-			size_t sliceCnt = getMaxChunkSize();
-			size_t currentSlice = threadZMin;
+			unsigned int sliceCnt = getMaxChunkSize();
+			unsigned int currentSlice = threadZMin;
 			//slice count equivalent to 150mb memory usage
-			size_t decreaseSliceStep = static_cast<size_t>(std::max(std::ceil(150.0L * 1024.0L * 1024.0L / static_cast<long double>(this->xMax*this->yMax*sizeof(float))), 1.0L));
+			unsigned int decreaseSliceStep = static_cast<unsigned int>(std::max(std::ceil(150.0L * 1024.0L * 1024.0L / static_cast<long double>(this->xMax*this->yMax*sizeof(float))), 1.0L));
 
 			if (sliceCnt < 1) {
 				//too little memory
@@ -1104,10 +1104,10 @@ namespace ct {
 
 			while (currentSlice < threadZMax) {
 
-				size_t lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
-				size_t const xDimension = this->xMax;
-				size_t const yDimension = this->yMax;
-				size_t zDimension = lastSlice - currentSlice;
+				unsigned int lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+				unsigned int const xDimension = this->xMax;
+				unsigned int const yDimension = this->yMax;
+				unsigned int zDimension = lastSlice - currentSlice;
 
 				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
 
@@ -1268,9 +1268,9 @@ namespace ct {
 		//create vector to store threads
 		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
-		size_t currentSlice = 0;
+		unsigned int currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			size_t sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
+			unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
 			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
@@ -1285,7 +1285,7 @@ namespace ct {
 	std::map<int, double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
 		//get amount of multiprocessors per GPU
 		std::map<int, int> multiprocessorCnt;
-		size_t totalMultiprocessorsCnt = 0;
+		unsigned int totalMultiprocessorsCnt = 0;
 		std::map<int, int> bandwidth;
 		size_t totalBandWidth = 0;
 		for (int i = 0; i < devices.size(); ++i) {
@@ -1314,7 +1314,7 @@ namespace ct {
 		return scalingFactors;
 	}
 
-	size_t CtVolume::getMaxChunkSize() const {
+	unsigned int CtVolume::getMaxChunkSize() const {
 		if (this->sinogram.size() < 1) return 0;
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
@@ -1323,7 +1323,7 @@ namespace ct {
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
 		if (sliceSize == 0) return 0;
-		size_t sliceCnt = freeMemory / sliceSize;
+		unsigned int sliceCnt = freeMemory / sliceSize;
 
 		return sliceCnt;
 	}
