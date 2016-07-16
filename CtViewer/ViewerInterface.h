@@ -17,16 +17,11 @@
 #endif
 
 #include "ImageView.h"
-#include "Timer.h"
+#include "types.h"
 #include "Volume.h"
 #include "ImportSettingsDialog.h"
 
 namespace ct {
-
-	enum class ImageBitDepth {
-		CHANNEL_8_BIT,
-		CHANNEL_16_BIT
-	};
 
 	class ViewerInterface : public QWidget {
 		Q_OBJECT
@@ -46,9 +41,12 @@ namespace ct {
 		void changeEvent(QEvent* e);
 		void mouseMoveEvent(QMouseEvent* e);
 	private:
+		template <typename T>
+		void initialiseVolume();
+		QString getVolumeDataValue(size_t x, size_t y, size_t z) const;
 		void interfaceInitialState();
 		void interfaceVolumeLoadedState();
-		cv::Mat getNormalisedCrossSection() const;
+		cv::Mat getNormalisedCrossSection(ImageBitDepth depth = ImageBitDepth::CHANNEL_8_BIT) const;
 		void updateImage();
 		void setNextSlice();
 		void setPreviousSlice();
@@ -60,9 +58,7 @@ namespace ct {
 		void exitFullscreen();
 		void toggleFullscreen();
 
-		Volume<float> volume;
-		float minValue = 1;
-		float maxValue = 1;
+		std::shared_ptr<AbstractVolume> volume;
 		std::atomic<bool> volumeLoaded{ false };
 		std::atomic<bool> loadingActive{ false };
 		bool globalNormalisation = false;
@@ -70,10 +66,10 @@ namespace ct {
 		size_t currentSliceX = 0;
 		size_t currentSliceY = 0;
 		size_t currentSliceZ = 0;
-		hb::Timer timer;
 		std::shared_ptr<QSettings> settings;
 		std::future<bool> loadVolumeThread;
 		QString openWithFilename;
+		QString const title = "Ct Viewer";
 
 		//interface widgets
 		QHBoxLayout* mainLayout;
@@ -105,11 +101,22 @@ namespace ct {
 		void changeNormalisation();
 		void openDialog();
 		void saveImageDialog();
-		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth bitDepth);
+		bool saveCurrentSliceAsImage(QString filename, ImageBitDepth depth);
 	signals:
 		void windowLoaded();
 		void progressUpdate(int progress) const;
 	};
+
+
+	//Template function implementation
+
+	template<typename T>
+	void ViewerInterface::initialiseVolume() {
+		this->volume = std::shared_ptr<Volume<T>>(new Volume<T>());
+		this->volume->setEmitSignals(true);
+		QObject::connect(this->volume.get(), SIGNAL(loadingFinished(CompletionStatus)), this, SLOT(reactToLoadCompletion(CompletionStatus)));
+		QObject::connect(this->volume.get(), SIGNAL(loadingProgress(double)), this, SLOT(reactToLoadProgressUpdate(double)));
+	}
 
 }
 

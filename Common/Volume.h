@@ -11,7 +11,7 @@
 //Qt
 #include <QtCore/QtCore>
 
-#include "CompletionStatus.h"
+#include "types.h"
 
 namespace ct {
 
@@ -36,6 +36,26 @@ namespace ct {
 		Q_OBJECT
 	public:
 		virtual ~AbstractVolume() = default;
+		virtual void clear() = 0;
+		virtual cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
+											  size_t index,
+											  CoordinateSystemOrientation type) const = 0;
+		virtual size_t getSizeAlongDimension(Axis axis) const = 0;						//returns the size along the axis axis
+		virtual void stop() = 0;														//stops the saving function
+		//getters
+		virtual bool getEmitSignals() const = 0;
+		virtual size_t xSize() const = 0;
+		virtual size_t ySize() const = 0;
+		virtual size_t zSize() const = 0;
+		virtual size_t sliceCnt() const = 0;
+		virtual size_t sliceSize() const = 0;
+		virtual size_t rowSize() const = 0;
+		virtual double atRelative(size_t x, size_t y, size_t z) const = 0;
+		virtual float minFloat() const = 0;
+		virtual float maxFloat() const = 0;
+		//setters
+		virtual void setMemoryLayout(IndexOrder indexOrder) = 0;
+		virtual void setEmitSignals(bool value) = 0;
 	signals:
 		void savingProgress(double percentage) const;
 		void savingFinished(CompletionStatus status = CompletionStatus::success()) const;
@@ -63,12 +83,19 @@ namespace ct {
 								IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 								QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision,
 								QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
-								T* minValue = nullptr,
-								T* maxValue = nullptr);
+								size_t headerOffset = 0,
+								bool mirrorX = false,
+								bool mirrorY = false,
+								bool mirrorZ = false,
+								U shift = 0,
+								U scale = 1);
+		template <typename U>
 		bool saveToBinaryFile(QString const& filename,							//saves the volume to a binary file with the given filename
 							  IndexOrder indexOrder = IndexOrder::Z_FASTEST,
 							  QDataStream::FloatingPointPrecision floatingPointPrecision = QDataStream::SinglePrecision, 
-							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian) const;				
+							  QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian,
+							  T shift = 0,
+							  T scale = 1) const;				
 		cv::Mat getVolumeCrossSection(Axis axis,								//returns a cross section through the volume as image
 									  size_t index, 
 									  CoordinateSystemOrientation type) const;			
@@ -79,19 +106,34 @@ namespace ct {
 		size_t xSize() const;
 		size_t ySize() const;
 		size_t zSize() const;
+		size_t sliceCnt() const;
+		size_t sliceSize() const;
+		size_t rowSize() const;
 		T& at(size_t x, size_t y, size_t z);
 		T const& at(size_t x, size_t y, size_t z) const;
+		double atRelative(size_t x, size_t y, size_t z) const;
+		T min() const;
+		T max() const;
+		float minFloat() const;
+		float maxFloat() const;
 		T* data();
 		T const* data() const;
 		T* slicePtr(size_t sliceIndex);
-		T* const* slicePtr(size_t sliceIndex) const;
+		T const* slicePtr(size_t sliceIndex) const;
 		T* rowPtr(size_t sliceIndex, size_t rowIndex);
-		T* const* rowPtr(size_t sliceIndex, size_t rowIndex) const;
+		T const* rowPtr(size_t sliceIndex, size_t rowIndex) const;
 		//setters
 		void setMemoryLayout(IndexOrder indexOrder);
 		void setEmitSignals(bool value);
 	private:
+		//functions
+		void calculateMinMax() const;
+
+		//variables
 		T* volume = nullptr;
+		mutable T minValue = 0;
+		mutable T maxValue = 0;
+		mutable bool minMaxCalculated = false;
 		size_t xMax = 0, yMax = 0, zMax = 0, slicePitchXFastest = 0, slicePitchZFastest = 0;
 		IndexOrder mode = IndexOrder::Z_FASTEST;
 		bool emitSignals = true;												//if true the object emits qt signals in certain functions
@@ -132,6 +174,7 @@ namespace ct {
 			this->xMax = 0;
 			this->yMax = 0;
 			this->zMax = 0;
+			this->minMaxCalculated = false;
 		}
 	}
 
@@ -143,6 +186,34 @@ namespace ct {
 	template<typename T>
 	void Volume<T>::setEmitSignals(bool value) {
 		this->emitSignals = value;
+	}
+
+	template<typename T>
+	void Volume<T>::calculateMinMax() const {
+		T threadMin = std::numeric_limits<T>::max();
+		T threadMax = std::numeric_limits<T>::lowest();
+		T min = std::numeric_limits<T>::max();
+		T max = std::numeric_limits<T>::lowest();
+		T const* ptr;
+#pragma omp parallel private(ptr) firstprivate(threadMin, threadMax)
+		{
+#pragma omp for
+			for (int slice = 0; slice < this->sliceCnt(); ++slice) {
+				ptr = this->slicePtr(slice);
+				for (int i = 0; i < this->sliceSize(); ++i, ++ptr) {
+					if (*ptr < threadMin) threadMin = *ptr;
+					if (*ptr > threadMax) threadMax = *ptr;
+				}
+			}
+#pragma omp critical(sync)
+			{
+				if (threadMin < min) min = threadMin;
+				if (threadMax > max) max = threadMax;
+			}
+		}
+		this->minValue = min;
+		this->maxValue = max;
+		this->minMaxCalculated = true;
 	}
 
 	template<typename T>
@@ -166,6 +237,24 @@ namespace ct {
 	}
 
 	template<typename T>
+	inline size_t Volume<T>::sliceCnt() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->zSize();
+		return this->xSize();
+	}
+
+	template<typename T>
+	inline size_t Volume<T>::sliceSize() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->ySize() * this->xSize();
+		return this->ySize() * this->zSize();
+	}
+
+	template<typename T>
+	inline size_t Volume<T>::rowSize() const {
+		if (this->mode == IndexOrder::X_FASTEST) return this->xSize();
+		return this->zSize();
+	}
+
+	template<typename T>
 	inline T& Volume<T>::at(size_t x, size_t y, size_t z) {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
 		if (this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
@@ -177,6 +266,37 @@ namespace ct {
 		if (x >= this->xMax || y >= this->yMax || z >= this->zMax) throw std::out_of_range("Volume index out of bounds");
 		if(this->mode == IndexOrder::Z_FASTEST) return this->volume[x * this->slicePitchZFastest + y*this->zMax + z];
 		return this->volume[z * this->slicePitchXFastest + y*this->xMax + x];
+	}
+
+	template<typename T>
+	inline double Volume<T>::atRelative(size_t x, size_t y, size_t z) const {
+		double min = static_cast<double>(this->min());
+		double span = static_cast<double>(this->max()) - min;
+		return (static_cast<double>(this->at(x, y, z)) - min) / span;
+	}
+
+	template<typename T>
+	inline T Volume<T>::min() const {
+		if (this->xSize() == 0) return 0;
+		if (!this->minMaxCalculated) this->calculateMinMax();
+		return this->minValue;
+	}
+
+	template<typename T>
+	inline T Volume<T>::max() const {
+		if (this->xSize() == 0) return 0;
+		if (!this->minMaxCalculated) this->calculateMinMax();
+		return this->maxValue;
+	}
+
+	template<typename T>
+	inline float Volume<T>::minFloat() const {
+		return static_cast<float>(this->min());
+	}
+
+	template<typename T>
+	inline float Volume<T>::maxFloat() const {
+		return static_cast<float>(this->max());
 	}
 
 	template<typename T>
@@ -196,7 +316,7 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline T* const * Volume<T>::slicePtr(size_t outerIndex) const {
+	inline T const* Volume<T>::slicePtr(size_t outerIndex) const {
 		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest];
 		return &this->volume[outerIndex * this->slicePitchXFastest];
 	}
@@ -208,178 +328,249 @@ namespace ct {
 	}
 
 	template<typename T>
-	inline T* const * Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) const {
+	inline T const* Volume<T>::rowPtr(size_t outerIndex, size_t innerIndex) const {
 		if (this->mode == IndexOrder::Z_FASTEST) return &this->volume[outerIndex * this->slicePitchZFastest + innerIndex*this->zMax];
 		return &this->volume[outerIndex * this->slicePitchXFastest + innerIndex*this->xMax];
 	}
 
 	template <typename T>
 	template <typename U>
-	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T* minValue, T* maxValue) {
-		this->stopActiveProcess = false;
-		size_t voxelSize = 0;
-		if (std::is_floating_point<U>::value) {
-			if (floatingPointPrecision == QDataStream::SinglePrecision) {
-				voxelSize = 4; //32 bit
+	bool Volume<T>::loadFromBinaryFile(QString const& filename, size_t xSize, size_t ySize, size_t zSize, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, size_t headerOffset, bool mirrorX, bool mirrorY, bool mirrorZ, U shift, U scale) {
+		try {
+			this->stopActiveProcess = false;
+			if (this->emitSignals) emit(loadingProgress(0));
+
+			size_t voxelSize = 0;
+			if (std::is_floating_point<U>::value) {
+				if (floatingPointPrecision == QDataStream::SinglePrecision) {
+					voxelSize = 4; //32 bit
+				} else {
+					voxelSize = 8; //64 bit
+				}
 			} else {
-				voxelSize = 8; //64 bit
+				voxelSize = sizeof(U);
 			}
-		} else {
-			voxelSize = sizeof(U);
-		}
-		size_t totalFileSize = xSize * ySize * zSize * voxelSize;
-		size_t actualFileSize = QFileInfo(filename).size();
-		QFile file(filename);
-		if (!file.open(QIODevice::ReadOnly)) {
-			std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
-			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
-			return false;
-		}
-		if (actualFileSize != totalFileSize) {
-			QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
-			std::cout << message.toStdString() << std::endl;
-			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
-			return false;
-		}
-		this->reinitialise(xSize, ySize, zSize);
-		QDataStream in(&file);
-		in.setFloatingPointPrecision(floatingPointPrecision);
-		in.setByteOrder(byteOrder);
-		//iterate through the volume
-		int x, z;
-		int xUpperBound = this->xSize(), zUpperBound = this->zSize();
-		int* innerIndex, *innerMax, *outerIndex, *outerMax;
-		if (indexOrder == IndexOrder::X_FASTEST) {
-			innerIndex = &x, outerIndex = &z;
-			innerMax = &xUpperBound, outerMax = &zUpperBound;
-		} else {
-			innerIndex = &z, outerIndex = &x;
-			innerMax = &zUpperBound, outerMax = &xUpperBound;
-		}
-		T min = std::numeric_limits<T>::max();
-		T max = std::numeric_limits<T>::lowest();
-		U tmp;
-		T converted;
-		if (this->mode == indexOrder) {
-			float* volumePtr = this->volume;
-			size_t size = this->xMax*this->yMax*this->zMax;
-			for (int i = 0; i < size; ++i, ++volumePtr) {
-				if (i % 100000 == 0) {
+			size_t totalFileSize = xSize * ySize * zSize * voxelSize + headerOffset;
+			size_t actualFileSize = QFileInfo(filename).size();
+			QFile file(filename);
+			if (!file.open(QIODevice::ReadOnly)) {
+				std::cout << "Could not open the file. Maybe your path does not exist." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist.")));
+				return false;
+			}
+			if (actualFileSize < totalFileSize) {
+				QString message = QString("The size of the file does not fit the given parameters. Expected filesize: %1 Actual filesize: %2").arg(totalFileSize).arg(actualFileSize);
+				std::cout << message.toStdString() << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
+				return false;
+			}
+			try {
+				this->reinitialise(xSize, ySize, zSize);
+			} catch (...) {
+				QString message = QString("The necessary memory for the volume could not be allocated. Maybe there is insufficient RAM.");
+				std::cout << message.toStdString() << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(message)));
+				return false;
+			}
+			QDataStream in(&file);
+			in.setFloatingPointPrecision(floatingPointPrecision);
+			in.setByteOrder(byteOrder);
+			//skip header bytes
+			in.skipRawData(headerOffset);
+			//iterate through the volume
+			int x, z;
+			int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+			int* innerIndex, *innerMax, *outerIndex, *outerMax;
+			if (indexOrder == IndexOrder::X_FASTEST) {
+				innerIndex = &x, outerIndex = &z;
+				innerMax = &xUpperBound, outerMax = &zUpperBound;
+			} else {
+				innerIndex = &z, outerIndex = &x;
+				innerMax = &zUpperBound, outerMax = &xUpperBound;
+			}
+			T min = std::numeric_limits<T>::max();
+			T max = std::numeric_limits<T>::lowest();
+			U tmp;
+			T converted;
+			if (this->mode == indexOrder && !mirrorX && !mirrorY && !mirrorZ) {
+				T* volumePtr = this->volume;
+				size_t size = this->xMax*this->yMax*this->zMax;
+				for (size_t i = 0; i < size; ++i, ++volumePtr) {
+					if (i % 100000ULL == 0) {
+						if (this->stopActiveProcess) {
+							this->clear();
+							std::cout << "User interrupted. Stopping." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
+							return false;
+						}
+						double percentage = std::round(double(i) / double(size) * 100);
+						if (this->emitSignals) emit(loadingProgress(percentage));
+					}
+					//load one U of data
+					in >> tmp;
+					if (in.status() != QDataStream::Ok) {
+						if (in.status() == QDataStream::ReadCorruptData) {
+							std::cout << "An error occured while reading from the disk. The data seems to be corrupted." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+							return false;
+						} else {
+							std::cout << "An error occured while reading from the disk." << std::endl;
+							if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+							return false;
+						}
+					}
+					converted = static_cast<T>((tmp + shift) * scale);
+					if (converted < min) min = converted;
+					if (converted > max) max = converted;
+					(*volumePtr) = converted;
+				}
+			} else {
+				for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 					if (this->stopActiveProcess) {
 						this->clear();
 						std::cout << "User interrupted. Stopping." << std::endl;
 						if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
 						return false;
 					}
-					double percentage = std::round(double(i) / double(size) * 100);
-					if(this->emitSignals) emit(savingProgress(percentage));
-				}
-				//load one U of data
-				in >> tmp;
-				converted = static_cast<T>(tmp);
-				if (converted < min) min = converted;
-				if (converted > max) max = converted;
-				(*volumePtr) = converted;
-			}
-		} else {
-			for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-				if (this->stopActiveProcess) {
-					this->clear();
-					std::cout << "User interrupted. Stopping." << std::endl;
-					if (this->emitSignals) emit(loadingFinished(CompletionStatus::interrupted()));
-					return false;
-				}
-				double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-				if (this->emitSignals) emit(loadingProgress(percentage));
-				for (int y = 0; y < this->ySize(); ++y) {
-					for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-						//load one U of data
-						in >> tmp;
-						converted = static_cast<T>(tmp);
-						if (converted < min) min = converted;
-						if (converted > max) max = converted;
-						this->at(x, y, z) = converted;
+					double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+					if (this->emitSignals) emit(loadingProgress(percentage));
+					for (int y = 0; y < this->ySize(); ++y) {
+						for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+							//load one U of data
+							in >> tmp;
+							if (in.status() != QDataStream::Ok) {
+								if (in.status() == QDataStream::ReadCorruptData) {
+									std::cout << "An error occured while reading from the disk. The data seems to be corrupted." << std::endl;
+									if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while reading from the disk. The data seems to be corrupted.")));
+									return false;
+								} else {
+									std::cout << "An error occured while reading from the disk." << std::endl;
+									if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An error occured while writing from the disk.")));
+									return false;
+								}
+							}
+							converted = static_cast<T>((tmp + shift) * scale);
+							if (converted < min) min = converted;
+							if (converted > max) max = converted;
+							this->at(mirrorX ? this->xSize() - x - 1 : x, mirrorY ? this->ySize() - y - 1 : y, mirrorZ ? this->zSize() - z - 1 : z) = converted;
+						}
 					}
 				}
 			}
+			file.close();
+			this->minValue = min;
+			this->maxValue = max;
+			this->minMaxCalculated = true;
+			if (this->emitSignals) emit(loadingFinished());
+			return true;
+		} catch (...) {
+			//something went wrong
+			std::cout << "An unknown error occured." << std::endl;
+			if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("An unknown error occured.")));
 		}
-		file.close();
-		if (minValue != nullptr) *minValue = min;
-		if (maxValue != nullptr) *maxValue = max;
-		if (this->emitSignals) emit(loadingFinished());
-		return true;
+		return false;
 	}
 
 	template <typename T>
-	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder) const {
-		this->stopActiveProcess = false;
-		if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
-			{
-				//write binary file
-				QFile file(filename);
-				if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-					std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
-					if(this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
-					return false;
-				}
-				QDataStream out(&file);
-				out.setFloatingPointPrecision(floatingPointPrecision);
-				out.setByteOrder(byteOrder);
-				//iterate through the volume
-				int x, z;
-				int xUpperBound = this->xSize(), zUpperBound = this->zSize();
-				int* innerIndex, *innerMax, *outerIndex, *outerMax;
-				if (indexOrder == IndexOrder::X_FASTEST) {
-					innerIndex = &x, outerIndex = &z;
-					innerMax = &xUpperBound, outerMax = &zUpperBound;
-				} else {
-					innerIndex = &z, outerIndex = &x;
-					innerMax = &zUpperBound, outerMax = &xUpperBound;
-				}
-				if (this->mode == indexOrder) {
-					float* volumePtr = this->volume;
-					size_t size = this->xMax*this->yMax*this->zMax;
-					for (int i = 0; i < size; ++i, ++volumePtr) {
-						if (i % 100000 == 0) {
+	template <typename U>
+	bool Volume<T>::saveToBinaryFile(QString const& filename, IndexOrder indexOrder, QDataStream::FloatingPointPrecision floatingPointPrecision, QDataStream::ByteOrder byteOrder, T shift, T scale) const {
+		try {
+			this->stopActiveProcess = false;
+			if (this->xSize() > 0 && this->ySize() > 0 && this->zSize() > 0) {
+				{
+					//write binary file
+					QFile file(filename);
+					if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+						std::cout << "Could not open the file. Maybe your path does not exist. No files were written." << std::endl;
+						if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not open the file. Maybe your path does not exist. No files were written.")));
+						return false;
+					}
+					QDataStream out(&file);
+					out.setFloatingPointPrecision(floatingPointPrecision);
+					out.setByteOrder(byteOrder);
+					//iterate through the volume
+					int x, z;
+					int xUpperBound = this->xSize(), zUpperBound = this->zSize();
+					int* innerIndex, *innerMax, *outerIndex, *outerMax;
+					if (indexOrder == IndexOrder::X_FASTEST) {
+						innerIndex = &x, outerIndex = &z;
+						innerMax = &xUpperBound, outerMax = &zUpperBound;
+					} else {
+						innerIndex = &z, outerIndex = &x;
+						innerMax = &zUpperBound, outerMax = &xUpperBound;
+					}
+					if (this->mode == indexOrder) {
+						T* volumePtr = this->volume;
+						size_t size = this->xMax*this->yMax*this->zMax;
+						for (size_t i = 0; i < size; ++i, ++volumePtr) {
+							if (i % 100000ULL == 0) {
+								if (this->stopActiveProcess) {
+									std::cout << "User interrupted. Stopping." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
+									return false;
+								}
+								double percentage = std::round(double(i) / double(size) * 100);
+								if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
+							}
+							//save one T of data
+							out << static_cast<U>(((*volumePtr) + shift) * scale);
+							if (out.status() != QDataStream::Ok) {
+								if (out.status() == QDataStream::WriteFailed) {
+									std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+									return false;
+								} else {
+									std::cout << "An error occured while writing to the disk." << std::endl;
+									if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+									return false;
+								}
+							}
+						}
+					} else {
+						for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
 							if (this->stopActiveProcess) {
 								std::cout << "User interrupted. Stopping." << std::endl;
 								if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
 								return false;
 							}
-							double percentage = std::round(double(i) / double(size) * 100);
-							if(this->emitSignals) emit(savingProgress(percentage));
-						}
-						//save one T of data
-						out << (*volumePtr);
-					}
-				} else {
-					for (*outerIndex = 0; *outerIndex < *outerMax; ++(*outerIndex)) {
-						if (this->stopActiveProcess) {
-							std::cout << "User interrupted. Stopping." << std::endl;
-							if (this->emitSignals) emit(savingFinished(CompletionStatus::interrupted()));
-							return false;
-						}
-						double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
-						if (this->emitSignals) emit(savingProgress(percentage));
-						for (int y = 0; y < this->ySize(); ++y) {
-							for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
-								//save one T of data
-								out << this->at(x, y, z);
+							double percentage = std::round(double(*outerIndex) / double(*outerMax) * 100);
+							if (this->emitSignals && !this->stopActiveProcess) emit(savingProgress(percentage));
+							for (int y = 0; y < this->ySize(); ++y) {
+								for (*innerIndex = 0; *innerIndex < *innerMax; ++(*innerIndex)) {
+									//save one T of data
+									out << static_cast<U>((this->at(x, y, z) + shift) * scale);
+									if (out.status() != QDataStream::Ok) {
+										if (out.status() == QDataStream::WriteFailed) {
+											std::cout << "An error occured while writing to the disk. Maybe there is not enough free disk space." << std::endl;
+											if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk. Maybe there is not enough free disk space.")));
+											return false;
+										} else {
+											std::cout << "An error occured while writing to the disk." << std::endl;
+											if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An error occured while writing to the disk.")));
+											return false;
+										}
+									}
+								}
 							}
 						}
 					}
-				}
 
-				file.close();
+					file.close();
+				}
+			} else {
+				std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
+				return false;
 			}
-		} else {
-			std::cout << "Did not save the volume, because it appears to be empty." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Did not save the volume, because it appears to be empty.")));
-			return false;
+			std::cout << "Volume successfully saved." << std::endl;
+			if (this->emitSignals) emit(savingFinished());
+			return true;
+		} catch (...) {
+			//something went wrong
+			std::cout << "An unknown error occured." << std::endl;
+			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("An unknown error occured.")));
 		}
-		std::cout << "Volume successfully saved." << std::endl;
-		if (this->emitSignals) emit(savingFinished());
-		return true;
+		return false;
 	}
 
 	template<typename T>

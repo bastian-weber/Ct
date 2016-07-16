@@ -7,8 +7,6 @@
 
 //CUDA
 #include <cuda_runtime.h>
-#include <cufft.h>
-#include <cuda_profiler_api.h>
 
 //OpenCV
 #include <opencv2/core/cuda.hpp>
@@ -28,14 +26,17 @@ namespace ct {
 									 cudaStream_t stream, 
 									 bool& success);
 		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image,			//applies the feldkamp weighting to an image
-										  float SD, 
-										  float matToImageUPreprocessed, 
-										  float matToImageVPreprocessed, 
+										  float FCD, 
+										  float uPrecomputed, 
+										  float vPrecomputed, 
 										  cudaStream_t stream, 
 										  bool& success);
 		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize,				//allocates a 3d volume on the gpu and initialises it with 0
 										   size_t zSize, 
-										   bool& success);
+										   bool& success,
+										   bool verbose = true);
+		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize,		//sets the volume to 0
+					   size_t zSize, bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);			//deletes the 3d volume from the gpu memory
 		void download3dVolume(cudaPitchedPtr devicePtr,
 							  float* hostPtr,
@@ -54,16 +55,16 @@ namespace ct {
 								 float cosine,
 								 float heightOffset,
 								 float uOffset,
-								 float SD,
+								 float FCD,
 								 float imageLowerBoundU,
 								 float imageUpperBoundU,
 								 float imageLowerBoundV,
 								 float imageUpperBoundV,
-								 float volumeToWorldXPrecomputed,
-								 float volumeToWorldYPrecomputed,
-								 float volumeToWorldZPrecomputed,
-								 float imageToMatUPrecomputed,
-								 float imageToMatVPrecomputed,
+								 float xPrecomputed,
+								 float yPrecomputed,
+								 float zPrecomputed,
+								 float uPrecomputed,
+								 float vPrecomputed,
 								 cudaStream_t stream,
 								 bool& success);
 	

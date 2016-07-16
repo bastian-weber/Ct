@@ -30,9 +30,9 @@ namespace ct {
 		}
 
 		int getMemoryClockRate(int deviceId) {
-			int busWidth;
-			cudaDeviceGetAttribute(&busWidth, cudaDevAttrGlobalMemoryBusWidth, deviceId);
-			return busWidth;
+			int clockRate;
+			cudaDeviceGetAttribute(&clockRate, cudaDevAttrMemoryClockRate, deviceId);
+			return clockRate;
 		}
 
 		std::string getDeviceName(int deviceId) {
@@ -60,17 +60,17 @@ namespace ct {
 		}
 
 		__device__ float hannWindowFilter(float n, float Nreciprocal) {
-			return ramLakWindowFilter(n, Nreciprocal) * 0.5f*(1.0f + __cosf((2.0f * CUDART_PI_F * float(n)) * (Nreciprocal * 0.5f)));
+			float rl = ramLakWindowFilter(n, Nreciprocal);
+			return rl * 0.5f*(1.0f + __cosf(CUDART_PI_F * rl));
 		}
 
-		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType) {
+		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType, float Nreciprocal) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float2 pixel = image(yIndex, xIndex);
-				float Nreciprocal = 1.0 / static_cast<float>(image.cols);
 				float factor;
 				if (filterType == 0) {
 					factor = ramLakWindowFilter(xIndex, Nreciprocal);
@@ -89,7 +89,8 @@ namespace ct {
 			dim3 threads(32, 1);
 			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
 						std::ceil(float(image.rows) / float(threads.y)));
-			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType);
+			float Nreciprocal = 1.0f / static_cast<float>(image.cols);
+			frequencyFilterKernel << < blocks, threads, 0, stream >> >(image, filterType, Nreciprocal);
 
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
@@ -102,25 +103,25 @@ namespace ct {
 			return D * rsqrtf(D*D + u*u + v*v);
 		}
 
-		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed) {
+		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float FCD, float uPrecomputed, float vPrecomputed) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 
 			if (xIndex < image.cols && yIndex < image.rows) {
-				float u = float(xIndex) - matToImageUPreprocessed;
-				float v = -float(yIndex) + matToImageVPreprocessed;
-				image(yIndex, xIndex) *= W(SD, u, v);
+				float u = float(xIndex) - uPrecomputed;
+				float v = -float(yIndex) + vPrecomputed;
+				image(yIndex, xIndex) *= W(FCD, u, v);
 			}
 
 		}
 
-		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float SD, float matToImageUPreprocessed, float matToImageVPreprocessed, cudaStream_t stream, bool& success) {
+		void applyFeldkampWeightFiltering(cv::cuda::PtrStepSz<float> image, float FCD, float uPrecomputed, float vPrecomputed, cudaStream_t stream, bool& success) {
 			success = true;
 			dim3 threads(32, 1);
 			dim3 blocks(std::ceil(float(image.cols) / float(threads.x)),
 						std::ceil(float(image.rows) / float(threads.y)));
-			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, SD, matToImageUPreprocessed, matToImageVPreprocessed);
+			feldkampWeightFilterKernel << < blocks, threads, 0, stream >> >(image, FCD, uPrecomputed, vPrecomputed);
 
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
@@ -129,24 +130,30 @@ namespace ct {
 			}
 		}
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success) {
+		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success, bool verbose) {
 			success = true;
 			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
 			cudaPitchedPtr ptr;
 			status = cudaMalloc3D(&ptr, extent);
 			if (status != cudaSuccess) {
-				std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
-				success = false;
-			}
-			status = cudaMemset3D(ptr, 0, extent);
-			if (status != cudaSuccess) {
-				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				if (verbose) std::cout << "cudaMalloc3D ERROR: " << cudaGetErrorString(status) << std::endl;
 				success = false;
 			}
 			//if something went wrong try to deallocate memory
 			if (!success) cudaFree(ptr.ptr);
 			return ptr;
+		}
+
+		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
+			success = true;
+			cudaError_t status;
+			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);		
+			status = cudaMemset3D(devicePtr, 0, extent);
+			if (status != cudaSuccess) {
+				std::cout << "cudaMemset3D ERROR: " << cudaGetErrorString(status) << std::endl;
+				success = false;
+			}
 		}
 
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success) {
@@ -201,16 +208,16 @@ namespace ct {
 											 float cosine,
 											 float heightOffset,
 											 float uOffset,
-											 float SD,
+											 float FCD,
 											 float imageLowerBoundU,
 											 float imageUpperBoundU,
 											 float imageLowerBoundV,
 											 float imageUpperBoundV,
-											 float volumeToWorldXPrecomputed,
-											 float volumeToWorldYPrecomputed,
-											 float volumeToWorldZPrecomputed,
-											 float imageToMatUPrecomputed,
-											 float imageToMatVPrecomputed) {
+											 float xPrecomputed,
+											 float yPrecomputed,
+											 float zPrecomputed,
+											 float uPrecomputed,
+											 float vPrecomputed) {
 
 			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
 			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
@@ -224,9 +231,9 @@ namespace ct {
 			if (xIndex < xSize && yIndex < ySize && zIndex < zSize) {
 
 				//calculate the world coordinates
-				float x = float(xIndex) - volumeToWorldXPrecomputed;
-				float y = float(yIndex) - volumeToWorldYPrecomputed;
-				float z = float(zIndex + zOffset) - volumeToWorldZPrecomputed;
+				float x = float(xIndex) - xPrecomputed;
+				float y = float(yIndex) - yPrecomputed;
+				float z = float(zIndex + zOffset) - zPrecomputed;
 
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
@@ -234,14 +241,18 @@ namespace ct {
 					float t = -x*sine + y*cosine;
 					t += uOffset;
 					float s = x*cosine + y*sine;
-					float u = (t*SD) / (SD - s);
-					float v = ((z + heightOffset)*SD) / (SD - s);
+					float u = (t*FCD) / (FCD - s);
+					float v = ((z + heightOffset)*FCD) / (FCD - s);
 
 					//check if it's inside the image (before the coordinate transformation)
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-						u += imageToMatUPrecomputed;
-						v = -v + imageToMatVPrecomputed;
+						//calculate weight
+						float w = FCD / (FCD + s);
+						w = w*w;
+
+						u += uPrecomputed;
+						v = -v + vPrecomputed;
 
 						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
 						size_t u0 = u;
@@ -256,7 +267,7 @@ namespace ct {
 						float u0v1 = row[u0];
 						float u1v1 = row[u1];
 
-						float value = bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+						float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
 						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, value);
 					}
@@ -280,16 +291,16 @@ namespace ct {
 								 float cosine,
 								 float heightOffset,
 								 float uOffset,
-								 float SD,
+								 float FCD,
 								 float imageLowerBoundU,
 								 float imageUpperBoundU,
 								 float imageLowerBoundV,
 								 float imageUpperBoundV,
-								 float volumeToWorldXPrecomputed,
-								 float volumeToWorldYPrecomputed,
-								 float volumeToWorldZPrecomputed,
-								 float imageToMatUPrecomputed,
-								 float imageToMatVPrecomputed,
+								 float xPrecomputed,
+								 float yPrecomputed,
+								 float zPrecomputed,
+								 float uPrecomputed,
+								 float vPrecomputed,
 								 cudaStream_t stream,
 								 bool& success) {
 			success = true;
@@ -308,16 +319,16 @@ namespace ct {
 																	  cosine,
 																	  heightOffset,
 																	  uOffset,
-																	  SD,
+																	  FCD,
 																	  imageLowerBoundU,
 																	  imageUpperBoundU,
 																	  imageLowerBoundV,
 																	  imageUpperBoundV,
-																	  volumeToWorldXPrecomputed,
-																	  volumeToWorldYPrecomputed,
-																	  volumeToWorldZPrecomputed,
-																	  imageToMatUPrecomputed,
-																	  imageToMatVPrecomputed);
+																	  xPrecomputed,
+																	  yPrecomputed,
+																	  zPrecomputed,
+																	  uPrecomputed,
+																	  vPrecomputed);
 			cudaError_t status = cudaGetLastError();
 			if (status != cudaSuccess) {
 				std::cout << std::endl << "Kernel launch ERROR: " << cudaGetErrorString(status);

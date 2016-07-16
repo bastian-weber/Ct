@@ -14,16 +14,17 @@ namespace ct {
 		this->okButton = new QPushButton(tr("&Ok"), this);
 		this->okButton->setDefault(true);
 		QObject::connect(this->okButton, SIGNAL(clicked()), this, SLOT(accept()));
+		QObject::connect(this, SIGNAL(accepted()), this, SLOT(saveSettings()));
 		this->cancelButton = new QPushButton(tr("&Cancel"), this);
 		QObject::connect(this->cancelButton, SIGNAL(clicked()), this, SLOT(reject()));
 
-		this->xSpinBox = new QSpinBox;
+		this->xSpinBox = new QSpinBox(this);
 		this->xSpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->xSpinBox->setSingleStep(1);
-		this->ySpinBox = new QSpinBox;
+		this->ySpinBox = new QSpinBox(this);
 		this->ySpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->ySpinBox->setSingleStep(1);
-		this->zSpinBox = new QSpinBox;
+		this->zSpinBox = new QSpinBox(this);
 		this->zSpinBox->setRange(1, std::numeric_limits<int>::max());
 		this->zSpinBox->setSingleStep(1);
 		QObject::connect(this->xSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
@@ -44,6 +45,26 @@ namespace ct {
 		this->requiredSizeLabel = new QLabel("");
 		this->actualSizeLabel = new QLabel("");
 
+		this->dataTypeComboBox = new QComboBox(this);
+		this->dataTypeComboBox->insertItem(0, tr("32 bit float"));
+		this->dataTypeComboBox->insertItem(1, tr("64 bit double"));
+		this->dataTypeComboBox->insertItem(2, tr("8 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(3, tr("8 bit signed integer"));
+		this->dataTypeComboBox->insertItem(4, tr("16 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(5, tr("16 bit signed integer"));
+		this->dataTypeComboBox->insertItem(6, tr("32 bit unsigned integer"));
+		this->dataTypeComboBox->insertItem(7, tr("32 bit signed integer"));
+		QObject::connect(this->dataTypeComboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(updateSize()));
+
+		headerSpinBox = new QSpinBox;
+		this->headerSpinBox->setRange(0, std::numeric_limits<int>::max());
+		headerSpinBox->setSuffix(" bytes");
+		this->headerSpinBox->setSingleStep(1);
+		QObject::connect(this->headerSpinBox, SIGNAL(valueChanged(int)), this, SLOT(updateSize()));
+		mirrorXCheckbox = new QCheckBox(tr("Mirror x-axis"), this);
+		mirrorYCheckbox = new QCheckBox(tr("Mirror y-axis"), this);
+		mirrorZCheckbox = new QCheckBox(tr("Mirror z-axis"), this);
+
 		this->mainLayout = new QVBoxLayout(this);
 
 		this->formLayout = new QFormLayout();
@@ -55,6 +76,11 @@ namespace ct {
 		this->formLayout->addRow("", this->bigEndianRadioButton);
 		this->formLayout->addRow(tr("Index order:"), this->xFastestRadioButton);
 		this->formLayout->addRow("", this->zFastestRadioButton);
+		this->formLayout->addRow(tr("Data type:"), this->dataTypeComboBox);
+		this->formLayout->addRow(tr("Header offset:"), this->headerSpinBox);
+		this->formLayout->addRow(tr("Axes orientation:"), this->mirrorXCheckbox);
+		this->formLayout->addRow("", this->mirrorYCheckbox);
+		this->formLayout->addRow("", this->mirrorZCheckbox);
 		this->formLayout->addRow(tr("Actual filesize:"), this->requiredSizeLabel);
 		this->formLayout->addRow(tr("Resulting filesize:"), this->actualSizeLabel);
 
@@ -69,6 +95,8 @@ namespace ct {
 
 		this->setLayout(this->mainLayout);
 		this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+
+		this->setDefaultValues();
 	}
 
 	int ImportSettingsDialog::execForFilesize(size_t requiredSize) {
@@ -103,16 +131,36 @@ namespace ct {
 		return QDataStream::BigEndian;
 	}
 
-	void ImportSettingsDialog::setXSize(size_t xSize) {
-		this->xSpinBox->setValue(static_cast<int>(xSize));
+	DataType ImportSettingsDialog::getDataType() const {
+		return static_cast<DataType>(this->dataTypeComboBox->currentIndex());
 	}
 
-	void ImportSettingsDialog::setYSize(size_t ySize) {
-		this->ySpinBox->setValue(static_cast<int>(ySize));
+	size_t ImportSettingsDialog::getHeaderOffset() const {
+		return this->headerSpinBox->value();
 	}
 
-	void ImportSettingsDialog::setZSize(size_t zSize) {
-		this->zSpinBox->setValue(static_cast<int>(zSize));
+	bool ImportSettingsDialog::getMirrorX() const {
+		return this->mirrorXCheckbox->isChecked();
+	}
+
+	bool ImportSettingsDialog::getMirrorY() const {
+		return this->mirrorYCheckbox->isChecked();
+	}
+
+	bool ImportSettingsDialog::getMirrorZ() const {
+		return this->mirrorZCheckbox->isChecked();
+	}
+
+	void ImportSettingsDialog::setXSize(int xSize) {
+		this->xSpinBox->setValue(xSize);
+	}
+
+	void ImportSettingsDialog::setYSize(int ySize) {
+		this->ySpinBox->setValue(ySize);
+	}
+
+	void ImportSettingsDialog::setZSize(int zSize) {
+		this->zSpinBox->setValue(zSize);
 	}
 
 	void ImportSettingsDialog::setIndexOrder(IndexOrder indexOrder) {
@@ -131,11 +179,75 @@ namespace ct {
 		}
 	}
 
+	void ImportSettingsDialog::setDataType(DataType dataType) {
+		this->dataTypeComboBox->setCurrentIndex(static_cast<int>(dataType));
+	}
+
+	void ImportSettingsDialog::setHeaderOffset(int size) {
+		this->headerSpinBox->setValue(size);
+	}
+
+	void ImportSettingsDialog::setMirrorX(bool value) {
+		this->mirrorXCheckbox->setChecked(value);
+	}
+
+	void ImportSettingsDialog::setMirrorY(bool value) {
+		this->mirrorYCheckbox->setChecked(value);
+	}
+
+	void ImportSettingsDialog::setMirrorZ(bool value) {
+		this->mirrorZCheckbox->setChecked(value);
+	}
+
 	void ImportSettingsDialog::showEvent(QShowEvent * e) {
 		if (this->parentWidget() != 0) {
 			move(this->parentWidget()->window()->frameGeometry().topLeft() + this->parentWidget()->window()->rect().center() - this->rect().center());
 		}
 		this->updateSize();
+	}
+
+	void ImportSettingsDialog::setDefaultValues() {
+		this->settings->beginGroup("Import");
+		this->xSpinBox->setValue(this->settings->value("xSize", 1).toInt());
+		this->ySpinBox->setValue(this->settings->value("ySize", 1).toInt());
+		this->zSpinBox->setValue(this->settings->value("zSize", 1).toInt());
+		if (this->settings->value("byteOrder", "littleEndian").toString() == "littleEndian") {
+			this->littleEndianRadioButton->setChecked(true);
+		} else {
+			this->bigEndianRadioButton->setChecked(true);
+		}
+		if (this->settings->value("indexOrder", "xFastest").toString() == "xFastest") {
+			this->xFastestRadioButton->setChecked(true);
+		} else {
+			this->zFastestRadioButton->setChecked(true);
+		}
+		this->dataTypeComboBox->setCurrentIndex(this->settings->value("dataType", 0).toInt());
+		if (this->settings->value("mirrorX", true).toBool()) this->mirrorXCheckbox->setChecked(true);
+		if (this->settings->value("mirrorY", true).toBool()) this->mirrorYCheckbox->setChecked(true);
+		if (this->settings->value("mirrorZ", true).toBool()) this->mirrorZCheckbox->setChecked(true);
+		this->settings->endGroup();
+	}
+
+	void ImportSettingsDialog::saveSettings() {
+		this->settings->beginGroup("Import");
+		this->settings->setValue("xSize", this->xSpinBox->value());
+		this->settings->setValue("ySize", this->ySpinBox->value());
+		this->settings->setValue("zSize", this->zSpinBox->value());
+		if (this->littleEndianRadioButton->isChecked()) {
+			this->settings->setValue("byteOrder", "littleEndian");
+		} else {
+			this->settings->setValue("byteOrder", "bigEndian");
+		}
+		if (this->xFastestRadioButton->isChecked()) {
+			this->settings->setValue("indexOrder", "xFastest");
+		} else {
+			this->settings->setValue("indexOrder", "zFastest");
+		}
+		this->settings->setValue("dataType", this->dataTypeComboBox->currentIndex());
+		this->settings->setValue("mirrorX", this->mirrorXCheckbox->isChecked());
+		this->settings->setValue("mirrorY", this->mirrorYCheckbox->isChecked());
+		this->settings->setValue("mirrorZ", this->mirrorZCheckbox->isChecked());
+		this->settings->endGroup();
 	}
 	
 	//============================================================================== PROTECTED ==============================================================================\\
@@ -147,7 +259,27 @@ namespace ct {
 	//============================================================================ PRIVATE SLOTS =============================================================================\\
 
 	void ImportSettingsDialog::updateSize() {
-		size_t currentSize = size_t(4) * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value());
+		size_t voxelSize = 4;
+		DataType type = this->getDataType();
+		if (type == DataType::FLOAT32) {
+			voxelSize = 4;
+		} else if (type == DataType::DOUBLE64) {
+			voxelSize = 8;
+		} else if (type == DataType::UINT8) {
+			voxelSize = sizeof(uint8_t);
+		} else if (type == DataType::INT8) {
+			voxelSize = sizeof(int8_t);
+		} else if (type == DataType::UINT16) {
+			voxelSize = sizeof(uint16_t);
+		} else if (type == DataType::INT16) {
+			voxelSize = sizeof(int16_t);
+		} else if (type == DataType::UINT32) {
+			voxelSize = sizeof(uint32_t);
+		} else if (type == DataType::INT32) {
+			voxelSize = sizeof(int32_t);
+		}
+
+		size_t currentSize = voxelSize * static_cast<size_t>(this->xSpinBox->value())*static_cast<size_t>(this->ySpinBox->value())*static_cast<size_t>(this->zSpinBox->value()) + this->headerSpinBox->value();
 		this->actualSizeLabel->setText(QString::number(currentSize).append(" bytes"));
 		if (currentSize == this->requiredSize) {
 			this->actualSizeLabel->setStyleSheet("QLabel { }");

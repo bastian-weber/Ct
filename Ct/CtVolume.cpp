@@ -36,6 +36,70 @@ namespace ct {
 		return ct::Projection(this->getImage(), angle, heightOffset);
 	}
 
+	//internal class FftFilter
+
+	CtVolume::FftFilter::FftFilter(FftFilter const& other) {
+		this->width = other.width;
+		this->height = other.height;
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->forwardPlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->inversePlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, this->height));
+	}
+
+	CtVolume::FftFilter::FftFilter(int width, int height) : width(width), height(height) {
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->forwardPlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, this->height));
+		this->isGood = this->isGood && (CUFFT_SUCCESS == cufftPlanMany(&this->inversePlan, 1, &this->width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, this->height));
+	}
+
+	CtVolume::FftFilter::~FftFilter() {
+		cufftDestroy(this->forwardPlan);
+		cufftDestroy(this->inversePlan);
+	}
+
+	bool CtVolume::FftFilter::good() {
+		return this->isGood;
+	}
+
+	size_t CtVolume::FftFilter::getWorkSizeEstimate(int width, int height) {
+		size_t forwardFftSize, inverseFftSize;
+		cufftEstimateMany(1, &width, NULL, 0, 0, NULL, 0, 0, CUFFT_R2C, height, &forwardFftSize);
+		cufftEstimateMany(1, &width, NULL, 0, 0, NULL, 0, 0, CUFFT_C2R, height, &inverseFftSize);
+		return forwardFftSize + inverseFftSize;
+	}
+
+	void CtVolume::FftFilter::setStream(cudaStream_t stream, bool& success) {
+		success = true;
+		success = success && (CUFFT_SUCCESS == cufftSetStream(this->forwardPlan, stream));
+		success = success && (CUFFT_SUCCESS == cufftSetStream(this->inversePlan, stream));
+	}
+
+	void CtVolume::FftFilter::applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const {
+		success = true;		
+		if (imageIn.cols != this->width || imageIn.rows != this->height || imageIn.type() != CV_32FC1 || !imageIn.isContinuous()) {
+			std::cout << "Input image for FFT filter does not meet requirements (correct width, height, type CV_32FC1 and continuous in memory)." << std::endl;
+			success = false;
+		}
+		if (dftSpectrumOut.cols != this->width/2 + 1 || dftSpectrumOut.rows != this->height || dftSpectrumOut.type() != CV_32FC2 || !dftSpectrumOut.isContinuous()) {
+			std::cout << "Output image for FFT filter does not meet requirements (correct width (N/2 + 1), height, type CV_32FC2 and continuous in memory)." << std::endl;
+			success = false;
+		}
+		success = success && (CUFFT_SUCCESS == cufftExecR2C(this->forwardPlan, imageIn.ptr<cufftReal>(), dftSpectrumOut.ptr<cufftComplex>()));
+	}
+
+	void CtVolume::FftFilter::applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const {
+		success = true;
+		if (dftSpectrumIn.cols != this->width / 2 + 1 || dftSpectrumIn.rows != this->height || dftSpectrumIn.type() != CV_32FC2 || !dftSpectrumIn.isContinuous()) {
+			std::cout << "Output image for FFT filter does not meet requirements (correct width (N/2 + 1), height, type CV_32FC2 and continuous in memory)." << std::endl;
+			success = false;
+			return;
+		}
+		if (imageOut.cols != this->width || imageOut.rows != this->height || imageOut.type() != CV_32FC1 || !imageOut.isContinuous()) {
+			std::cout << "Input image for FFT filter does not meet requirements (correct width, height, type CV_32FC1 and continuous in memory)." << std::endl;
+			success = false;
+			return;
+		}
+		success = success && (CUFFT_SUCCESS == cufftExecC2R(this->inversePlan, dftSpectrumIn.ptr<cufftComplex>(), imageOut.ptr<cufftReal>()));
+	}
+
 	//============================================== PUBLIC ==============================================\\
 
 	//constructor
@@ -96,20 +160,16 @@ namespace ct {
 			rotationDirection = in.readLine().section('\t', 0, 0).toStdString();
 			this->uOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->vOffset = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->FCD = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
-			this->SO = in.readLine().section('\t', 0, 0).toDouble(&success);
-			totalSuccess = totalSuccess && success;
-			this->SD = in.readLine().section('\t', 0, 0).toDouble(&success);
+			this->baseIntensity = in.readLine().section('\t', 0, 0).toDouble(&success);
 			totalSuccess = totalSuccess && success;
 			//leave out one line
 			in.readLine();
 			//convert the distance
-			this->SD /= this->pixelSize;
-			this->SO /= this->pixelSize;
-			//convert uOffset and vOffset
+			this->FCD /= this->pixelSize;
+			//convert uOffset
 			this->uOffset /= this->pixelSize;
-			this->vOffset /= this->pixelSize;
 			if (!totalSuccess) {
 				std::cout << "Could not read the parameters from the CSV file successfully." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not read the parameters from the CSV file successfully.")));
@@ -234,8 +294,10 @@ namespace ct {
 		//make sure the rotation direction is correct
 		this->correctAngleDirection(rotationDirection);
 		//Axes: breadth = x, width = y, height = z
-		this->xSize = this->imageWidth;
-		this->ySize = this->imageWidth;
+		double radius = this->imageWidth / 2;
+		radius = this->getReconstructionCylinderRadius();
+		this->xSize = radius*2;
+		this->ySize = radius*2;
 		this->zSize = this->imageHeight;
 		this->updateBoundaries();
 		switch (this->crossSectionAxis) {
@@ -291,24 +353,25 @@ namespace ct {
 		return this->zMax;
 	}
 
-	double CtVolume::getUOffset() const {
+	size_t CtVolume::getReconstructionCylinderRadius() const {
+		double radius = this->imageWidth / 2;
+		return std::sqrt((FCD*FCD * radius*radius) / (FCD*FCD + radius*radius));
+	}
+
+	float CtVolume::getUOffset() const {
 		return this->uOffset;
 	}
 
-	double CtVolume::getVOffset() const {
-		return this->vOffset;
-	}
-
-	double CtVolume::getPixelSize() const {
+	float CtVolume::getPixelSize() const {
 		return this->pixelSize;
 	}
 
-	double CtVolume::getSO() const {
-		return this->SO;
+	float CtVolume::getFCD() const {
+		return this->FCD;
 	}
 
-	double CtVolume::getSD() const {
-		return this->SD;
+	float CtVolume::getBaseIntensity() const {
+		return this->baseIntensity;
 	}
 
 	cv::Mat CtVolume::getVolumeCrossSection(Axis axis, size_t index) const {
@@ -358,6 +421,10 @@ namespace ct {
 		return this->useCuda;
 	}
 
+	size_t CtVolume::getSkipProjections() const {
+		return this->projectionStep - 1;
+	}
+
 	std::vector<int> CtVolume::getActiveCudaDevices() const {
 		return this->activeCudaDevices;
 	}
@@ -377,6 +444,14 @@ namespace ct {
 		return this->gpuSpareMemory;
 	}
 
+	double CtVolume::getMultiprocessorCoefficient() const {
+		return this->multiprocessorCoefficient;
+	}
+
+	double CtVolume::getMemoryBandwidthCoefficient() const {
+		return this->memoryBandwidthCoefficient;
+	}
+
 	size_t CtVolume::getRequiredMemoryUpperBound() const {
 		//size of volume
 		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
@@ -391,14 +466,18 @@ namespace ct {
 		return requiredMemory;
 	}
 
-	void CtVolume::setVolumeBounds(double xFrom, double xTo, double yFrom, double yTo, double zFrom, double zTo) {
+	void CtVolume::setVolumeBounds(float xFrom, float xTo, float yFrom, float yTo, float zFrom, float zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
-		this->xFrom_float = std::max(0.0, std::min(1.0, xFrom));
-		this->xTo_float = std::max(this->xFrom_float, std::min(1.0, xTo));
-		this->yFrom_float = std::max(0.0, std::min(1.0, yFrom));
-		this->yTo_float = std::max(this->xFrom_float, std::min(1.0, yTo));
-		this->zFrom_float = std::max(0.0, std::min(1.0, zFrom));
-		zTo_float = std::max(this->xFrom_float, std::min(1.0, zTo));
+		if (xFrom == xTo || yFrom == yTo || zFrom == zTo) {
+			std::cout << "ERROR: the lower and upper bounds must not be identical." << std::endl;
+			return;
+		}
+		this->xFrom_float = std::max(0.0f, std::min(1.0f, xFrom));
+		this->xTo_float = std::max(this->xFrom_float, std::min(1.0f, xTo));
+		this->yFrom_float = std::max(0.0f, std::min(1.0f, yFrom));
+		this->yTo_float = std::max(this->xFrom_float, std::min(1.0f, yTo));
+		this->zFrom_float = std::max(0.0f, std::min(1.0f, zFrom));
+		zTo_float = std::max(this->xFrom_float, std::min(1.0f, zTo));
 		if (this->sinogram.size() > 0) this->updateBoundaries();
 	}
 
@@ -426,8 +505,17 @@ namespace ct {
 		this->gpuSpareMemory = amount;
 	}
 
+	void CtVolume::setGpuCoefficients(double multiprocessorCoefficient, double memoryBandwidthCoefficient) {
+		this->multiprocessorCoefficient = multiprocessorCoefficient;
+		this->memoryBandwidthCoefficient = memoryBandwidthCoefficient;
+	}
+
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
 		this->filterType = filterType;
+	}
+
+	void CtVolume::setSkipProjections(size_t value) {
+		this->projectionStep = value + 1;
 	}
 
 	void CtVolume::reconstructVolume() {
@@ -525,47 +613,88 @@ namespace ct {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		this->stopActiveProcess = false;
 
-		//write information file
 		QFileInfo fileInfo(filename);
-		QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
-		QFile file(infoFileName);
-		if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-			std::cout << "Could not write the info file." << std::endl;
-			if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
-			return;
+		{
+			//write information file
+			QString infoFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".txt"));
+			QFile file(infoFileName);
+			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+				std::cout << "Could not write the info file." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the info file.")));
+				return;
+			}
+			QTextStream out(&file);
+			out << fileInfo.fileName() << endl << endl;
+			out << "[Image dimensions]" << endl;
+			out << "U resolution:\t\t" << this->imageWidth << endl;
+			out << "V resolution:\t\t" << this->imageHeight << endl << endl;
+			out << "[Reconstruction parameters]" << endl;
+			out << "FCD:\t\t\t\t\t" << this->FCD << endl;
+			out << "Pixel size:\t\t\t" << this->pixelSize << endl;
+			out << "U offset:\t\t\t" << this->uOffset << endl;
+			out << QString("X range relative:\t[%1 - %2]").arg(this->xFrom_float, 0, 'f', 3).arg(this->xTo_float, 0, 'f', 3) << endl;
+			out << QString("Y range relative:\t[%1 - %2]").arg(this->yFrom_float, 0, 'f', 3).arg(this->yTo_float, 0, 'f', 3) << endl;
+			out << QString("Z range relative:\t[%1 - %2]").arg(this->zFrom_float, 0, 'f', 3).arg(this->zTo_float, 0, 'f', 3) << endl;
+			out << "X range:\t\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
+			out << "Y range:\t\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
+			out << "Z range:\t\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
+			out << "[Volume dimensions]" << endl;
+			out << "X size:\t\t\t\t" << this->xMax << endl;
+			out << "Y size:\t\t\t\t" << this->yMax << endl;
+			out << "Z size:\t\t\t\t" << this->zMax << endl << endl;
+			out << "[Data format]" << endl;
+			out << "Data type:\t\t\t32bit IEEE 754 float" << endl;
+			if (byteOrder == QDataStream::LittleEndian) {
+				out << "Byte order:\t\t\tLittle endian" << endl;
+			} else {
+				out << "Byte order:\t\t\tBig endian" << endl;
+			}
+			if (indexOrder == IndexOrder::Z_FASTEST) {
+				out << "Index order:\t\tZ fastest";
+			} else {
+				out << "Index order:\t\tX fastest";
+			}
+			file.close();
 		}
-		QTextStream out(&file);
-		out << fileInfo.fileName() << endl << endl;
-		out << "[Image dimensions]" << endl;
-		out << "U resolution:\t" << this->imageWidth << endl;
-		out << "V resolution:\t" << this->imageHeight << endl << endl;
-		out << "[Reconstruction parameters]" << endl;
-		out << "SD:\t\t\t\t" << this->SD << endl;
-		out << "Pixel size:\t\t" << this->pixelSize << endl;
-		out << "U offset:\t\t" << this->uOffset << endl;
-		out << "X range:\t\t[" << this->xFrom << ".." << this->xTo << "]" << endl;
-		out << "Y range:\t\t[" << this->yFrom << ".." << this->yTo << "]" << endl;
-		out << "Z range:\t\t[" << this->zFrom << ".." << this->zTo << "]" << endl << endl;
-		out << "[Volume dimensions]" << endl;
-		out << "X size:\t\t\t" << this->xMax << endl;
-		out << "Y size:\t\t\t" << this->yMax << endl;
-		out << "Z size:\t\t\t" << this->zMax << endl << endl;
-		out << "[Data format]" << endl;
-		out << "Data type:\t\t32bit IEEE 754 float" << endl;
-		if (byteOrder == QDataStream::LittleEndian) {
-			out << "Byte order:\t\tLittle endian" << endl;
-		} else {
-			out << "Byte order:\t\tBig endian" << endl;
+		{
+		//write vgi file
+			QString vgiFileName = QDir(fileInfo.path()).absoluteFilePath(fileInfo.baseName().append(".vgi"));
+			QFile file(vgiFileName);
+			if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+				std::cout << "Could not write the info file." << std::endl;
+				if (this->emitSignals) emit(savingFinished(CompletionStatus::error("Could not write the vgi file.")));
+				return;
+			}
+			QTextStream out(&file);
+			//note: the new line at the end is important for VG Studio to be able to read the file
+			QString contents = "{volume1}\n"
+				"[representation]\n"
+				"size = %1 %2 %3\n"
+				"bitsperelement = 32\n"
+				"datatype = float\n"
+				"datarange = %4 %5\n"
+				"[file1]\n"
+				"FileFormat = raw\n"
+				"Size = %1 %2 %3\n"
+				"Name = ./%7\n"
+				"bitsperelement = 32\n"
+				"datatype = float\n"
+				"datarange = %4 %5\n"
+				"{volumeprimitive}\n"
+				"[geometry]\n"
+				"clipbox = 0 0 0 %1 %2 %3\n"
+				"status = visible\n"
+				"resolution = %6 %6 %6\n"
+				"unit = mm\n"
+				"[volume]\n"
+				"volume = volume1\n";
+			contents = contents.arg(this->xMax).arg(this->yMax).arg(this->zMax).arg(this->volume.min()).arg(this->volume.max()).arg(this->pixelSize).arg(fileInfo.fileName());
+			out << contents;
+			file.close();
 		}
-		if (indexOrder == IndexOrder::Z_FASTEST) {
-			out << "Index order:\tZ fastest";
-		} else {
-			out << "Index order:\tX fastest";
-		}
-		file.close();
 
 		//write binary file
-		this->volume.saveToBinaryFile(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
+		this->volume.saveToBinaryFile<float>(filename, indexOrder, QDataStream::SinglePrecision, byteOrder);
 
 	}
 
@@ -583,7 +712,7 @@ namespace ct {
 
 	void CtVolume::initialise() {
 		qRegisterMetaType<CompletionStatus>("CompletionStatus");
-		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)));
+		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)), Qt::QueuedConnection);
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
 	}
@@ -643,9 +772,9 @@ namespace ct {
 	}
 
 	void CtVolume::preprocessImage(cv::Mat& image) const {
-		applyLogScaling(image);
-		applyFourierFilter(image, this->filterType);
+		this->applyLogScaling(image);
 		this->applyFeldkampWeight(image);
+		applyFourierFilter(image, this->filterType);
 	}
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
@@ -666,12 +795,12 @@ namespace ct {
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
-				ptr[c] = ptr[c] * W(this->SD, this->matToImageU(c), this->matToImageV(r));
+				ptr[c] = ptr[c] * W(this->FCD, this->matToImageU(c), this->matToImageV(r));
 			}
 		}
 	}
 
-	inline double CtVolume::W(double D, double u, double v) {
+	inline float CtVolume::W(float D, float u, float v) {
 		return D / sqrt(D*D + u*u + v*v);
 	}
 
@@ -697,116 +826,104 @@ namespace ct {
 			}
 		}
 		cv::idft(freq, image, cv::DFT_ROWS | cv::DFT_REAL_OUTPUT);
+		//scale FFT result
+		//image *= 1.0 / static_cast<float>(image.cols);
 	}
 
-	void CtVolume::applyLogScaling(cv::Mat& image) {
+	void CtVolume::applyLogScaling(cv::Mat& image) const {
+		image *= 1/this->baseIntensity;
 		// -ln(x)
 		cv::log(image, image);
 		image *= -1;
 	}
 
-	double CtVolume::ramLakWindowFilter(double n, double N) {
-		return double(n) / double(N);
+	float CtVolume::ramLakWindowFilter(float n, float N) {
+		return n / N;
 	}
 
-	double CtVolume::sheppLoganWindowFilter(double n, double N) {
+	float CtVolume::sheppLoganWindowFilter(float n, float N) {
 		if (n == 0) {
-			return 0;
+			return 0.0f;
 		} else {
-			double rl = ramLakWindowFilter(n, N);
-			return (rl)* (sin(rl*0.5*M_PI)) / (rl*0.5*M_PI);
+			float rl = ramLakWindowFilter(n, N);
+			return (rl)* (sin(rl*0.5f*M_PI)) / (rl*0.5f*M_PI);
 		}
 
 	}
 
-	double CtVolume::hannWindowFilter(double n, double N) {
-		return ramLakWindowFilter(n, N) * 0.5*(1 + cos((2 * M_PI * double(n)) / (double(N) * 2)));
+	float CtVolume::hannWindowFilter(float n, float N) {
+		float rl = ramLakWindowFilter(n, N);
+		return rl * 0.5f*(1.0f + cos(M_PI * rl));
 	}
 
-	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& image, cv::cuda::GpuMat& tmp1, cv::cuda::GpuMat& tmp2, bool& success, cv::cuda::Stream& stream) const {
+	void CtVolume::cudaPreprocessImage(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& imageOut, cv::cuda::GpuMat& dftTmp, FftFilter& fftFilter, bool& success, cv::cuda::Stream& stream) const {
 		success = true;
+		bool successLocal;
+		cudaStream_t cudaStream = cv::cuda::StreamAccessor::getStream(stream);
 		//images must be scaled in case different depths are mixed (-> equal value range)
-		double scalingFactor = 1.0;
-		if (image.depth() == CV_8U) {
+		float scalingFactor = 1.0;
+		if (imageIn.depth() == CV_8U) {
 			scalingFactor = 255.0;
-		} else if (image.depth() == CV_16U) {
+		} else if (imageIn.depth() == CV_16U) {
 			scalingFactor = 65535.0;
 		}
-		//convert to 32bit
-		image.convertTo(tmp1, CV_32FC1, 1.0/scalingFactor, stream);
+		//convert to 32bit and normalise black
+		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->baseIntensity), stream);
 		//logarithmic scale
-//		cv::cuda::log(tmp1, tmp1, stream);
+		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
-//		tmp1.convertTo(tmp1, tmp1.type(), -1, stream);
+		cv::cuda::multiply(imageOut, -1, imageOut, 1.0, -1, stream);
+		//apply the feldkamp weights
+		ct::cuda::applyFeldkampWeightFiltering(imageOut, this->FCD, this->uPrecomputed, this->vPrecomputed, cudaStream, successLocal);
+		success = success && successLocal;
 		//transform to frequency domain
-		//cv::cuda::dft(tmp1, tmp2, image.size(), cv::DFT_ROWS, stream);
-
-		{
-			cufftHandle plan;
-			cufftPlan1d(&plan, image.size().width, CUFFT_R2C, image.size().height);
-			cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
-			cufftExecR2C(plan, tmp1.ptr<cufftReal>(), tmp2.ptr<cufftComplex>());
-			cufftDestroy(plan);
-		}
-
-		bool successLocal = true;
+		//cv::cuda::dft(imageOut, dftTmp, image.size(), cv::DFT_ROWS, stream);
+		fftFilter.applyForward(imageOut, dftTmp, successLocal);
+		success = success && successLocal;
 		//apply frequency filter
-//		ct::cuda::applyFrequencyFiltering(tmp2, int(this->filterType), cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		ct::cuda::applyFrequencyFiltering(dftTmp, int(this->filterType), cudaStream, successLocal);
 		success = success && successLocal;
 		//transform back to spatial domain
-		//cv::cuda::dft(tmp2, tmp1, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
-
-		{
-			cufftHandle plan;
-			cufftPlan1d(&plan, image.size().width, CUFFT_C2R, image.size().height);
-			cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
-			cufftExecC2R(plan, tmp2.ptr<cufftComplex>(), tmp1.ptr<cufftReal>());
-			cufftDestroy(plan);
-		}
-
-		//stream.waitForCompletion();
-		//cv::Mat result;
-		//tmp1.download(result);
-		//cv::normalize(result, result, 0, 1, cv::NORM_MINMAX);
-		////result.convertTo(result, CV_8U, 0.005);
-		//cv::imshow("", result);
-		//cv::waitKey();
-
-		//apply the feldkamp weights
-//		ct::cuda::applyFeldkampWeightFiltering(tmp1, this->SD, this->matToImageUPreprocessed, this->matToImageVPreprocessed, cv::cuda::StreamAccessor::getStream(stream), successLocal);
+		//cv::cuda::dft(dftTmp, imageOut, image.size(), cv::DFT_ROWS | cv::DFT_REAL_OUTPUT, stream);
+		fftFilter.applyInverse(dftTmp, imageOut, successLocal);
 		success = success && successLocal;
-		success = true; //remove later
+		//scale FFT result
+		//cv::cuda::multiply(imageOut, 1.0 / static_cast<float>(this->imageWidth), imageOut, 1.0, -1, stream);
 	}
 
 	bool CtVolume::reconstructionCore() {
-		double imageLowerBoundU = this->matToImageU(0);
-		//-0.1 is for absolute edge cases where the u-coordinate could be exactly the last pixel.
-		//The bilinear interpolation would still try to access the next pixel, which then wouldn't exist.
-		//The use of std::floor and std::ceil instead of simple integer rounding would prevent this problem, but also be slower.
-		double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+		float imageLowerBoundU = this->matToImageU(0);
+		float imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
 		//inversed because of inversed v axis in mat/image coordinate system
-		double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
-		double imageUpperBoundV = this->matToImageV(0);
+		float imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+		float imageUpperBoundV = this->matToImageV(0);
 
-		double volumeLowerBoundY = this->volumeToWorldY(0);
-		double volumeUpperBoundY = this->volumeToWorldY(this->yMax);
-		double volumeLowerBoundZ = this->volumeToWorldZ(0);
-		double volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
+		float volumeLowerBoundY = this->volumeToWorldY(0);
+		float volumeUpperBoundY = this->volumeToWorldY(this->yMax);
+		float volumeLowerBoundZ = this->volumeToWorldZ(0);
+		float volumeUpperBoundZ = this->volumeToWorldZ(this->zMax);
+
+		//copy some member variables to local variables, performance is better this way
+		float FCD = this->FCD;
+		float uOffset = this->uOffset;
+
+		float radius = this->getReconstructionCylinderRadius();
+		float radiusSquared = radius*radius;
 
 		//for the preloading of the next projection
 		std::future<cv::Mat> future;
 
-		for (int projection = 0; projection < this->sinogram.size(); ++projection) {
+		for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
 			if (this->stopActiveProcess) {
 				return false;
 			}
 			//output percentage
-			double percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
+			float percentage = std::round((double)projection / (double)this->sinogram.size() * 100);
 			std::cout << "\r" << "Backprojecting: " << percentage << "%";
 			if (this->emitSignals) emit(reconstructionProgress(percentage, this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
-			double beta_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
-			double sine = sin(beta_rad);
-			double cosine = cos(beta_rad);
+			float angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+			float sine = sin(angle_rad);
+			float cosine = cos(angle_rad);
 			//load the projection, the projection for the next iteration is already prepared in a background thread
 			cv::Mat image;
 			if (projection == 0) {
@@ -814,41 +931,43 @@ namespace ct {
 			} else {
 				image = future.get();
 			}
-			if (projection + 1 != this->sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + 1);
+			if (projection + this->projectionStep < this->sinogram.size()) {
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + this->projectionStep);
 			}
 			//check if the image is good
 			if (!image.data) {
 				this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 				return false;
 			}
-			//copy some member variables to local variables, performance is better this way
-			double heightOffset = this->sinogram[projection].heightOffset;
-			double uOffset = this->uOffset;
-			double SD = this->SD;
-			double radiusSquared = std::pow((this->xSize / 2.0) - 3, 2);
+			//copy some member variables to local variables; performance is better this way
+			float heightOffset = this->sinogram[projection].heightOffset;
+
 			float* volumePtr;
 #pragma omp parallel for private(volumePtr) schedule(dynamic)
 			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
-				double x = this->volumeToWorldX(xIndex);
+				float x = this->volumeToWorldX(xIndex);
 				volumePtr = this->volume.slicePtr(xIndex);
-				for (double y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
+				for (float y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
 					if ((x*x + y*y) >= radiusSquared) {
 						volumePtr += this->zMax;
 						continue;
 					}
 					//if the voxel is inside the reconstructable cylinder
-					for (double z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
+					for (float z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
-						double t = (-1)*x*sine + y*cosine;
+						float t = (-1)*x*sine + y*cosine;
 						//correct the u-offset
 						t += uOffset;
-						double s = x*cosine + y*sine;
-						double u = (t*SD) / (SD - s);
-						double v = ((z + heightOffset)*SD) / (SD - s);
+						float s = x*cosine + y*sine;
+						float u = (t*FCD) / (FCD - s);
+						float v = ((z + heightOffset)*FCD) / (FCD - s);
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
+
+							//calculate weight
+							float w = FCD / (FCD + s);
+							w = w*w;
 
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
@@ -870,7 +989,7 @@ namespace ct {
 							float u1v1 = row[u1];
 							//this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
 							//size_t index = this->worldToVolumeY(y)*this->zMax + this->worldToVolumeZ(z);
-							(*volumePtr) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
+							(*volumePtr) += w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 						}
 					}
 				}
@@ -880,50 +999,258 @@ namespace ct {
 		return true;
 	}
 
-	inline float CtVolume::bilinearInterpolation(double u, double v, float u0v0, float u1v0, float u0v1, float u1v1) {
+	inline float CtVolume::bilinearInterpolation(float u, float v, float u0v0, float u1v0, float u0v1, float u1v1) {
 		//the two interpolations on the u axis
-		double v0 = (1.0 - u)*u0v0 + u*u1v0;
-		double v1 = (1.0 - u)*u0v1 + u*u1v1;
+		double v0 = (1.0f - u)*u0v0 + u*u1v0;
+		double v1 = (1.0f - u)*u0v1 + u*u1v1;
 		//interpolation on the v axis between the two u-interpolated values
-		return (1.0 - v)*v0 + v*v1;
+		return (1.0f - v)*v0 + v*v1;
 	}
 
 	bool CtVolume::cudaReconstructionCore(size_t threadZMin, size_t threadZMax, int deviceId) {
 
 		try {
 
-
+			cudaSetDevice(deviceId);
 			//for cuda error handling
 			bool success;
 
-			cudaSetDevice(deviceId);
-			cv::Mat image = this->sinogram[0].getImage();
-			cv::cuda::GpuMat gpuImage = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
-			cv::cuda::GpuMat tmp = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
-			cv::cuda::Stream stream;
+			//precomputing some values
+			double imageLowerBoundU = this->matToImageU(0);
+			double imageUpperBoundU = this->matToImageU(this->imageWidth - 1 - 0.1);
+			//inversed because of inversed v axis in mat/image coordinate system
+			double imageLowerBoundV = this->matToImageV(this->imageHeight - 1 - 0.1);
+			double imageUpperBoundV = this->matToImageV(0);
+			double radius = this->getReconstructionCylinderRadius();
+			double radiusSquared = radius*radius;
 
-			gpuImage.upload(image);
-			gpuImage.convertTo(gpuImage, CV_32FC1, stream);
+			const size_t progressUpdateRate = std::max(this->sinogram.size() / 100 * this->getActiveCudaDevices().size(), static_cast<size_t>(1));
 
-			for (int i = 0; i < 1100; ++i) {
-
-					stream.waitForCompletion();
-					{
-						cufftHandle plan;
-						cufftPlan1d(&plan, image.size().width, CUFFT_R2C, image.size().height);
-						cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
-						cufftExecR2C(plan, tmp.ptr<cufftReal>(), tmp.ptr<cufftComplex>());
-						cufftDestroy(plan);
-					}
-					{
-						cufftHandle plan;
-						cufftPlan1d(&plan, image.size().width, CUFFT_C2R, image.size().height);
-						cufftSetStream(plan, cv::cuda::StreamAccessor::getStream(stream));
-						cufftExecC2R(plan, tmp.ptr<cufftComplex>(), tmp.ptr<cufftReal>());
-						cufftDestroy(plan);
-					}
-
+			//image in RAM
+			cv::Mat image;
+			//page-locked RAM memeory for async upload
+			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, this->imageType, cv::cuda::HostMem::PAGE_LOCKED));
+			//image on gpu
+			std::vector<cv::cuda::GpuMat> gpuImage(2);
+			gpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+			gpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+			//streams for alternation
+			std::vector<cv::cuda::Stream> stream(2);
+			//temporary gpu mats for preprocessing
+			std::vector<cv::cuda::GpuMat> preprocessedGpuImage(2);
+			preprocessedGpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			preprocessedGpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
+			std::vector<cv::cuda::GpuMat> fftTmp(2);
+			fftTmp[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			fftTmp[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			std::vector<FftFilter> fftFilter(2, FftFilter(this->imageWidth, this->imageHeight));
+			if(!fftFilter[0].good() || !fftFilter[1].good()){
+				this->lastErrorMessage = "An error occured during creation of the FFT filter. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				stopCudaThreads = true;
+				return false;
 			}
+			{
+				bool successLocal = true;
+				fftFilter[0].setStream(cv::cuda::StreamAccessor::getStream(stream[0]), success);
+				successLocal = successLocal && success;
+				fftFilter[1].setStream(cv::cuda::StreamAccessor::getStream(stream[1]), success);
+				successLocal = successLocal && success;
+				if (!successLocal) {
+					this->lastErrorMessage = "An error occured while assigning the streams for the FFT filters.";
+					stopCudaThreads = true;
+					return false;
+				}
+			}
+
+			size_t sliceCnt = getMaxChunkSize();
+			size_t currentSlice = threadZMin;
+			//slice count equivalent to 150mb memory usage
+			size_t decreaseSliceStep = static_cast<size_t>(std::max(std::ceil(150.0L * 1024.0L * 1024.0L / static_cast<long double>(this->xMax*this->yMax*sizeof(float))), 1.0L));
+
+			if (sliceCnt < 1) {
+				//too little memory
+				this->lastErrorMessage = "The VRAM of one of the used GPUs is insufficient to run a reconstruction.";
+				//stop also the other cuda threads
+				stopCudaThreads = true;
+				return false;
+			}
+
+			sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
+
+			std::cout << std::endl;
+			//allocate volume part memory on gpu
+			cudaPitchedPtr gpuVolumePtr;
+			do {
+				gpuVolumePtr = ct::cuda::create3dVolumeOnGPU(this->xMax, this->yMax, sliceCnt, success, false);
+				if (!success) {
+					std::cout << "GPU" << deviceId << " tries allocating " << sliceCnt << " slices. FAIL" << std::endl;;
+					if (decreaseSliceStep < sliceCnt && decreaseSliceStep > 0) {
+						sliceCnt -= decreaseSliceStep;
+						//this resets sticky errors
+						cudaGetLastError();
+					} else {
+						break;
+					}
+				} else {
+					std::cout << "GPU" << deviceId << " tries allocating " << sliceCnt << " slices. SUCCESS" << std::endl;
+				}
+			} while (!success && cudaGetLastError() == cudaSuccess);
+
+			if (!success) {
+				this->lastErrorMessage = "An error occured during allocation of memory for the volume in the VRAM. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
+				stopCudaThreads = true;
+				return false;
+			}
+
+			while (currentSlice < threadZMax) {
+
+				size_t lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
+				size_t const xDimension = this->xMax;
+				size_t const yDimension = this->yMax;
+				size_t zDimension = lastSlice - currentSlice;
+
+				std::cout << std::endl << "GPU" << deviceId << " processing [" << currentSlice << ".." << lastSlice << ")" << std::endl;
+
+				ct::cuda::setToZero(gpuVolumePtr, this->xMax, this->yMax, sliceCnt, success);
+
+				if (!success) {
+					this->lastErrorMessage = "An error occured during initialisation of the volume in the VRAM.";
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					stopCudaThreads = true;
+					return false;
+				}
+
+				for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
+
+					//if user interrupts
+					if (this->stopActiveProcess) {
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						return false;
+					}
+
+					//if this thread shall be stopped (probably because an error in another thread occured)
+					if (this->stopCudaThreads) {
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						return false;
+					}
+
+					//emit progress update
+					if (projection % progressUpdateRate == 0) {
+						double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
+						double currentChunk = zDimension*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
+						double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
+					}
+
+					int current = projection % 2;
+
+					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
+					double sine = sin(angle_rad);
+					double cosine = cos(angle_rad);
+
+					//prepare and upload next image
+					image = this->sinogram[projection].getImage();
+					if (!image.data) {
+						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+					try {
+						stream[current].waitForCompletion();
+						image.copyTo(memory[current]);
+						gpuImage[current].upload(memory[current], stream[current]);
+						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
+					} catch (...) {
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+					if (!success) {
+						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory setting.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+
+					float maxValue = 65535;
+					int type = CV_16UC1;
+					cv::Mat mat;
+					cv::Mat normalized;
+					preprocessedGpuImage[current].download(mat);
+					float minGrey = 0;
+					float maxGrey = maxValue;
+					cv::normalize(mat, normalized, minGrey, maxGrey, cv::NORM_MINMAX, type);
+					cv::imwrite("C:/Users/bastian/Desktop/image.tif", normalized);
+					stopCudaThreads = true;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) this->lastErrorMessage += std::string("Done.");
+					return false;
+
+					//start reconstruction with current image
+					ct::cuda::startReconstruction(preprocessedGpuImage[current],
+												  gpuVolumePtr,
+												  xDimension,
+												  yDimension,
+												  zDimension,
+												  currentSlice,
+												  radiusSquared,
+												  sine,
+												  cosine,
+												  this->sinogram[projection].heightOffset,
+												  this->uOffset,
+												  this->FCD,
+												  imageLowerBoundU,
+												  imageUpperBoundU,
+												  imageLowerBoundV,
+												  imageUpperBoundV,
+												  this->xPrecomputed,
+												  this->yPrecomputed,
+												  this->zPrecomputed,
+												  this->uPrecomputed,
+												  this->vPrecomputed,
+												  cv::cuda::StreamAccessor::getStream(stream[current]),
+												  success);
+
+					if (!success) {
+						this->lastErrorMessage = "An error occured during the launch of a reconstruction kernel on the GPU.";
+						stopCudaThreads = true;
+						ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+						return false;
+					}
+
+				}
+
+				//donload the reconstructed volume part
+				ct::cuda::download3dVolume(gpuVolumePtr, this->volume.slicePtr(currentSlice), xDimension, yDimension, zDimension, success);
+
+				if (!success) {
+					this->lastErrorMessage = "An error occured during download of a reconstructed volume part from the VRAM.";
+					stopCudaThreads = true;
+					ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+					if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
+					return false;
+				}
+
+				if (!success) {
+					this->lastErrorMessage = "Error: memory allocated in the VRAM could not be freed.";
+					stopCudaThreads = true;
+					return false;
+				}
+
+				currentSlice += sliceCnt;
+			}
+
+			//free volume part memory on gpu
+			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+
+			std::cout << std::endl;
+			std::cout << "GPU" << deviceId << " finished." << std::endl;
 
 			emit(this->cudaThreadProgressUpdate(1, deviceId, true));
 
@@ -940,8 +1267,11 @@ namespace ct {
 
 	bool CtVolume::launchCudaThreads() {
 		this->stopCudaThreads = false;
-		cudaProfilerStart();
-		std::map<int, double> scalingFactors = this->getGpuWeights(this->activeCudaDevices);
+
+		//more L1 cache; we don't need shared memory
+		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+
+		this->cudaGpuWeights = this->getGpuWeights(this->activeCudaDevices);
 
 		//clear progress
 		this->cudaThreadProgress.clear();
@@ -954,7 +1284,7 @@ namespace ct {
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 		size_t currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			size_t sliceCnt = std::round(scalingFactors[this->activeCudaDevices[i]] * double(zMax));
+			size_t sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
 			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
@@ -963,7 +1293,6 @@ namespace ct {
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			result = result && threads[i].get();
 		}
-		cudaProfilerStop();
 		return result;
 	}
 
@@ -978,21 +1307,23 @@ namespace ct {
 			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
 			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i])*ct::cuda::getMemoryClockRate(devices[i]);
 			totalBandWidth += bandwidth[devices[i]];
-			std::cout << "GPU" << devices[i] << std::endl;
-			cudaSetDevice(devices[i]);
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024 / 1024 / 1025 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
 		}
 		std::map<int, double> scalingFactors;
 		double scalingFactorSum = 0;
 		for (int i = 0; i < devices.size(); ++i) {
 			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
-			double busWidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
-			scalingFactors[devices[i]] = multiprocessorScalingFactor*busWidthScalingFactor;
+			double bandwidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
+			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient)*std::pow(bandwidthScalingFactor, this->memoryBandwidthCoefficient);
 			scalingFactorSum += scalingFactors[devices[i]];
 		}
 		for (int i = 0; i < devices.size(); ++i) {
 			scalingFactors[devices[i]] /= scalingFactorSum;
+			std::cout << "GPU" << devices[i] << std::endl;
+			cudaSetDevice(devices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024.0 / 1024.0 / 1025.0 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
+			std::cout << "\tPeak memory bandwidth: " << (double(bandwidth[devices[i]]) * 2.0) / 8000000.0 << " Gb/s" << std::endl;
+			std::cout << "\tGPU weight: " << scalingFactors[devices[i]] << std::endl;
 		}
 		return scalingFactors;
 	}
@@ -1002,10 +1333,6 @@ namespace ct {
 		long long freeMemory = ct::cuda::getFreeMemory();
 		//spare some VRAM for other applications
 		freeMemory -= this->gpuSpareMemory * 1024 * 1024;
-		//spare memory gpu mats, intermediate images and dft result
-		freeMemory -= sizeof(float)*(this->imageWidth*this->imageHeight * 5 + (this->imageWidth / 2 - 1)*this->imageHeight * 2);
-		//estimate for memory consumed by fft
-		freeMemory -= sizeof(float)*this->imageWidth*this->imageHeight*17;
 		if (freeMemory < 0) return 0;
 
 		size_t sliceSize = this->xMax * this->yMax * sizeof(float);
@@ -1035,58 +1362,53 @@ namespace ct {
 			this->crossSectionIndex = this->zMax / 2;
 		}
 		//precompute some values for faster processing
-		this->worldToVolumeXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
-		this->worldToVolumeYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
-		this->worldToVolumeZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
-		this->volumeToWorldXPrecomputed = (double(this->xSize) / 2.0) - double(this->xFrom);
-		this->volumeToWorldYPrecomputed = (double(this->ySize) / 2.0) - double(this->yFrom);
-		this->volumeToWorldZPrecomputed = (double(this->zSize) / 2.0) - double(this->zFrom);
-		this->imageToMatUPrecomputed = double(this->imageWidth) / 2.0;
-		this->imageToMatVPrecomputed = double(this->imageHeight) / 2.0;
-		this->matToImageUPreprocessed = double(this->imageWidth) / 2.0;
-		this->matToImageVPreprocessed = double(this->imageHeight / 2.0);
+		this->xPrecomputed = (float(this->xSize) / 2.0) - float(this->xFrom);
+		this->yPrecomputed = (float(this->ySize) / 2.0) - float(this->yFrom);
+		this->zPrecomputed = (float(this->zSize) / 2.0) - float(this->zFrom);
+		this->uPrecomputed = float(this->imageWidth) / 2.0;
+		this->vPrecomputed = float(this->imageHeight) / 2.0;
 	}
 
-	inline double CtVolume::worldToVolumeX(double xCoord) const {
-		return xCoord + this->worldToVolumeXPrecomputed;
+	inline float CtVolume::worldToVolumeX(float xCoord) const {
+		return xCoord + this->xPrecomputed;
 	}
 
-	inline double CtVolume::worldToVolumeY(double yCoord) const {
-		return yCoord + this->worldToVolumeYPrecomputed;
+	inline float CtVolume::worldToVolumeY(float yCoord) const {
+		return yCoord + this->yPrecomputed;
 	}
 
-	inline double CtVolume::worldToVolumeZ(double zCoord) const {
-		return zCoord + this->worldToVolumeZPrecomputed;
+	inline float CtVolume::worldToVolumeZ(float zCoord) const {
+		return zCoord + this->zPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldX(double xCoord) const {
-		return xCoord - this->volumeToWorldXPrecomputed;
+	inline float CtVolume::volumeToWorldX(float xCoord) const {
+		return xCoord - this->xPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldY(double yCoord) const {
-		return yCoord - this->volumeToWorldYPrecomputed;
+	inline float CtVolume::volumeToWorldY(float yCoord) const {
+		return yCoord - this->yPrecomputed;
 	}
 
-	inline double CtVolume::volumeToWorldZ(double zCoord) const {
-		return zCoord - this->volumeToWorldZPrecomputed;
+	inline float CtVolume::volumeToWorldZ(float zCoord) const {
+		return zCoord - this->zPrecomputed;
 	}
 
-	inline double CtVolume::imageToMatU(double uCoord)const {
-		return uCoord + this->imageToMatUPrecomputed;
+	inline float CtVolume::imageToMatU(float uCoord)const {
+		return uCoord + this->uPrecomputed;
 	}
 
-	inline double CtVolume::imageToMatV(double vCoord)const {
+	inline float CtVolume::imageToMatV(float vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*vCoord + this->imageToMatVPrecomputed;
+		return (-1)*vCoord + this->vPrecomputed;
 	}
 
-	inline double CtVolume::matToImageU(double uCoord)const {
-		return uCoord - this->matToImageUPreprocessed;
+	inline float CtVolume::matToImageU(float uCoord)const {
+		return uCoord - this->uPrecomputed;
 	}
 
-	inline double CtVolume::matToImageV(double vCoord)const {
+	inline float CtVolume::matToImageV(float vCoord)const {
 		//factor -1 because of different z-axis direction
-		return (-1)*vCoord + this->matToImageVPreprocessed;
+		return (-1)*vCoord + this->vPrecomputed;
 	}
 
 	//============================================== PRIVATE SLOTS ==============================================\\
@@ -1095,9 +1417,8 @@ namespace ct {
 		this->cudaThreadProgress[deviceId] = percentage;
 		double totalProgress = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]];
+			totalProgress += this->cudaThreadProgress[this->activeCudaDevices[i]] * this->cudaGpuWeights[this->activeCudaDevices[i]];
 		}
-		totalProgress /= this->cudaThreadProgress.size();
 		totalProgress *= 100;
 		std::cout << "\r" << "Total completion: " << std::round(totalProgress) << "%";
 		if (this->emitSignals) {
