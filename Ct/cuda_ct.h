@@ -31,25 +31,25 @@ namespace ct {
 										  float vPrecomputed, 
 										  cudaStream_t stream, 
 										  bool& success);
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize,				//allocates a 3d volume on the gpu and initialises it with 0
-										   size_t zSize, 
+		cudaPitchedPtr create3dVolumeOnGPU(unsigned int xSize, unsigned int ySize,				//allocates a 3d volume on the gpu and initialises it with 0
+										   unsigned int zSize,
 										   bool& success,
 										   bool verbose = true);
-		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize,		//sets the volume to 0
-					   size_t zSize, bool& success);
+		void setToZero(cudaPitchedPtr devicePtr, unsigned int xSize, unsigned int ySize,		//sets the volume to 0
+					   unsigned int zSize, bool& success);
 		void delete3dVolumeOnGPU(cudaPitchedPtr devicePtr, bool& success);			//deletes the 3d volume from the gpu memory
 		void download3dVolume(cudaPitchedPtr devicePtr,
 							  float* hostPtr,
-							  size_t xSize,
-							  size_t ySize,
-							  size_t zSize,
+							  unsigned int xSize,
+							  unsigned int ySize,
+							  unsigned int zSize,
 							  bool& success);
 		void startReconstruction(cv::cuda::PtrStepSz<float> image,					//starts the reconstruction
 								 cudaPitchedPtr volumePtr,
-								 size_t xSize,
-								 size_t ySize,
-								 size_t zSize,
-								 size_t zOffset,
+								 unsigned int xSize,
+								 unsigned int ySize,
+								 unsigned int zSize,
+								 unsigned int zOffset,
 								 float radiusSquared,
 								 float sine,
 								 float cosine,

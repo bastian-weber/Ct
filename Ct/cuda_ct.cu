@@ -66,8 +66,8 @@ namespace ct {
 
 		__global__ void frequencyFilterKernel(cv::cuda::PtrStepSz<float2> image, int filterType, float Nreciprocal) {
 
-			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
-			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+			unsigned int xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			unsigned int yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float2 pixel = image(yIndex, xIndex);
@@ -105,8 +105,8 @@ namespace ct {
 
 		__global__ void feldkampWeightFilterKernel(cv::cuda::PtrStepSz<float> image, float FCD, float uPrecomputed, float vPrecomputed) {
 
-			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
-			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+			unsigned int xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			unsigned int yIndex = threadIdx.y + blockIdx.y * blockDim.y;
 
 			if (xIndex < image.cols && yIndex < image.rows) {
 				float u = float(xIndex) - uPrecomputed;
@@ -130,7 +130,7 @@ namespace ct {
 			}
 		}
 
-		cudaPitchedPtr create3dVolumeOnGPU(size_t xSize, size_t ySize, size_t zSize, bool& success, bool verbose) {
+		cudaPitchedPtr create3dVolumeOnGPU(unsigned int xSize, unsigned int ySize, unsigned int zSize, bool& success, bool verbose) {
 			success = true;
 			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
@@ -145,7 +145,7 @@ namespace ct {
 			return ptr;
 		}
 
-		void setToZero(cudaPitchedPtr devicePtr, size_t xSize, size_t ySize, size_t zSize, bool& success) {
+		void setToZero(cudaPitchedPtr devicePtr, unsigned int xSize, unsigned int ySize, unsigned int zSize, bool& success) {
 			success = true;
 			cudaError_t status;
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);		
@@ -165,7 +165,7 @@ namespace ct {
 			}
 		}
 
-		void download3dVolume(cudaPitchedPtr devicePtr, float* hostPtr, size_t xSize, size_t ySize, size_t zSize,  bool& success) {
+		void download3dVolume(cudaPitchedPtr devicePtr, float* hostPtr, unsigned int xSize, unsigned int ySize, unsigned int zSize,  bool& success) {
 			success = true;
 			cudaPitchedPtr hostPitchedPtr = make_cudaPitchedPtr(hostPtr, xSize * sizeof(float), xSize, ySize);
 			cudaExtent extent = make_cudaExtent(xSize * sizeof(float), ySize, zSize);
@@ -189,7 +189,7 @@ namespace ct {
 			return (1.0f - v)*v0 + v*v1;
 		}
 
-		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, size_t xCoord, size_t yCoord, size_t zCoord, float value) {
+		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, unsigned int yCoord, unsigned int zCoord, float value) {
 			char* devicePtr = (char*)(volumePtr.ptr);
 			//z * xSize * ySize + y * xSize + x
 			size_t pitch = volumePtr.pitch;
@@ -201,8 +201,10 @@ namespace ct {
 
 		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, 
 											 cudaPitchedPtr volumePtr, 
-											 size_t xSize, size_t ySize, 
-											 size_t zSize, size_t zOffset, 
+											 unsigned int xSize, 
+											 unsigned int ySize,
+											 unsigned int zSize, 
+											 unsigned int zOffset,
 											 float radiusSquared,
 											 float sine,
 											 float cosine,
@@ -219,9 +221,9 @@ namespace ct {
 											 float uPrecomputed,
 											 float vPrecomputed) {
 
-			size_t xIndex = threadIdx.x + blockIdx.x * blockDim.x;
-			size_t yIndex = threadIdx.y + blockIdx.y * blockDim.y;
-			size_t zIndex = threadIdx.z + blockIdx.z * blockDim.z;
+			unsigned int xIndex = threadIdx.x + blockIdx.x * blockDim.x;
+			unsigned int yIndex = threadIdx.y + blockIdx.y * blockDim.y;
+			unsigned int zIndex = threadIdx.z + blockIdx.z * blockDim.z;
 
 			//if (xIndex == 0 && yIndex == 0 && zIndex == 0) {
 			//	printf("kernel start\n");
@@ -255,10 +257,10 @@ namespace ct {
 						v = -v + vPrecomputed;
 
 						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
-						size_t u0 = u;
-						size_t u1 = u0 + 1;
-						size_t v0 = v;
-						size_t v1 = v0 + 1;
+						unsigned int u0 = __float2uint_rd(u);
+						unsigned int u1 = u0 + 1;
+						unsigned int v0 = __float2uint_rd(v);
+						unsigned int v1 = v0 + 1;
 
 						float* row = image.ptr(v0);
 						float u0v0 = row[u0];
@@ -282,10 +284,10 @@ namespace ct {
 
 		void startReconstruction(cv::cuda::PtrStepSz<float> image, 
 								 cudaPitchedPtr volumePtr, 
-								 size_t xSize, 
-								 size_t ySize, 
-								 size_t zSize, 
-								 size_t zOffset, 
+								 unsigned int xSize,
+								 unsigned int ySize,
+								 unsigned int zSize,
+								 unsigned int zOffset,
 								 float radiusSquared, 
 								 float sine,
 								 float cosine,
