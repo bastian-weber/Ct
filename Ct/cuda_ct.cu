@@ -192,8 +192,8 @@ namespace ct {
 		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, unsigned int yCoord, unsigned int zCoord, float value) {
 			char* devicePtr = (char*)(volumePtr.ptr);
 			//z * xSize * ySize + y * xSize + x
-			size_t pitch = volumePtr.pitch;
-			size_t slicePitch = pitch * volumePtr.ysize;
+			unsigned long pitch = volumePtr.pitch;
+			unsigned long slicePitch = pitch * static_cast<unsigned long>(volumePtr.ysize);
 			char* slice = devicePtr + zCoord*slicePitch;
 			float* row = (float*)(slice + yCoord * pitch);
 			row[xCoord] += value;

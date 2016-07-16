@@ -1136,9 +1136,9 @@ namespace ct {
 
 					//emit progress update
 					if (projection % progressUpdateRate == 0) {
-						double chunkFinished = (currentSlice - threadZMin)*this->xMax*this->yMax;
-						double currentChunk = zDimension*this->xMax*this->yMax * (double(projection) / double(this->sinogram.size()));
-						double percentage = (chunkFinished + currentChunk) / ((threadZMax - threadZMin)*this->xMax*this->yMax);
+						double chunkFinished = static_cast<double>(currentSlice - threadZMin)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax);
+						double currentChunk = static_cast<double>(zDimension)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax) * (double(projection) / double(this->sinogram.size()));
+						double percentage = (chunkFinished + currentChunk) / (static_cast<double>(threadZMax - threadZMin)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax));
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
 
