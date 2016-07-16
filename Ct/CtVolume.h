@@ -24,10 +24,11 @@
 
 //CUDA
 #include <cuda_runtime.h>
+#include <cufft.h>
 
 #include "Volume.h"
 #include "utility.h"
-#include "CompletionStatus.h"
+#include "types.h"
 #include "cuda_ct.h"
 
 //undefines some macros of VC++ that cause naming conflicts
@@ -72,36 +73,42 @@ namespace ct {
 		size_t getXSize() const;
 		size_t getYSize() const;
 		size_t getZSize() const;
-		double getUOffset() const;
-		double getVOffset() const;
-		double getPixelSize() const;
-		double getSO() const;
-		double getSD() const;
+		size_t getReconstructionCylinderRadius() const;
+		float getUOffset() const;
+		float getPixelSize() const;
+		float getFCD() const;
+		float getBaseIntensity() const;
 		cv::Mat getVolumeCrossSection(Axis axis, size_t index) const;
 		size_t getCrossSectionIndex() const;
 		size_t getCrossSectionSize() const;
 		Axis getCrossSectionAxis() const;
 		bool getEmitSignals() const;
 		bool getUseCuda() const;
+		size_t getSkipProjections() const;
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
+		double getMultiprocessorCoefficient() const;
+		double getMemoryBandwidthCoefficient() const;
 		size_t getRequiredMemoryUpperBound() const;
 
 		//setters
 		void setCrossSectionIndex(size_t index);
 		void setCrossSectionAxis(Axis axis);
 		void setEmitSignals(bool value);
-		void setVolumeBounds(double xFrom,
-							 double xTo,
-							 double yFrom,
-							 double yTo,
-							 double zFrom,
-							 double zTo);
+		void setVolumeBounds(float xFrom,
+							 float xTo,
+							 float yFrom,
+							 float yTo,
+							 float zFrom,
+							 float zTo);
 		void setUseCuda(bool value);
 		void setActiveCudaDevices(std::vector<int> devices);
 		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
+		void setGpuCoefficients(double multiprocessorCoefficient,
+								double memoryBandwidthCoefficient);
 		void setFrequencyFilterType(FilterType filterType);
+		void setSkipProjections(size_t value = 0);
 
 		//control functions
 		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
@@ -124,6 +131,27 @@ namespace ct {
 			double heightOffset;													//for random trajectory
 		};
 
+		//FFT filter class
+		class FftFilter {
+		public:
+			FftFilter() = delete;
+			FftFilter(FftFilter const& other);
+			FftFilter(int width, int height);
+			~FftFilter();
+			FftFilter& operator=(FftFilter const& other) = delete;
+			bool good();
+			static size_t getWorkSizeEstimate(int width, int height);
+			void setStream(cudaStream_t stream, bool& success);
+			void applyForward(cv::cuda::GpuMat& imageIn, cv::cuda::GpuMat& dftSpectrumOut, bool& success) const;
+			void applyInverse(cv::cuda::GpuMat& dftSpectrumIn, cv::cuda::GpuMat& imageOut, bool& success) const;
+		private:
+			cufftHandle forwardPlan;
+			cufftHandle inversePlan;
+			bool isGood = true;
+			int width;
+			int height;
+		};
+		
 		//=========================================== PRIVATE FUNCTIONS ===========================================\\
 		
 		//related to parsing of config file
@@ -139,24 +167,25 @@ namespace ct {
 		void preprocessImage(cv::Mat& image) const;
 		static void convertTo32bit(cv::Mat& img);								//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image) const;
-		static double W(double D, double u, double v);							//weight function for the reconstruction of the volume		
+		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		
 		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
-		static void applyLogScaling(cv::Mat& image);							//applies a logarithmic scaling to an image
-		static double ramLakWindowFilter(double n, double N);					//these functions return the scaling coefficients for the
-		static double sheppLoganWindowFilter(double n, double N);				//fourier filters for each n out of N
-		static double hannWindowFilter(double n, double N);						
+		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
+		static float ramLakWindowFilter(float n, float N);					//these functions return the scaling coefficients for the
+		static float sheppLoganWindowFilter(float n, float N);				//fourier filters for each n out of N
+		static float hannWindowFilter(float n, float N);
 		
 		//related to the GPU image preprocessing
-		void cudaPreprocessImage(cv::cuda::GpuMat& image,
-								 cv::cuda::GpuMat& tmp1,
-								 cv::cuda::GpuMat& tmp2,
+		void cudaPreprocessImage(cv::cuda::GpuMat& imageIn,
+								 cv::cuda::GpuMat& imageOut,
+								 cv::cuda::GpuMat& dftTmp,
+								 FftFilter& fftFilter,
 								 bool& success,
 								 cv::cuda::Stream& stream = cv::cuda::Stream::Null()) const;
 
 		//related to the CPU reconstruction
 		bool reconstructionCore();												//does the actual reconstruction
-		static float bilinearInterpolation(double u,							//interpolates bilinear between those four intensities
-										   double v,
+		static float bilinearInterpolation(float u,							//interpolates bilinear between those four intensities
+										   float v,
 										   float u0v0,
 										   float u1v0,
 										   float u0v1,
@@ -168,20 +197,20 @@ namespace ct {
 									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
-		size_t getMaxChunkSize() const;											//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
+		size_t getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
 		void updateBoundaries();												//is called when the bounds of the ROI change, precomputes some values
-		double worldToVolumeX(double xCoord) const;								//coordinate transformations from the coordinates of the vector to
-		double worldToVolumeY(double yCoord) const;								//the coordinates of the "world" and the other way around
-		double worldToVolumeZ(double zCoord) const;
-		double volumeToWorldX(double xCoord) const;
-		double volumeToWorldY(double yCoord) const;
-		double volumeToWorldZ(double zCoord) const;
-		double imageToMatU(double uCoord)const;									//coordinate transformations from the coordinates of the image
-		double imageToMatV(double vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
-		double matToImageU(double uCoord)const;
-		double matToImageV(double vCoord)const;
+		float worldToVolumeX(float xCoord) const;								//coordinate transformations from the coordinates of the vector to
+		float worldToVolumeY(float yCoord) const;								//the coordinates of the "world" and the other way around
+		float worldToVolumeZ(float zCoord) const;
+		float volumeToWorldX(float xCoord) const;
+		float volumeToWorldY(float yCoord) const;
+		float volumeToWorldZ(float zCoord) const;
+		float imageToMatU(float uCoord)const;									//coordinate transformations from the coordinates of the image
+		float imageToMatV(float vCoord)const;									//to the coordinates of the saved matrix (always starting at 0)
+		float matToImageU(float uCoord)const;
+		float matToImageV(float vCoord)const;
 		
 		//=========================================== PRIVATE VARIABLES ===========================================\\
 
@@ -190,23 +219,25 @@ namespace ct {
 		size_t xSize = 0, ySize = 0, zSize = 0;								//the size of the volume in x, y and z direction, is calculated when sinogram is created
 		size_t imageWidth = 0, imageHeight = 0;								//stores the height and width of the images in the sinogram
 		int imageType;														//assumed type of all the images (taken from the first image)
-		double SD = 0;														//the distance of the source to the detector in pixel
-		double SO = 0;														//the distance of the source to the object in pixel
-		double pixelSize = 0;
-		double uOffset = 0, vOffset = 0;									//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+		float FCD = 0;														//the distance of the source to the detector in pixel
+		float pixelSize = 0;
+		float uOffset = 0;													//the offset of the rotation axis in u direction																			//bounds of what will be reconstructed
+		float baseIntensity = 0;												//the intensity of just air
 
 		//variables that can be set from outside and controls the behaviour of the object
 		FilterType filterType = FilterType::RAMLAK;							//holds the frequency filter type that shall be used
+		size_t projectionStep = 1;											//controls how many projections are skipped during reconstruction
 		bool emitSignals = true;											//if true the object emits qt signals in certain functions
 		size_t crossSectionIndex = 0;										//index for the crossection that is returned in qt signals
 		Axis crossSectionAxis = Axis::Z;									//the axis at which the volume is sliced for the cross section
 		bool useCuda = true;												//enables or disables the use of cuda
 		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
 		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
+		double multiprocessorCoefficient = 1, memoryBandwidthCoefficient = 1;//conrols the weighting of multiprocessor count and memory speed amongst multiple gpus
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
-		double xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
-		double yFrom_float = 0, yTo_float = 1;
-		double zFrom_float = 0, zTo_float = 1;
+		float xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
+		float yFrom_float = 0, yTo_float = 1;
+		float zFrom_float = 0, zTo_float = 1;
 
 		//variables that are only internally used
 		Volume<float> volume;												//holds the reconstructed volume
@@ -215,22 +246,17 @@ namespace ct {
 		size_t zFrom = 0, zTo = 0;
 		size_t xMax = 0, yMax = 0, zMax = 0;								//the width, height and depth of the volume ROI that is going to be reconstructed
 		mutable std::pair<float, float> minMaxValues;						//stores the brightest and darkes value in all of the sinogram images (for normalisation)
-		std::map<int, double> cudaThreadProgress;							//for keeping track of the progress on multithread CUDA execution
+		std::map<int, double> cudaThreadProgress, cudaGpuWeights;			//for keeping track of the progress on multithread CUDA execution
 		mutable std::mutex exclusiveFunctionsMutex;							//this mutex makes sure certain functions are not executed concurrently
 		mutable std::atomic<bool> stopCudaThreads{ false };					//this will be set to true if all cuda threads shall be stopped
 		std::string lastErrorMessage;										//if an error in one of the threads occurs, it will be saved here
 
 		//variables for precomputed parts of coordinate transformations
-		double worldToVolumeXPrecomputed;
-		double worldToVolumeYPrecomputed;
-		double worldToVolumeZPrecomputed;
-		double volumeToWorldXPrecomputed;
-		double volumeToWorldYPrecomputed;
-		double volumeToWorldZPrecomputed;
-		double imageToMatUPrecomputed;
-		double imageToMatVPrecomputed;
-		double matToImageUPreprocessed;
-		double matToImageVPreprocessed;
+		float xPrecomputed;
+		float yPrecomputed;
+		float zPrecomputed;
+		float uPrecomputed;
+		float vPrecomputed;
 	private slots:
 		void emitGlobalCudaProgress(double percentage, int deviceId, bool emitCrossSection);
 	signals:

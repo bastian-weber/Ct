@@ -121,22 +121,30 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
 endif(CMAKE_COMPILER_IS_GNUCC)
 
-#post build command for copying ressources
-if(WIN32)
+#add custom target for copying ressources
+add_custom_target(COPY_RESSOURCES)
+foreach(EXECUTABLE ${TARGETS})
+	add_dependencies(${EXECUTABLE} COPY_RESSOURCES)
+endforeach()
+if(MSVC)
+	add_custom_target(COPY_DLLS)
 	foreach(EXECUTABLE ${TARGETS})
-		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release
-			COMMENT "Copying ressources to executable directory...")
-	endforeach()
-elseif (UNIX)
-	foreach(EXECUTABLE ${TARGETS})
-		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR}
-			COMMENT "Copying ressources to executable directory...")
+		add_dependencies(${EXECUTABLE} COPY_DLLS)
 	endforeach()
 endif()
+if(WIN32)
+	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release
+		COMMENT "Copying ressources to executable directory...")
+elseif (UNIX)
+	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR}
+		COMMENT "Copying ressources to executable directory...")
+endif()
+
+
 
 set(RELEASE_DLLS)
 set(DEBUG_DLLS)
@@ -194,12 +202,10 @@ IF(DEFINED QT_ROOT_FOUND)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
 
-		foreach(EXECUTABLE ${TARGETS})
-			add_custom_command(TARGET ${EXECUTABLE} POST_BUILD 
-				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
-				COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms
-				COMMENT "Copying Qt platforms to executable directory...")
-		endforeach()
+		add_custom_command(TARGET COPY_DLLS PRE_BUILD 
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
+			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms
+			COMMENT "Copying Qt platforms to executable directory...")
 
 	ENDIF(MSVC)
 
@@ -226,8 +232,8 @@ if(MSVC)
 	string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
 
 	foreach(EXECUTABLE ${TARGETS})
-		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")
-		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
+		add_custom_command(TARGET COPY_DLLS PRE_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")	
+		add_custom_command(TARGET COPY_DLLS PRE_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
 	endforeach()
 
 endif()

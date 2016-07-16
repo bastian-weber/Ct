@@ -11,8 +11,12 @@
 #include <QtWidgets/QtWidgets>
 
 #include "Volume.h"
+#include "types.h"
 
 namespace ct {
+
+	//forward declaration
+	enum class DataType;
 
 	class ImportSettingsDialog : public QDialog {
 		Q_OBJECT
@@ -24,15 +28,26 @@ namespace ct {
 		size_t getZSize() const;
 		IndexOrder getIndexOrder() const;
 		QDataStream::ByteOrder getByteOrder() const;
-		void setXSize(size_t xSize);
-		void setYSize(size_t ySize);
-		void setZSize(size_t zSize);
+		DataType getDataType() const;
+		size_t getHeaderOffset() const;
+		bool getMirrorX() const;
+		bool getMirrorY() const;
+		bool getMirrorZ() const;
+		void setXSize(int xSize);
+		void setYSize(int ySize);
+		void setZSize(int zSize);
 		void setIndexOrder(IndexOrder indexOrder);
 		void setByteOrder(QDataStream::ByteOrder byteOrder);
+		void setDataType(DataType dataType);
+		void setHeaderOffset(int size);
+		void setMirrorX(bool value);
+		void setMirrorY(bool value);
+		void setMirrorZ(bool value);
 	protected:
 		void showEvent(QShowEvent* e);
 	private:
 		//functions
+		void setDefaultValues();
 
 		//variables
 		std::shared_ptr<QSettings> settings;
@@ -52,10 +67,16 @@ namespace ct {
 		QRadioButton* zFastestRadioButton;
 		QButtonGroup* byteOrderGroup;
 		QButtonGroup* indexOrderGroup;
+		QComboBox* dataTypeComboBox;
+		QSpinBox* headerSpinBox;
+		QCheckBox* mirrorXCheckbox;
+		QCheckBox* mirrorYCheckbox;
+		QCheckBox* mirrorZCheckbox;
 		QLabel* actualSizeLabel;
 		QLabel* requiredSizeLabel;
 	private slots:
 		void updateSize();
+		void saveSettings();
 	};
 }
 #endif
