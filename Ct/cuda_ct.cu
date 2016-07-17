@@ -189,11 +189,10 @@ namespace ct {
 			return (1.0f - v)*v0 + v*v1;
 		}
 
-		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, unsigned int yCoord, unsigned int zCoord, float value) {
+		//we pass pitch and slicePitch already converted to unsigned long although it's also contained in the volumePtr for performance reasons
+		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, unsigned long yCoord, unsigned long zCoord, unsigned long pitch, unsigned long slicePitch, float value) {
 			char* devicePtr = (char*)(volumePtr.ptr);
 			//z * xSize * ySize + y * xSize + x
-			unsigned long pitch = volumePtr.pitch;
-			unsigned long slicePitch = pitch * static_cast<unsigned long>(volumePtr.ysize);
 			char* slice = devicePtr + zCoord*slicePitch;
 			float* row = (float*)(slice + yCoord * pitch);
 			row[xCoord] += value;
@@ -201,6 +200,8 @@ namespace ct {
 
 		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, 
 											 cudaPitchedPtr volumePtr, 
+											 unsigned long pitch,
+											 unsigned long slicePitch,
 											 unsigned int xSize, 
 											 unsigned int ySize,
 											 unsigned int zSize, 
@@ -271,7 +272,7 @@ namespace ct {
 
 						float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
-						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, value);
+						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, pitch, slicePitch, value);
 					}
 				}
 			}
@@ -310,8 +311,12 @@ namespace ct {
 			dim3 blocks(std::ceil(float(xSize) / float(threads.x)),
 						std::ceil(float(ySize) / float(threads.y)),
 						std::ceil(float(zSize) / float(threads.z)));
+			unsigned long pitch = volumePtr.pitch;
+			unsigned long slicePitch = pitch * static_cast<unsigned long>(ySize);
 			reconstructionKernel << < blocks, threads, 0, stream >> >(image,
 																	  volumePtr,
+																	  pitch,
+																	  slicePitch,
 																	  xSize,
 																	  ySize,
 																	  zSize,
