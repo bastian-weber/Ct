@@ -190,7 +190,7 @@ namespace ct {
 		}
 
 		//we pass pitch and slicePitch already converted to unsigned long although it's also contained in the volumePtr for performance reasons
-		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, unsigned long yCoord, unsigned long zCoord, unsigned long pitch, unsigned long slicePitch, float value) {
+		__device__ void addToVolumeElement(cudaPitchedPtr volumePtr, unsigned int xCoord, size_t yCoord, size_t zCoord, size_t pitch, size_t slicePitch, float value) {
 			char* devicePtr = (char*)(volumePtr.ptr);
 			//z * xSize * ySize + y * xSize + x
 			char* slice = devicePtr + zCoord*slicePitch;
@@ -200,8 +200,8 @@ namespace ct {
 
 		__global__ void reconstructionKernel(cv::cuda::PtrStepSz<float> image, 
 											 cudaPitchedPtr volumePtr, 
-											 unsigned long pitch,
-											 unsigned long slicePitch,
+											 size_t pitch,
+											 size_t slicePitch,
 											 unsigned int xSize, 
 											 unsigned int ySize,
 											 unsigned int zSize, 
@@ -311,8 +311,8 @@ namespace ct {
 			dim3 blocks(std::ceil(float(xSize) / float(threads.x)),
 						std::ceil(float(ySize) / float(threads.y)),
 						std::ceil(float(zSize) / float(threads.z)));
-			unsigned long pitch = volumePtr.pitch;
-			unsigned long slicePitch = pitch * static_cast<unsigned long>(ySize);
+			size_t pitch = volumePtr.pitch;
+			size_t slicePitch = pitch * static_cast<size_t>(ySize);
 			reconstructionKernel << < blocks, threads, 0, stream >> >(image,
 																	  volumePtr,
 																	  pitch,
