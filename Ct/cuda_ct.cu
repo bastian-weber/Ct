@@ -265,14 +265,14 @@ namespace ct {
 
 						float* row = image.ptr(v0);
 						float u0v0 = row[u0];
-						float u1v0 = row[u1];
-						row = image.ptr(v1);
-						float u0v1 = row[u0];
-						float u1v1 = row[u1];
+						//float u1v0 = row[u1];
+						//row = image.ptr(v1);
+						//float u0v1 = row[u0];
+						//float u1v1 = row[u1];
 
-						float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+						//float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
 
-						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, pitch, slicePitch, value);
+						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, pitch, slicePitch, u0v0);
 					}
 				}
 			}

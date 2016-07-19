@@ -1120,7 +1120,7 @@ namespace ct {
 					return false;
 				}
 
-				for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
+				for (int projection = 46; projection < 50; projection += this->projectionStep) {
 
 					//if user interrupts
 					if (this->stopActiveProcess) {
