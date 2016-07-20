@@ -1148,7 +1148,7 @@ namespace ct {
 					double sine = sin(angle_rad);
 					double cosine = cos(angle_rad);
 
-					//prepare and upload next image
+					//read next image from disk
 					image = this->sinogram[projection].getImage();
 					if (!image.data) {
 						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
@@ -1158,7 +1158,9 @@ namespace ct {
 						return false;
 					}
 					try {
+						//wait for this stream to finish the last reconstruction (otherwise we overwrite the image while it's still in use)
 						stream[current].waitForCompletion();
+						//then copy image to page locked memory and upload it to the gpu
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
 						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
@@ -1176,6 +1178,9 @@ namespace ct {
 						if (!success) this->lastErrorMessage += std::string(" Some memory allocated in the VRAM could not be freed.");
 						return false;
 					}
+
+					//wait for other stream to finish its last reconstruction
+					stream[(current + 1) % 2].waitForCompletion();
 
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(preprocessedGpuImage[current],
