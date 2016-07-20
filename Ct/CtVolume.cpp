@@ -1143,6 +1143,7 @@ namespace ct {
 					}
 
 					int current = projection % 2;
+					int other = (current + 1) % 2
 
 					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(angle_rad);
@@ -1180,7 +1181,7 @@ namespace ct {
 					}
 
 					//wait for other stream to finish its last reconstruction
-					stream[(current + 1) % 2].waitForCompletion();
+					stream[other].waitForCompletion();
 
 					//start reconstruction with current image
 					ct::cuda::startReconstruction(preprocessedGpuImage[current],
