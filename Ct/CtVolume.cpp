@@ -944,7 +944,7 @@ namespace ct {
 
 			float* volumePtr;
 #pragma omp parallel for private(volumePtr) schedule(dynamic)
-			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {
+			for (long xIndex = 0; xIndex < this->xMax; ++xIndex) {						//the loop has to be of an integer type for OpenMP to work
 				float x = this->volumeToWorldX(xIndex);
 				volumePtr = this->volume.slicePtr(xIndex);
 				for (float y = volumeLowerBoundY; y < volumeUpperBoundY; ++y) {
@@ -1143,7 +1143,7 @@ namespace ct {
 					}
 
 					int current = projection % 2;
-					int other = (current + 1) % 2
+					int other = (current + 1) % 2;
 
 					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(angle_rad);
@@ -1160,7 +1160,7 @@ namespace ct {
 					}
 					try {
 						//wait for this stream to finish the last reconstruction (otherwise we overwrite the image while it's still in use)
-						stream[current].waitForCompletion();
+						//stream[current].waitForCompletion();	<- unnecessary
 						//then copy image to page locked memory and upload it to the gpu
 						image.copyTo(memory[current]);
 						gpuImage[current].upload(memory[current], stream[current]);
