@@ -57,6 +57,7 @@ list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_52,code=sm_52")
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_53,code=sm_53")
 list(APPEND CUDA_NVCC_FLAGS "-gencode=arch=compute_53,code=compute_53")
 
+list(APPEND CUDA_NVCC_FLAGS "-use_fast_math")
 list(APPEND CUDA_NVCC_FLAGS "-std=c++11")
 
 #OpenCV
