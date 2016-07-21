@@ -1218,6 +1218,10 @@ namespace ct {
 
 				}
 
+				//make sure both streams are ready
+				stream[0].waitForCompletion();
+				stream[1].waitForCompletion();
+
 				//donload the reconstructed volume part
 				ct::cuda::download3dVolume(gpuVolumePtr, this->volume.slicePtr(currentSlice), xDimension, yDimension, zDimension, success);
 
