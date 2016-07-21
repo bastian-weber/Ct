@@ -32,6 +32,10 @@ The command line options are:
 						by comma.
 						Long: --cudadevices
 						Default: 0
+	-w x,y 				Specifies the coefficients for the GPU weights; both are floating point values.
+						X is the multiprocessor coefficient and y the memory bandwidth coefficient. 
+						Long: --weights
+						Default: 1,1
 	-d [number] 		Optional. Sets the amount of VRAM to spare in Mb. Option is a positive integer. 
 						Long: --cudasparememory.
 						Default: 200
@@ -39,6 +43,7 @@ The command line options are:
 						Long: --byteorder
 						Default: littleendian
 	-j [option]			Optional. Sets the index order of the output. Options are 'zfastest' and 'xfastest'.
+						Long: --indexorder
 						Default: zfastest
 	--xmin 0..1 		Optional. The lower x bound of the volume part that will be reconstructed.
 	--xmax 0..1 		Optional. The upper x bound of the volume part that will be reconstructed.

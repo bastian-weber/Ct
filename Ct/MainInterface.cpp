@@ -921,8 +921,13 @@ namespace ct {
 				if (this->bigEndianRadioButton->isChecked()) {
 					stream << " -e bigendian";
 				}
-				if (this->xFastestRadioButton->isChecked()) {
-					stream << " -j xfastest";
+				if (this->zFastestRadioButton->isChecked()) {
+					stream << " -j zfastest";
+				}
+				double multiProcessorCoefficient = this->cudaSettingsDialog->getMultiprocessorCoefficient();
+				double memoryBandwidthCoefficient = this->cudaSettingsDialog->getMemoryBandwidthCoefficient();
+				if (multiProcessorCoefficient != 1 || memoryBandwidthCoefficient != 1) {
+					stream << " -w " << multiProcessorCoefficient << "," << memoryBandwidthCoefficient;
 				}
 				if (this->xFrom->value() != 0) stream << " --xmin " << this->xFrom->value();
 				if (this->xTo->value() != 1) stream << " --xmax " << this->xTo->value();

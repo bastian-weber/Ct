@@ -112,8 +112,8 @@ int initConsoleMode(int argc, char* argv[]) {
 			} else if (std::string(argv[i]).compare("--zmax") == 0) {
 				parseDoubleArgument(argc, argv, ++i, zmax);
 			} else if (std::string(argv[i]).compare("-f") == 0 || std::string(argv[i]).compare("--filter") == 0) {
-				if (argc > i + 1) {
-					std::string filter = argv[++i];
+				if (++i < argc) {
+					std::string filter = argv[i];
 					std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
 					if (filter == "shepplogan") {
 						filterType = ct::FilterType::SHEPP_LOGAN;
@@ -124,13 +124,13 @@ int initConsoleMode(int argc, char* argv[]) {
 					}
 				}
 			} else if (std::string(argv[i]).compare("-i") == 0 || std::string(argv[i]).compare("--input") == 0) {
-				if (argc > i + 1) {
-					input = QCoreApplication::arguments().at(++i);
+				if (++i < argc) {
+					input = QCoreApplication::arguments().at(i);
 					inputProvided = true;
 				}
 			} else if (std::string(argv[i]).compare("-o") == 0 || std::string(argv[i]).compare("--output") == 0) {
-				if (argc > i + 1) {
-					output = QCoreApplication::arguments().at(++i);
+				if (++i < argc) {
+					output = QCoreApplication::arguments().at(i);
 					outputProvided = true;
 				}
 			} else if (std::string(argv[i]).compare("-b") == 0 || std::string(argv[i]).compare("--background") == 0) {
@@ -155,13 +155,27 @@ int initConsoleMode(int argc, char* argv[]) {
 				parseDoubleArgument(argc, argv, ++i, spareMemory);
 				volume.setGpuSpareMemory(spareMemory);
 			} else if (std::string(argv[i]).compare("-e") == 0 || std::string(argv[i]).compare("--byteorder") == 0) {
-				std::string value = argv[++i];
-				std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-				if (value == "bigendian") byteOrder = QDataStream::BigEndian;
-			} else if (std::string(argv[i]).compare("-j") == 0 || std::string(argv[i]).compare("--indexOrder") == 0) {
-				std::string value = argv[++i];
-				std::transform(value.begin(), value.end(), value.begin(), ::tolower);
-				if (value == "zfastest") indexOrder = ct::IndexOrder::Z_FASTEST;
+				if (++i < argc) {
+					std::string value = argv[i];
+					std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+					if (value == "bigendian") byteOrder = QDataStream::BigEndian;
+				}
+			} else if (std::string(argv[i]).compare("-j") == 0 || std::string(argv[i]).compare("--indexorder") == 0) {
+				if (++i < argc) {
+					std::string value = argv[i];
+					std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+					if (value == "zfastest") indexOrder = ct::IndexOrder::Z_FASTEST;
+				}
+			} else if (std::string(argv[i]).compare("-w") == 0 || std::string(argv[i]).compare("--weights") == 0) {
+				if (++i < argc) {
+					QStringList coefficients = QString(argv[i]).split(",");
+					if (coefficients.size() != 2) {
+						std::cout << "When using the flag -w you have to specify exactly two coefficients." << std::endl;
+						return 1;
+					}
+					double multiProcessorCoefficient, memoryBandwidthCoefficient;
+					volume.setGpuCoefficients(coefficients.at(0).toDouble(), coefficients.at(1).toDouble());
+				}
 			} else {
 				std::cout << "Unknown or misplaced parameter " << argv[i] << "." << std::endl;
 				return 1;
