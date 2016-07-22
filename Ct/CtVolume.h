@@ -195,7 +195,8 @@ namespace ct {
 									unsigned int threadZMax,
 									int deviceId,
 									bool testRun = false);
-		bool launchCudaThreads();
+		bool launchCudaThreads(bool testRun = false);
+		void prepareGpuWeights();
 		unsigned int getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
