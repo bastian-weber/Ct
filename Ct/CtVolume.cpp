@@ -340,11 +340,19 @@ namespace ct {
 			}
 			
 			this->volume.setMemoryLayout(IndexOrder::X_FASTEST);
-			result = this->launchCudaThreads();
+			result = this->launchCudaThreads(true);
 
 			this->volume.clear();
 
 			if (result) {
+				//make the weights beautiful (add up to 1)
+				double totalWeight = 0;
+				for (double weight : this->gpuWeights) {
+					totalWeight += weight;
+				}
+				for (double& weight : this->gpuWeights) {
+					weight /= totalWeight;
+				}
 				std::cout << std::endl << "Measurement successul." << std::endl;
 				//if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
 			} else {
@@ -1318,7 +1326,7 @@ namespace ct {
 				extraTime += timer.getTime();
 				double long totalProjectionTime = projectionTime * this->sinogram.size();
 				double long totalTime = totalProjectionTime + extraTime;
-				std::cout << "GPU" << deviceId << ": " << totalTime << std::endl;
+				this->gpuWeights[deviceId] = totalTime;
 			}
 
 			std::cout << std::endl;
@@ -1337,19 +1345,13 @@ namespace ct {
 		}
 	}
 
-	bool CtVolume::launchCudaThreads() {
+	bool CtVolume::launchCudaThreads(bool testRun) {
 		this->stopCudaThreads = false;
 
 		//more L1 cache; we don't need shared memory
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
-		double totalWeight = 0;
-		for (int device : this->activeCudaDevices) {
-			totalWeight += this->gpuWeights[device];
-		}
-		for (int device : this->activeCudaDevices) {
-			this->cudaGpuWeights.insert(std::pair<int, double>(device, this->gpuWeights[device] / totalWeight));
-		}
+		this->prepareGpuWeights();
 
 		//clear progress
 		this->cudaThreadProgress.clear();
@@ -1359,12 +1361,19 @@ namespace ct {
 
 		//create vector to store threads
 		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
+		if (!testRun) {
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
-		unsigned int currentSlice = 0;
-		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], true);
-			currentSlice += sliceCnt;
+			unsigned int currentSlice = 0;
+			for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+				unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
+				threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], false);
+				currentSlice += sliceCnt;
+			}
+		} else {
+			//if it's a test run let both gpus reconstruct the whole volume
+			for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+				threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, 0, zMax, this->activeCudaDevices[i], true);
+			}
 		}
 		//wait for threads to finish
 		bool result = true;
@@ -1372,6 +1381,27 @@ namespace ct {
 			result = result && threads[i].get();
 		}
 		return result;
+	}
+
+
+	void CtVolume::prepareGpuWeights() {
+		double totalWeight = 0;
+		for (int device : this->activeCudaDevices) {
+			totalWeight += this->gpuWeights[device];
+		}
+		for (int device : this->activeCudaDevices) {
+			double normalizedWeight = this->gpuWeights[device] / totalWeight;
+			this->cudaGpuWeights[device] = normalizedWeight;
+		}
+
+		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			std::cout << "GPU" << this->activeCudaDevices[i] << std::endl;
+			cudaSetDevice(this->activeCudaDevices[i]);
+			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024.0 / 1024.0 / 1025.0 << " Gb" << std::endl;
+			std::cout << "\tMultiprocessor count: " << ct::cuda::getMultiprocessorCnt(this->activeCudaDevices[i]) << std::endl;
+			std::cout << "\tPeak memory bandwidth: " << (double(ct::cuda::getMemoryBusWidth(this->activeCudaDevices[i])*ct::cuda::getMemoryClockRate(this->activeCudaDevices[i])) * 2.0) / 8000000.0 << " Gb/s" << std::endl;
+			std::cout << "\tGPU weight: " << this->cudaGpuWeights[this->activeCudaDevices[i]] << std::endl;
+		}
 	}
 
 	unsigned int CtVolume::getMaxChunkSize() const {

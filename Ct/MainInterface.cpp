@@ -804,6 +804,7 @@ namespace ct {
 		this->predictionTimerSet = false;
 		this->reconstructionActive = true;
 		this->setVolumeSettings();
+		this->volume.automaticallyDeduceGpuWeights();
 		this->timer.reset();
 		std::thread(&CtVolume::reconstructVolume, &this->volume).detach();
 	}
