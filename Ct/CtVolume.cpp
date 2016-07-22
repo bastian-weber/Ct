@@ -1007,9 +1007,13 @@ namespace ct {
 		return (1.0f - v)*v0 + v*v1;
 	}
 
-	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId) {
+	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId, bool testRun) {
 
 		try {
+
+			long double extraTime = 0;
+			long double projectionTime = 0;
+			hb::Timer timer;
 
 			cudaSetDevice(deviceId);
 			//for cuda error handling
@@ -1102,6 +1106,12 @@ namespace ct {
 				return false;
 			}
 
+			int maxProjection = this->sinogram.size();
+			if (testRun) {
+				extraTime = timer.getTime();
+				maxProjection = 1;
+			}
+
 			while (currentSlice < threadZMax) {
 
 				unsigned int lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
@@ -1120,7 +1130,9 @@ namespace ct {
 					return false;
 				}
 
-				for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
+				if (testRun) timer.reset();
+
+				for (int projection = 0; projection < maxProjection; projection += this->projectionStep) {
 
 					//if user interrupts
 					if (this->stopActiveProcess) {
@@ -1218,9 +1230,13 @@ namespace ct {
 
 				}
 
+
+
 				//make sure both streams are ready
 				stream[0].waitForCompletion();
 				stream[1].waitForCompletion();
+				
+				if (testRun) projectionTime = timer.getTime();
 
 				//donload the reconstructed volume part
 				ct::cuda::download3dVolume(gpuVolumePtr, this->volume.slicePtr(currentSlice), xDimension, yDimension, zDimension, success);
@@ -1239,11 +1255,22 @@ namespace ct {
 					return false;
 				}
 
+				if (testRun) break;
+
 				currentSlice += sliceCnt;
 			}
 
+			if (testRun) timer.reset();
+
 			//free volume part memory on gpu
 			ct::cuda::delete3dVolumeOnGPU(gpuVolumePtr, success);
+
+			if (testRun) {
+				extraTime += timer.getTime();
+				double long totalProjectionTime = projectionTime * this->sinogram.size();
+				double long totalTime = totalProjectionTime + extraTime;
+				std::cout << "GPU" << deviceId << ": " << totalTime << std::endl;
+			}
 
 			std::cout << std::endl;
 			std::cout << "GPU" << deviceId << " finished." << std::endl;
@@ -1281,7 +1308,7 @@ namespace ct {
 		unsigned int currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], true);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish
