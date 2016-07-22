@@ -88,8 +88,6 @@ namespace ct {
 		std::vector<int> getActiveCudaDevices() const;
 		std::vector<std::string> getCudaDeviceList() const;
 		size_t getGpuSpareMemory() const;
-		double getMultiprocessorCoefficient() const;
-		double getMemoryBandwidthCoefficient() const;
 		size_t getRequiredMemoryUpperBound() const;
 
 		//setters
@@ -105,13 +103,13 @@ namespace ct {
 		void setUseCuda(bool value);
 		void setActiveCudaDevices(std::vector<int> devices);
 		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
-		void setGpuCoefficients(double multiprocessorCoefficient,
-								double memoryBandwidthCoefficient);
+		bool setGpuWeights(std::vector<double> weights);
 		void setFrequencyFilterType(FilterType filterType);
 		void setSkipProjections(unsigned int value = 0);
 
 		//control functions
-		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile								
+		bool sinogramFromImages(QString csvFile);								//creates a sinogramm out of images specified in csvFile	
+		void automaticallyDeduceGpuWeights();
 		void reconstructVolume();												//reconstructs the 3d-volume from the sinogram, filterType specifies the used prefilter
 		void saveVolumeToBinaryFile(QString filename,							//saves the reconstructed volume to a binary file
 									IndexOrder indexOrder = IndexOrder::Z_FASTEST,
@@ -196,7 +194,6 @@ namespace ct {
 									unsigned int threadZMax,
 									int deviceId);
 		bool launchCudaThreads();
-		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
 		unsigned int getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
 
 		//coordinate transformation functions
@@ -233,7 +230,7 @@ namespace ct {
 		bool useCuda = true;												//enables or disables the use of cuda
 		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
 		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
-		double multiprocessorCoefficient = 1, memoryBandwidthCoefficient = 1;//conrols the weighting of multiprocessor count and memory speed amongst multiple gpus
+		std::vector<double> gpuWeights;										//the weights that control the distribution of workload between the different GPUs
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
 		float xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
 		float yFrom_float = 0, yTo_float = 1;
