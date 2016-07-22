@@ -351,8 +351,10 @@ namespace ct {
 					totalWeight += weight;
 				}
 				for (double& weight : this->gpuWeights) {
-					weight /= totalWeight;
+					//weight reciprocal to time
+					weight = totalWeight/weight;
 				}
+
 				std::cout << std::endl << "Measurement successul." << std::endl;
 				//if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
 			} else {
@@ -1070,6 +1072,8 @@ namespace ct {
 
 			long double extraTime = 0;
 			long double projectionTime = 0;
+			long double downloadTime = 0;
+			long double setToZeroTime = 0;
 			hb::Timer timer;
 
 			cudaSetDevice(deviceId);
@@ -1166,10 +1170,12 @@ namespace ct {
 			int maxProjection = this->sinogram.size();
 			if (testRun) {
 				extraTime = timer.getTime();
-				maxProjection = 1;
+				maxProjection = 2;
 			}
 
 			while (currentSlice < threadZMax) {
+
+				if (testRun) timer.reset();
 
 				unsigned int lastSlice = std::min(currentSlice + sliceCnt, threadZMax);
 				unsigned int const xDimension = this->xMax;
@@ -1187,7 +1193,10 @@ namespace ct {
 					return false;
 				}
 
-				if (testRun) timer.reset();
+				if (testRun) {
+					setToZeroTime = timer.getTime();
+					timer.reset();
+				}
 
 				for (int projection = 0; projection < maxProjection; projection += this->projectionStep) {
 
@@ -1287,13 +1296,14 @@ namespace ct {
 
 				}
 
-
-
 				//make sure both streams are ready
 				stream[0].waitForCompletion();
 				stream[1].waitForCompletion();
 				
-				if (testRun) projectionTime = timer.getTime();
+				if (testRun) {
+					projectionTime = timer.getTime();
+					timer.reset();
+				}
 
 				//donload the reconstructed volume part
 				ct::cuda::download3dVolume(gpuVolumePtr, this->volume.slicePtr(currentSlice), xDimension, yDimension, zDimension, success);
@@ -1312,7 +1322,10 @@ namespace ct {
 					return false;
 				}
 
-				if (testRun) break;
+				if (testRun) {
+					downloadTime = timer.getTime();
+					break;
+				}
 
 				currentSlice += sliceCnt;
 			}
@@ -1324,8 +1337,13 @@ namespace ct {
 
 			if (testRun) {
 				extraTime += timer.getTime();
-				double long totalProjectionTime = projectionTime * this->sinogram.size();
-				double long totalTime = totalProjectionTime + extraTime;
+				long double totalProjectionTime = ((projectionTime * this->sinogram.size())/sliceCnt)/2.0 * this->zMax;
+				sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
+				int partCnt = std::max(static_cast<int>(std::ceil(static_cast<double>(this->zMax)) / static_cast<double>(sliceCnt)), 1);
+				long double totalSetToZeroTime = setToZeroTime * partCnt;
+				long double totalDownloadTime = downloadTime * static_cast<double>(this->zMax) / static_cast<double>(sliceCnt);
+				long double totalTime = totalProjectionTime + totalDownloadTime + extraTime;
+				std::cout << totalTime << std::endl;
 				this->gpuWeights[deviceId] = totalTime;
 			}
 
@@ -1361,6 +1379,7 @@ namespace ct {
 
 		//create vector to store threads
 		std::vector<std::future<bool>> threads(this->activeCudaDevices.size());
+		bool result = true;
 		if (!testRun) {
 		//launch one thread for each part of the volume (weighted by the amount of multiprocessors)
 			unsigned int currentSlice = 0;
@@ -1369,17 +1388,17 @@ namespace ct {
 				threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], false);
 				currentSlice += sliceCnt;
 			}
+			//wait for threads to finish
+			for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+				result = result && threads[i].get();
+			}
 		} else {
 			//if it's a test run let both gpus reconstruct the whole volume
 			for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-				threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, 0, zMax, this->activeCudaDevices[i], true);
+				result = result && this->cudaReconstructionCore(0, zMax, this->activeCudaDevices[i], true);
 			}
 		}
-		//wait for threads to finish
-		bool result = true;
-		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-			result = result && threads[i].get();
-		}
+
 		return result;
 	}
 
