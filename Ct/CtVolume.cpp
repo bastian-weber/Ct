@@ -315,6 +315,50 @@ namespace ct {
 		return true;
 	}
 
+	void CtVolume::automaticallyDeduceGpuWeights() {
+		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
+
+		//default error message
+		this->lastErrorMessage = "An error during the reconstruction occured.";
+
+		if (this->sinogram.size() > 0) {
+			//clear potential old volume
+			this->volume.clear();
+			try {
+				//resize the volume to the correct size
+				this->volume.reinitialise(this->xMax, this->yMax, this->zMax, 0);
+			} catch (...) {
+				std::cout << "The memory allocation for the volume failed. Maybe there is not enought free RAM." << std::endl;
+				//if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("The memory allocation for the volume failed. Maybe there is not enought free RAM.")));
+				return;
+			}
+			//fill the volume
+			bool result = false;
+			if (!this->cudaAvailable()) {
+				std::cout << "CUDA processing was requested, but no capable CUDA device could be found. Cancelling." << std::endl;
+				return;
+			}
+			
+			this->volume.setMemoryLayout(IndexOrder::X_FASTEST);
+			result = this->launchCudaThreads();
+
+			this->volume.clear();
+
+			if (result) {
+				std::cout << std::endl << "Measurement successul." << std::endl;
+				//if (this->emitSignals) emit(reconstructionFinished(this->getVolumeCrossSection(this->crossSectionAxis, this->crossSectionIndex)));
+			} else {
+				this->volume.clear();
+				//there was an error
+				std::cout << std::endl << this->lastErrorMessage << std::endl;
+				//if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error(this->lastErrorMessage.c_str())));
+			}
+		} else {
+			std::cout << "Cannot run test without data. Please load some images first." << std::endl;
+			//if (this->emitSignals) emit(reconstructionFinished(cv::Mat(), CompletionStatus::error("Volume was not reconstructed, because the sinogram seems to be empty. Please load some images first.")));
+		}
+	}
+
 	ct::Projection CtVolume::getProjectionAt(size_t index) const {
 		if (index < 0 || index >= this->sinogram.size()) {
 			throw std::out_of_range("Index out of bounds.");
@@ -444,14 +488,6 @@ namespace ct {
 		return this->gpuSpareMemory;
 	}
 
-	double CtVolume::getMultiprocessorCoefficient() const {
-		return this->multiprocessorCoefficient;
-	}
-
-	double CtVolume::getMemoryBandwidthCoefficient() const {
-		return this->memoryBandwidthCoefficient;
-	}
-
 	size_t CtVolume::getRequiredMemoryUpperBound() const {
 		//size of volume
 		size_t requiredMemory = this->xMax * this->yMax * this->zMax * sizeof(float);
@@ -505,9 +541,19 @@ namespace ct {
 		this->gpuSpareMemory = amount;
 	}
 
-	void CtVolume::setGpuCoefficients(double multiprocessorCoefficient, double memoryBandwidthCoefficient) {
-		this->multiprocessorCoefficient = multiprocessorCoefficient;
-		this->memoryBandwidthCoefficient = memoryBandwidthCoefficient;
+	bool CtVolume::setGpuWeights(std::vector<double> weights) {
+		if (weights.size() != this->getCudaDeviceCount()) {
+			std::cout << "ERROR: the number of gpu weights must match the number of available devices" << std::endl;
+			return false;
+		}
+		for (double weight : weights) {
+			if (weight <= 0) {
+				std::cout << "ERROR: gpu weights must be > 0" << std::endl;
+				return false;
+			}
+		}
+		this->gpuWeights = weights;
+		return true;
 	}
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
@@ -715,6 +761,9 @@ namespace ct {
 		QObject::connect(this, SIGNAL(cudaThreadProgressUpdate(double, int, bool)), this, SLOT(emitGlobalCudaProgress(double, int, bool)), Qt::QueuedConnection);
 		QObject::connect(&this->volume, SIGNAL(savingProgress(double)), this, SIGNAL(savingProgress(double)));
 		QObject::connect(&this->volume, SIGNAL(savingFinished(CompletionStatus)), this, SIGNAL(savingFinished(CompletionStatus)));
+		if (this->cudaAvailable()) {
+			this->gpuWeights = std::vector<double>(this->getCudaDeviceCount(), 1);
+		}
 	}
 
 	void CtVolume::makeHeightOffsetRelative() {
@@ -1267,7 +1316,13 @@ namespace ct {
 		//more L1 cache; we don't need shared memory
 		cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
-		this->cudaGpuWeights = this->getGpuWeights(this->activeCudaDevices);
+		double totalWeight = 0;
+		for (int device : this->activeCudaDevices) {
+			totalWeight += this->gpuWeights[device];
+		}
+		for (int device : this->activeCudaDevices) {
+			this->cudaGpuWeights.insert(std::pair<int, double>(device, this->gpuWeights[device] / totalWeight));
+		}
 
 		//clear progress
 		this->cudaThreadProgress.clear();
@@ -1290,38 +1345,6 @@ namespace ct {
 			result = result && threads[i].get();
 		}
 		return result;
-	}
-
-	std::map<int, double> CtVolume::getGpuWeights(std::vector<int> const& devices) const {
-		//get amount of multiprocessors per GPU
-		std::map<int, int> multiprocessorCnt;
-		unsigned int totalMultiprocessorsCnt = 0;
-		std::map<int, int> bandwidth;
-		size_t totalBandWidth = 0;
-		for (int i = 0; i < devices.size(); ++i) {
-			multiprocessorCnt[devices[i]] = ct::cuda::getMultiprocessorCnt(devices[i]);
-			totalMultiprocessorsCnt += multiprocessorCnt[devices[i]];
-			bandwidth[devices[i]] = ct::cuda::getMemoryBusWidth(devices[i])*ct::cuda::getMemoryClockRate(devices[i]);
-			totalBandWidth += bandwidth[devices[i]];
-		}
-		std::map<int, double> scalingFactors;
-		double scalingFactorSum = 0;
-		for (int i = 0; i < devices.size(); ++i) {
-			double multiprocessorScalingFactor = (double(multiprocessorCnt[devices[i]]) / double(totalMultiprocessorsCnt));
-			double bandwidthScalingFactor = (double(bandwidth[devices[i]]) / double(totalBandWidth));
-			scalingFactors[devices[i]] = std::pow(multiprocessorScalingFactor, this->multiprocessorCoefficient)*std::pow(bandwidthScalingFactor, this->memoryBandwidthCoefficient);
-			scalingFactorSum += scalingFactors[devices[i]];
-		}
-		for (int i = 0; i < devices.size(); ++i) {
-			scalingFactors[devices[i]] /= scalingFactorSum;
-			std::cout << "GPU" << devices[i] << std::endl;
-			cudaSetDevice(devices[i]);
-			std::cout << "\tFree memory: " << double(ct::cuda::getFreeMemory()) / 1024.0 / 1024.0 / 1025.0 << " Gb" << std::endl;
-			std::cout << "\tMultiprocessor count: " << multiprocessorCnt[devices[i]] << std::endl;
-			std::cout << "\tPeak memory bandwidth: " << (double(bandwidth[devices[i]]) * 2.0) / 8000000.0 << " Gb/s" << std::endl;
-			std::cout << "\tGPU weight: " << scalingFactors[devices[i]] << std::endl;
-		}
-		return scalingFactors;
 	}
 
 	unsigned int CtVolume::getMaxChunkSize() const {

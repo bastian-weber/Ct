@@ -174,7 +174,7 @@ int initConsoleMode(int argc, char* argv[]) {
 						return 1;
 					}
 					double multiProcessorCoefficient, memoryBandwidthCoefficient;
-					volume.setGpuCoefficients(coefficients.at(0).toDouble(), coefficients.at(1).toDouble());
+					//volume.setGpuCoefficients(coefficients.at(0).toDouble(), coefficients.at(1).toDouble());
 				}
 			} else {
 				std::cout << "Unknown or misplaced parameter " << argv[i] << "." << std::endl;
