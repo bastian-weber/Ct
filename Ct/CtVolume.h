@@ -30,6 +30,7 @@
 #include "utility.h"
 #include "types.h"
 #include "cuda_ct.h"
+#include "Timer.h"
 
 //undefines some macros of VC++ that cause naming conflicts
 //for std::numeric_limits<std::streamsize>::max()
@@ -194,7 +195,8 @@ namespace ct {
 		//related to the GPU reconstruction
 		bool cudaReconstructionCore(unsigned int threadZMin,
 									unsigned int threadZMax,
-									int deviceId);
+									int deviceId,
+									bool testRun = false);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
 		unsigned int getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
