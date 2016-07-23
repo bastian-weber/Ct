@@ -321,6 +321,8 @@ namespace ct {
 		//default error message
 		this->lastErrorMessage = "An error during the reconstruction occured.";
 
+		this->stopActiveProcess = false;
+
 		if (this->sinogram.size() > 0) {
 			//clear potential old volume
 			this->volume.clear();
@@ -1213,7 +1215,7 @@ namespace ct {
 					}
 
 					//emit progress update
-					if (projection % progressUpdateRate == 0) {
+					if (projection % progressUpdateRate == 0 && !testRun) {
 						double chunkFinished = static_cast<double>(currentSlice - threadZMin)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax);
 						double currentChunk = static_cast<double>(zDimension)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax) * (double(projection) / double(this->sinogram.size()));
 						double percentage = (chunkFinished + currentChunk) / (static_cast<double>(threadZMax - threadZMin)*static_cast<double>(this->xMax)*static_cast<double>(this->yMax));
@@ -1337,6 +1339,10 @@ namespace ct {
 
 			if (testRun) {
 				extraTime += timer.getTime();
+				std::cout << "projection time: " << projectionTime << std::endl;
+				std::cout << "extra time: " << extraTime << std::endl;
+				std::cout << "download time: " << downloadTime << std::endl;
+				std::cout << "set to zero time: " << setToZeroTime << std::endl;
 				long double totalProjectionTime = ((projectionTime * this->sinogram.size())/sliceCnt)/2.0 * this->zMax;
 				sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
 				int partCnt = std::max(static_cast<int>(std::ceil(static_cast<double>(this->zMax)) / static_cast<double>(sliceCnt)), 1);
@@ -1350,7 +1356,7 @@ namespace ct {
 			std::cout << std::endl;
 			std::cout << "GPU" << deviceId << " finished." << std::endl;
 
-			emit(this->cudaThreadProgressUpdate(1, deviceId, true));
+			if(!testRun) emit(this->cudaThreadProgressUpdate(1, deviceId, true));
 
 			return true;
 
@@ -1395,8 +1401,15 @@ namespace ct {
 		} else {
 			//if it's a test run let both gpus reconstruct the whole volume
 			for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
-				result = result && this->cudaReconstructionCore(0, zMax, this->activeCudaDevices[i], true);
+				result = result && this->cudaReconstructionCore(0, this->zMax, this->activeCudaDevices[i], true);
 			}
+			//for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			//	threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, 0, this->zMax, this->activeCudaDevices[i], true);
+			//}
+			////wait for threads to finish
+			//for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
+			//	result = result && threads[i].get();
+			//}
 		}
 
 		return result;
