@@ -1170,9 +1170,10 @@ namespace ct {
 			}
 
 			int maxProjection = this->sinogram.size();
+
 			if (testRun) {
 				extraTime = timer.getTime();
-				maxProjection = 2;
+				maxProjection = 1199;
 			}
 
 			while (currentSlice < threadZMax) {
@@ -1196,7 +1197,7 @@ namespace ct {
 				}
 
 				if (testRun) {
-					setToZeroTime = timer.getTime();
+					setToZeroTime += timer.getTime();
 					timer.reset();
 				}
 
@@ -1303,7 +1304,7 @@ namespace ct {
 				stream[1].waitForCompletion();
 				
 				if (testRun) {
-					projectionTime = timer.getTime();
+					projectionTime += timer.getTime();
 					timer.reset();
 				}
 
@@ -1325,8 +1326,8 @@ namespace ct {
 				}
 
 				if (testRun) {
-					downloadTime = timer.getTime();
-					break;
+					downloadTime += timer.getTime();
+					timer.reset();
 				}
 
 				currentSlice += sliceCnt;
@@ -1343,12 +1344,10 @@ namespace ct {
 				std::cout << "extra time: " << extraTime << std::endl;
 				std::cout << "download time: " << downloadTime << std::endl;
 				std::cout << "set to zero time: " << setToZeroTime << std::endl;
-				long double totalProjectionTime = ((projectionTime * this->sinogram.size())/sliceCnt)/2.0 * this->zMax;
-				sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
-				int partCnt = std::max(static_cast<int>(std::ceil(static_cast<double>(this->zMax)) / static_cast<double>(sliceCnt)), 1);
-				long double totalSetToZeroTime = setToZeroTime * partCnt;
-				long double totalDownloadTime = downloadTime * static_cast<double>(this->zMax) / static_cast<double>(sliceCnt);
-				long double totalTime = totalProjectionTime + totalDownloadTime + extraTime;
+				long double totalProjectionTime = (projectionTime * this->sinogram.size())/1199.0;
+				//sliceCnt = std::min(sliceCnt, threadZMax - threadZMin);
+				//int partCnt = std::max(static_cast<int>(std::ceil(static_cast<double>(this->zMax)) / static_cast<double>(sliceCnt)), 1);
+				long double totalTime = totalProjectionTime + downloadTime + setToZeroTime + extraTime;
 				std::cout << totalTime << std::endl;
 				this->gpuWeights[deviceId] = totalTime;
 			}
