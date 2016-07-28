@@ -713,17 +713,19 @@ namespace ct {
 
 	void ViewerInterface::saveImageDialog() {
 		QString path = QFileDialog::getSaveFileName(this, tr("Save Image"), QDir::rootPath(), "Tif Files (*.tif);;");
-		QMessageBox msgBox;
-		msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-		msgBox.setWindowTitle(tr("Choose Colour Depth"));
-		msgBox.setText(tr("Please choose the colour depth of the output image."));
-		msgBox.setButtonText(QMessageBox::Yes, tr("16 bit"));
-		msgBox.setButtonText(QMessageBox::No, tr("8 bit"));
-		ImageBitDepth depth = ImageBitDepth::CHANNEL_16_BIT;
-		if (QMessageBox::No == msgBox.exec()) {
-			depth = ImageBitDepth::CHANNEL_8_BIT;
+		if (!path.isEmpty()) {
+			QMessageBox msgBox;
+			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+			msgBox.setWindowTitle(tr("Choose Colour Depth"));
+			msgBox.setText(tr("Please choose the colour depth of the output image."));
+			msgBox.setButtonText(QMessageBox::Yes, tr("16 bit"));
+			msgBox.setButtonText(QMessageBox::No, tr("8 bit"));
+			ImageBitDepth depth = ImageBitDepth::CHANNEL_16_BIT;
+			if (QMessageBox::No == msgBox.exec()) {
+				depth = ImageBitDepth::CHANNEL_8_BIT;
+			}
+			this->saveCurrentSliceAsImage(path, depth);
 		}
-		this->saveCurrentSliceAsImage(path, depth);
 	}
 
 	bool ViewerInterface::saveCurrentSliceAsImage(QString filename, ImageBitDepth depth) {
