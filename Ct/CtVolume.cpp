@@ -1120,6 +1120,9 @@ namespace ct {
 					return false;
 				}
 
+				int current = 0;
+				int other = 1;
+
 				for (int projection = 0; projection < this->sinogram.size(); projection += this->projectionStep) {
 
 					//if user interrupts
@@ -1142,8 +1145,7 @@ namespace ct {
 						emit(this->cudaThreadProgressUpdate(percentage, deviceId, (projection == 0)));
 					}
 
-					int current = projection % 2;
-					int other = (current + 1) % 2;
+					std::swap(current, other);
 
 					double angle_rad = (this->sinogram[projection].angle / 180.0) * M_PI;
 					double sine = sin(angle_rad);
