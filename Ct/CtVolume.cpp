@@ -959,15 +959,15 @@ namespace ct {
 						//correct the u-offset
 						t += uOffset;
 						float s = x*cosine + y*sine;
-						float u = (t*FCD) / (FCD - s);
-						float v = ((z + heightOffset)*FCD) / (FCD - s);
+						float reciprocalDistanceWeight = FCD / (FCD - s);
+						float u = t * reciprocalDistanceWeight;
+						float v = (z + heightOffset) * reciprocalDistanceWeight;
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
 							//calculate weight
-							float w = FCD / (FCD + s);
-							w = w*w;
+							float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
 
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
