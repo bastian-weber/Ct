@@ -955,41 +955,51 @@ namespace ct {
 					//if the voxel is inside the reconstructable cylinder
 					for (float z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
-						float t = (-1)*x*sine + y*cosine;
-						//correct the u-offset
-						t += uOffset;
-						float s = x*cosine + y*sine;
-						float reciprocalDistanceWeight = FCD / (FCD - s);
-						float u = t * reciprocalDistanceWeight;
-						float v = (z + heightOffset) * reciprocalDistanceWeight;
+
+						float reciprocalDistanceWeight, u, v;
+
+						{
+							float t = (-1)*x*sine + y*cosine;
+							//correct the u-offset
+							t += uOffset;
+							float s = x*cosine + y*sine;
+							reciprocalDistanceWeight = FCD / (FCD - s);
+							u = t * reciprocalDistanceWeight;
+							v = (z + heightOffset) * reciprocalDistanceWeight;
+						}
 
 						//check if it's inside the image (before the coordinate transformation)
 						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-							//calculate weight
-							float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
-
 							u = this->imageToMatU(u);
 							v = this->imageToMatV(v);
 
-							//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
-							int u0 = u;
-							int u1 = u0 + 1;
-							int v0 = v;
-							int v1 = v0 + 1;
+							float value;
 
-							//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
-							//if (u0 < this->imageWidth && u0 >= 0 && u1 < this->imageWidth && u1 >= 0 && v0 < this->imageHeight && v0 >= 0 && v1 < this->imageHeight && v1 >= 0) {
+							{
+								//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
+								int u0 = u;
+								int u1 = u0 + 1;
+								int v0 = v;
+								int v1 = v0 + 1;
 
-							float* row = image.ptr<float>(v0);
-							float u0v0 = row[u0];
-							float u1v0 = row[u1];
-							row = image.ptr<float>(v1);
-							float u0v1 = row[u0];
-							float u1v1 = row[u1];
-							//this->volume.at(xIndex, this->worldToVolumeY(y), this->worldToVolumeZ(z)) += bilinearInterpolation(u - double(u0), v - double(v0), u0v0, u1v0, u0v1, u1v1);
-							//size_t index = this->worldToVolumeY(y)*this->zMax + this->worldToVolumeZ(z);
-							(*volumePtr) += w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+								//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
+								//if (u0 < this->imageWidth && u0 >= 0 && u1 < this->imageWidth && u1 >= 0 && v0 < this->imageHeight && v0 >= 0 && v1 < this->imageHeight && v1 >= 0) {
+
+								float* row = image.ptr<float>(v0);
+								float u0v0 = row[u0];
+								float u1v0 = row[u1];
+								row = image.ptr<float>(v1);
+								float u0v1 = row[u0];
+								float u1v1 = row[u1];
+
+								//calculate weight
+								float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
+
+								value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+							}
+
+							(*volumePtr) += value;
 						}
 					}
 				}

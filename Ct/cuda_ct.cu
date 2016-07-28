@@ -241,37 +241,44 @@ namespace ct {
 				//check if voxel is inside the reconstructable cylinder
 				if ((x*x + y*y) < radiusSquared) {
 
+					float reciprocalDistanceWeight, u, v;
 
-					float t = -x*sine + y*cosine;
-					t += uOffset;
-					float s = x*cosine + y*sine;
-					float reciprocalDistanceWeight = FCD / (FCD - s);
-					float u = t * reciprocalDistanceWeight;
-					float v = (z + heightOffset) * reciprocalDistanceWeight;
+					{
+						float t = -x*sine + y*cosine;
+						t += uOffset;
+						float s = x*cosine + y*sine;
+						reciprocalDistanceWeight = FCD / (FCD - s);
+						u = t * reciprocalDistanceWeight;
+						v = (z + heightOffset) * reciprocalDistanceWeight;
+					}
 
 					//check if it's inside the image (before the coordinate transformation)
 					if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-						//calculate weight
-						float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
-
 						u += uPrecomputed;
 						v = -v + vPrecomputed;
 
-						//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
-						unsigned int u0 = __float2uint_rd(u);
-						unsigned int u1 = u0 + 1;
-						unsigned int v0 = __float2uint_rd(v);
-						unsigned int v1 = v0 + 1;
+						float value;
 
-						float* row = image.ptr(v0);
-						float u0v0 = row[u0];
-						float u1v0 = row[u1];
-						row = image.ptr(v1);
-						float u0v1 = row[u0];
-						float u1v1 = row[u1];
+						{
+							//get the 4 surrounding pixels for bilinear interpolation (note: u and v are always positive)
+							unsigned int u0 = __float2uint_rd(u);
+							unsigned int u1 = u0 + 1;
+							unsigned int v0 = __float2uint_rd(v);
+							unsigned int v1 = v0 + 1;
 
-						float value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+							float* row = image.ptr(v0);
+							float u0v0 = row[u0];
+							float u1v0 = row[u1];
+							row = image.ptr(v1);
+							float u0v1 = row[u0];
+							float u1v1 = row[u1];
+
+							//calculate weight
+							float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
+
+							value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+						}
 
 						addToVolumeElement(volumePtr, xIndex, yIndex, zIndex, pitch, slicePitch, value);
 					}
