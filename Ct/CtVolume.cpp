@@ -174,6 +174,10 @@ namespace ct {
 				std::cout << "Could not read the parameters from the CSV file successfully." << std::endl;
 				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Could not read the parameters from the CSV file successfully.")));
 				return false;
+			} else if (this->baseIntensity == 0.0f) {
+				std::cout << "Error: The base intensity given in the configuration file must not be equal to zero." << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error("Error: The base intensity given in the configuration file must not be equal to zero.")));
+				return false;				
 			}
 		}
 
@@ -286,6 +290,16 @@ namespace ct {
 				++cnt;
 			}
 			this->minMaxValues = std::make_pair(float(min), float(max));
+			
+			if (this->imageWidth >= this->FCD) {
+				//this could lead to a division by 0 during the reconstruction
+				this->sinogram.clear();
+				QString msg = QString("Error: the FCD must be greater than the image width.");
+				std::cout << msg.toStdString() << std::endl;
+				if (this->emitSignals) emit(loadingFinished(CompletionStatus::error(msg)));
+				return false;
+			}
+			
 			std::cout << std::endl;
 		}
 
