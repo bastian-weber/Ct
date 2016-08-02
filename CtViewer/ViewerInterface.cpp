@@ -712,7 +712,7 @@ namespace ct {
 	}
 
 	void ViewerInterface::saveImageDialog() {
-		QString path = QFileDialog::getSaveFileName(this, tr("Save Image"), QDir::rootPath(), "Tif Files (*.tif);;");
+		QString path = QFileDialog::getSaveFileName(this, tr("Save Image"), this->settings->value("lastSavingPath", QDir::rootPath()).toString(), "Tif Files (*.tif);;");
 		if (!path.isEmpty()) {
 			QMessageBox msgBox;
 			msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
@@ -724,6 +724,7 @@ namespace ct {
 			if (QMessageBox::No == msgBox.exec()) {
 				depth = ImageBitDepth::CHANNEL_8_BIT;
 			}
+			this->settings->setValue("lastSavingPath", QFileInfo(path).path());
 			this->saveCurrentSliceAsImage(path, depth);
 		}
 	}

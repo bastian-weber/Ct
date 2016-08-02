@@ -811,7 +811,7 @@ namespace ct {
 	void MainInterface::save() {
 		QString path;
 		if (!this->runAll) {
-			path = QFileDialog::getSaveFileName(this, tr("Save Volume"), QDir::rootPath(), "Raw Files (*.raw);;");
+			path = QFileDialog::getSaveFileName(this, tr("Save Volume"), this->settings->value("lastSavingPath", QDir::rootPath()).toString(), "Raw Files (*.raw);;");
 			this->savingPath = path;
 		} else {
 			path = this->savingPath;
@@ -819,6 +819,7 @@ namespace ct {
 		if (!path.isEmpty()) {
 			this->disableAllControls();
 			this->savingActive = true;
+			this->settings->setValue("lastSavingPath", QFileInfo(path).path());
 #ifdef Q_OS_WIN
 			this->taskbarProgress->show();
 #endif
