@@ -173,11 +173,10 @@ if(DEFINED OPENCV_ROOT_FOUND)
 	include_directories(${OpenCV_INCLUDE_DIRS})
 
 	copydlls(RELEASE_DLLS DEBUG_DLLS OPENCV_MODULES_ALL)
-
-	if(MSVC)
 	
-		#copy cuda dlls for opencv
-		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
+	#copy cuda dlls for opencv
+	if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
+		if(MSVC)
 			#only 64bit dlls are copied, might not work with 32bit project
 
 			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cudart64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
@@ -189,9 +188,21 @@ if(DEFINED OPENCV_ROOT_FOUND)
 			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/cufft64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
 			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppc64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
 			list(APPEND DEBUG_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/bin/nppi64_${CUDA_VERSION_MAJOR}${CUDA_VERSION_MINOR}.dll)
+		elseif(UNIX)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so.7.5)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcufft.so.7.5)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnppc.so.7.5)
+			list(APPEND RELEASE_DLLS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/libnppi.so.7.5)
 		endif()	
+	endif()
 
-	endif(MSVC)
+	IF(UNIX)
+		#some additional required libs
+		list(APPEND RELEASE_DLLS /usr/lib/x86_64-linux-gnu/libgomp.so.1)
+		list(APPEND RELEASE_DLLS /usr/lib/x86_64-linux-gnu/libstdc++.so.6)
+
+
+	ENDIF()
 endif()
 
 ########################################### Qt Libs ###########################################
