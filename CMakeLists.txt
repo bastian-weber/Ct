@@ -147,7 +147,7 @@ endif()
 if(WIN32)
 	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
 		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data "${PROJECT_BINARY_DIR}/data"
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general "${COPY_DIRECTORY_RELEASE}/Release"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general "${COPY_DIRECTORY_RELEASE}"
 		COMMENT "Copying ressources to executable directory...")
 elseif (UNIX)
 	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
@@ -221,8 +221,8 @@ IF(DEFINED QT_ROOT_FOUND)
 	ENDIF(MSVC)
 
 	add_custom_command(TARGET COPY_DLLS PRE_BUILD 
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms"
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${CMAKE_CURRENT_BINARY_DIR}/Release/platforms"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_DEBUG}/platforms"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_RELEASE}/platforms"
 	COMMENT "Copying Qt platforms to executable directory...")
 
 ENDIF(DEFINED QT_ROOT_FOUND)
@@ -230,8 +230,8 @@ ENDIF(DEFINED QT_ROOT_FOUND)
 #copy libs
 if(MSVC AND DEFINED RELEASE_DLLS AND DEFINED DEBUG_DLLS)
 
-	set(COPY_COMMAND_RELEASE "-E copy_if_different ")
-	set(COPY_COMMAND_DEBUG "-E copy_if_different ")
+	set(COPY_COMMAND_RELEASE "-E" "copy_if_different")
+	set(COPY_COMMAND_DEBUG "-E" "copy_if_different")
 	
 	list(REMOVE_DUPLICATES RELEASE_DLLS)
 	list(REMOVE_DUPLICATES DEBUG_DLLS)
