@@ -15,13 +15,24 @@ set(QT_MODULES_CTVIEWER_WIN "Qt5::WinExtras")
 set(PROJECT_NAME Ct)
 set(EXECUTABLE_NAME_1 "Ct")
 set(EXECUTABLE_NAME_2 "CtViewer")
-set(TARGETS "${EXECUTABLE_NAME_1}" "${EXECUTABLE_NAME_2}")
 
 #=======================================================================#
+
+set(TARGETS "${EXECUTABLE_NAME_1}" "${EXECUTABLE_NAME_2}")
 
 if(WIN32)
 	list(APPEND QT_MODULES_CT ${QT_MODULES_CT_WIN})
 	list(APPEND QT_MODULES_CTVIEWER ${QT_MODULES_CTVIEWER_WIN})
+endif()
+
+if(WIN32)
+	set(COPY_DIRECTORY_RELEASE "${CMAKE_CURRENT_BINARY_DIR}/Release")
+	set(COPY_DIRECTORY_DEBUG "${CMAKE_CURRENT_BINARY_DIR}/Debug")
+else()
+	#set exe output path
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build")
+	set(COPY_DIRECTORY_RELEASE "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+	set(COPY_DIRECTORY_DEBUG "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -135,13 +146,13 @@ if(MSVC)
 endif()
 if(WIN32)
 	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data ${PROJECT_BINARY_DIR}/data
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}/Release
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data "${PROJECT_BINARY_DIR}/data"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general "${COPY_DIRECTORY_RELEASE}"
 		COMMENT "Copying ressources to executable directory...")
 elseif (UNIX)
 	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general ${PROJECT_BINARY_DIR}
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux ${PROJECT_BINARY_DIR}
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general "${COPY_DIRECTORY_RELEASE}"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/linux "${COPY_DIRECTORY_RELEASE}"
 		COMMENT "Copying ressources to executable directory...")
 endif()
 
@@ -150,21 +161,21 @@ endif()
 set(RELEASE_DLLS)
 set(DEBUG_DLLS)
 
-#add lib files and copy dlls
+#add lib files and copy libs
+message("Looking for libs, please wait.")
 
 ########################################### OpenCV Libs ###########################################
 
 if(DEFINED OPENCV_ROOT_FOUND)
-	if(MSVC)
-		message("Looking for dlls, please wait.")
-	endif()
 	target_link_libraries(${EXECUTABLE_NAME_1} ${OPENCV_MODULES_CT})
 	target_link_libraries(${EXECUTABLE_NAME_2} ${OPENCV_MODULES_CTVIEWER})
 	#somehow include directories have to be added manually since OpenCV 3
 	include_directories(${OpenCV_INCLUDE_DIRS})
-	if(MSVC)
-		copydlls(RELEASE_DLLS DEBUG_DLLS OPENCV_MODULES_ALL)
 
+	copydlls(RELEASE_DLLS DEBUG_DLLS OPENCV_MODULES_ALL)
+
+	if(MSVC)
+	
 		#copy cuda dlls for opencv
 		if(${CUDA_FOUND} AND DEFINED CUDA_TOOLKIT_ROOT_DIR)
 			#only 64bit dlls are copied, might not work with 32bit project
@@ -190,11 +201,10 @@ IF(DEFINED QT_ROOT_FOUND)
 	target_link_libraries(${EXECUTABLE_NAME_1} ${QT_MODULES_CT} )
 	target_link_libraries(${EXECUTABLE_NAME_2} ${QT_MODULES_CTVIEWER})
 
-	#copy the dlls
+	#copy libs
+	copydlls(RELEASE_DLLS DEBUG_DLLS QT_MODULES_ALL)
+
 	IF(MSVC)
-
-		copydlls(RELEASE_DLLS DEBUG_DLLS QT_MODULES_ALL)	
-
 		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icudt54.dll)
 		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
 		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
@@ -202,39 +212,45 @@ IF(DEFINED QT_ROOT_FOUND)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icudt54.dll)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuin54.dll)
 		list(APPEND DEBUG_DLLS ${PATH_QT_ROOT}/bin/icuuc54.dll)
-
-		add_custom_command(TARGET COPY_DLLS PRE_BUILD 
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Debug/platforms
-			COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms ${CMAKE_CURRENT_BINARY_DIR}/Release/platforms
-			COMMENT "Copying Qt platforms to executable directory...")
-
+	ELSEIF(UNIX)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libicudata.so.56)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libicui18n.so.56)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libicuuc.so.56)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libQt5DBus.so.5)
+		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libQt5XcbQpa.so.5)
 	ENDIF(MSVC)
+
+	add_custom_command(TARGET COPY_DLLS PRE_BUILD 
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_DEBUG}/platforms"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_RELEASE}/platforms"
+	COMMENT "Copying Qt platforms to executable directory...")
 
 ENDIF(DEFINED QT_ROOT_FOUND)
 
-#copy dlls
-
+#copy libs
 if(MSVC AND DEFINED RELEASE_DLLS AND DEFINED DEBUG_DLLS)
 
-	set(COPY_COMMAND_RELEASE "-E copy_if_different ")
-	set(COPY_COMMAND_DEBUG "-E copy_if_different ")
+	set(COPY_COMMAND_RELEASE "-E" "copy_if_different")
+	set(COPY_COMMAND_DEBUG "-E" "copy_if_different")
 	
 	list(REMOVE_DUPLICATES RELEASE_DLLS)
 	list(REMOVE_DUPLICATES DEBUG_DLLS)
 
 	foreach(DLL ${RELEASE_DLLS})
-		string(CONCAT COPY_COMMAND_RELEASE "${COPY_COMMAND_RELEASE} \"${DLL}\" ")
+		list(APPEND COPY_COMMAND_RELEASE "\"${DLL}\"")
 	endforeach()
 	foreach(DLL ${DEBUG_DLLS})
-		string(CONCAT COPY_COMMAND_DEBUG "${COPY_COMMAND_DEBUG} \"${DLL}\" ")
+		list(APPEND COPY_COMMAND_DEBUG "\"${DLL}\"")
 	endforeach()
 
-	string(CONCAT COPY_COMMAND_RELEASE ${COPY_COMMAND_RELEASE} "\"${CMAKE_CURRENT_BINARY_DIR}/Release\" ")
-	string(CONCAT COPY_COMMAND_DEBUG ${COPY_COMMAND_DEBUG} "\"${CMAKE_CURRENT_BINARY_DIR}/Debug\" ")
+	list(APPEND COPY_COMMAND_RELEASE "\"${COPY_DIRECTORY_RELEASE}\"")
+	list(APPEND COPY_COMMAND_DEBUG "\"${COPY_DIRECTORY_DEBUG}\"")
 
 	foreach(EXECUTABLE ${TARGETS})
-		add_custom_command(TARGET COPY_DLLS PRE_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE} COMMENT "Copying dlls to executable directory...")	
-		add_custom_command(TARGET COPY_DLLS PRE_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG} COMMENT "Copying dlls to executable directory...")
+		add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_RELEASE})
+		if(MSVC)
+			add_custom_command(TARGET ${EXECUTABLE} POST_BUILD COMMAND ${CMAKE_COMMAND} ${COPY_COMMAND_DEBUG})
+		endif()
 	endforeach()
 
 endif()
