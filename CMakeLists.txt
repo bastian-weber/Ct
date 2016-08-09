@@ -138,12 +138,12 @@ add_custom_target(COPY_RESSOURCES)
 foreach(EXECUTABLE ${TARGETS})
 	add_dependencies(${EXECUTABLE} COPY_RESSOURCES)
 endforeach()
-if(MSVC)
-	add_custom_target(COPY_DLLS)
-	foreach(EXECUTABLE ${TARGETS})
-		add_dependencies(${EXECUTABLE} COPY_DLLS)
-	endforeach()
-endif()
+
+add_custom_target(COPY_LIBS)
+foreach(EXECUTABLE ${TARGETS})
+	add_dependencies(${EXECUTABLE} COPY_LIBS)
+endforeach()
+
 if(WIN32)
 	add_custom_command(TARGET COPY_RESSOURCES PRE_BUILD 
 		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/deploy_ressources/general/data "${PROJECT_BINARY_DIR}/data"
@@ -220,10 +220,10 @@ IF(DEFINED QT_ROOT_FOUND)
 		list(APPEND RELEASE_DLLS ${PATH_QT_ROOT}/lib/libQt5XcbQpa.so.5)
 	ENDIF(MSVC)
 
-	add_custom_command(TARGET COPY_DLLS PRE_BUILD 
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_DEBUG}/platforms"
-	COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_RELEASE}/platforms"
-	COMMENT "Copying Qt platforms to executable directory...")
+	add_custom_command(TARGET COPY_LIBS PRE_BUILD 
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_DEBUG}/platforms"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${PATH_QT_ROOT}/plugins/platforms "${COPY_DIRECTORY_RELEASE}/platforms"
+		COMMENT "Copying Qt platforms to executable directory...")
 
 ENDIF(DEFINED QT_ROOT_FOUND)
 
