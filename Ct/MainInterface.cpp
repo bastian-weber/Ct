@@ -203,6 +203,7 @@ namespace ct {
 
 		this->imageView = new hb::ImageView(this);
 		this->imageView->setExternalPostPaintFunction(this, &MainInterface::infoPaintFunction);
+		this->imageView->setUseGpu(false);
 
 		this->subLayout = new QHBoxLayout;
 		this->subLayout->addLayout(this->leftLayout, 0);

@@ -34,6 +34,7 @@ namespace ct {
 		this->imageView->setShowInterfaceOutline(false);
 		this->imageView->setExternalPostPaintFunction(this, &ViewerInterface::infoPaintFunction);
 		this->imageView->setRightClickForHundredPercentView(false);
+		this->imageView->setUseGpu(false);
 
 		this->mainLayout = new QHBoxLayout(this);
 		this->mainLayout->setContentsMargins(0, 0, 0, 0);

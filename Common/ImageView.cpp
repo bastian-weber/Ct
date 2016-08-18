@@ -50,6 +50,8 @@ namespace hb {
 		spanningSelectionRectangle(false),
 		polylineColor(60, 60, 60),
 		externalPostPaintFunctionAssigned(false) {
+
+		cv::ocl::setUseOpenCL(true);
 		setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
 		setFocusPolicy(Qt::FocusPolicy::StrongFocus);
 		setMouseTracking(true);
@@ -91,6 +93,24 @@ namespace hb {
 		return this->usePanZooming;
 	}
 
+	void ImageView::setUseGpu(bool value) {
+		//free the uMat
+		if (!value) this->uMat = cv::UMat();
+		//upload the uMat
+		if (value && !this->useGpu && this->hasMat) {
+			this->mat.copyTo(this->uMat);
+		}
+		this->useGpu = value;
+	}
+
+	bool ImageView::getUseGpu() {
+		return this->useGpu;
+	}
+
+	bool ImageView::OpenClAvailable() {
+		return cv::ocl::haveOpenCL();
+	}
+
 	///Rotates the viewport 90° in anticlockwise direction.
 	void ImageView::rotateLeft() {
 		this->viewRotation -= 90;
@@ -119,6 +139,14 @@ namespace hb {
 		if (this->isVisible()) this->update();
 	}
 
+	void ImageView::rotateBy(double degrees) {
+		this->setRotation(this->viewRotation + degrees);
+	}
+
+	double ImageView::getRotation() const {
+		return this->viewRotation;
+	}
+
 	///Moves the viewport to the point \p point.
 	void ImageView::centerViewportOn(QPointF point) {
 		QPointF transformedPoint = this->getTransform().map(point);
@@ -140,6 +168,16 @@ namespace hb {
 		//free the mat
 		this->isMat = false;
 		this->mat = cv::Mat();
+		if (this->isConvertible(image.format())) {
+			this->shallowCopyImageToMat(image, this->mat);
+			this->hasMat = true;
+		} else {
+			this->hasMat = false;
+		}
+		if (this->hasMat && this->useGpu) {
+			this->mat.copyTo(this->uMat);
+			this->hasUmat = true;
+		}
 		if (this->image.size() != oldSize) {
 			this->resetMask();
 			this->hundredPercentZoomMode = false;
@@ -158,6 +196,16 @@ namespace hb {
 		//free the mat
 		this->isMat = false;
 		this->mat = cv::Mat();
+		if (this->isConvertible(image.format())) {
+			this->shallowCopyImageToMat(image, this->mat);
+			this->hasMat = true;
+		} else {
+			this->hasMat = false;
+		}
+		if (this->hasMat && this->useGpu) {
+			this->mat.copyTo(this->uMat);
+			this->hasUmat = true;
+		}
 		if (this->image.size() != oldSize) {
 			this->resetMask();
 			this->hundredPercentZoomMode = false;
@@ -180,6 +228,11 @@ namespace hb {
 				this->hundredPercentZoomMode = false;
 			}
 			this->isMat = true;
+			this->hasMat = true;
+			if (this->hasMat && this->useGpu) {
+				this->mat.copyTo(this->uMat);
+				this->hasUmat = true;
+			}
 
 			this->imageAssigned = true;
 			this->updateResizedImage();
@@ -210,6 +263,11 @@ namespace hb {
 			this->downsampledMat = downscaledImage;
 			ImageView::shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
 			this->isMat = true;
+			this->hasMat = true;
+			if (this->hasMat && this->useGpu) {
+				this->mat.copyTo(this->uMat);
+				this->hasUmat = true;
+			}
 
 			this->imageAssigned = true;
 			this->update();
@@ -543,6 +601,9 @@ namespace hb {
 	///Displays the image at 100% magnification; the point \p center (in widget screen coordinates) will be centered.
 	void ImageView::zoomToHundredPercent(QPointF center) {
 		if (this->imageAssigned) {
+			if (center == QPointF()) {
+				center = QPointF(this->width() / 2, this->height() / 2);
+			}
 			QPointF mousePositionCoordinateBefore = this->getTransform().inverted().map(center);
 			double desiredZoomFactor = 1 / this->getWindowScalingFactor();
 			this->zoomExponent = log(desiredZoomFactor) / log(this->zoomBasis);
@@ -1320,25 +1381,32 @@ namespace hb {
 		if (this->useHighQualityDownscaling && this->imageAssigned) {
 			double scalingFactor = std::pow(this->zoomBasis, this->zoomExponent) * this->getWindowScalingFactor();
 			if (scalingFactor < 1) {
-				if (!this->isMat) {
-					if (this->image.format() == QImage::Format_RGB888 || this->image.format() == QImage::Format_Indexed8 || this->image.format() == QImage::Format_ARGB32) {
-						cv::Mat orig;
-						ImageView::shallowCopyImageToMat(this->image, orig);
-						cv::resize(orig, this->downsampledMat, cv::Size(), scalingFactor, scalingFactor, cv::INTER_AREA);
+				if (!this->hasMat) {
+					//alternative for QImages that could not be converted to a mat
+					this->downsampledImage = this->image.scaledToWidth(this->image.width() * scalingFactor, Qt::SmoothTransformation);
+				} else {
+
+					bool fallBackToCpu = false;
+					if (this->useGpu && this->OpenClAvailable()) {
+						try {
+							cv::resize(this->uMat, this->downsampledUmat, cv::Size(), scalingFactor, scalingFactor, cv::INTER_AREA);
+							if (this->enablePostResizeSharpening) {
+								ImageView::sharpen(this->downsampledUmat, this->postResizeSharpeningStrength, this->postResizeSharpeningRadius);
+							}
+							this->downsampledUmat.copyTo(this->downsampledMat);
+						} catch (...) {
+							//something went wrong, fall back to CPU
+							fallBackToCpu = true;
+						}
+					}
+					if (!this->useGpu || !this->OpenClAvailable() || fallBackToCpu) {
+						cv::resize(this->mat, this->downsampledMat, cv::Size(), scalingFactor, scalingFactor, cv::INTER_AREA);
 						if (this->enablePostResizeSharpening) {
 							ImageView::sharpen(this->downsampledMat, this->postResizeSharpeningStrength, this->postResizeSharpeningRadius);
 						}
-						ImageView::deepCopyMatToImage(this->downsampledMat, this->downsampledImage);
-					} else {
-						//alternative
-						this->downsampledImage = this->image.scaledToWidth(this->image.width() * scalingFactor, Qt::SmoothTransformation);
-					}
-				} else {
-					cv::resize(this->mat, this->downsampledMat, cv::Size(), scalingFactor, scalingFactor, cv::INTER_AREA);
-					if (this->enablePostResizeSharpening) {
-						ImageView::sharpen(this->downsampledMat, this->postResizeSharpeningStrength, this->postResizeSharpeningRadius);
 					}
 					ImageView::shallowCopyMatToImage(this->downsampledMat, this->downsampledImage);
+
 				}
 			}
 		}
@@ -1458,6 +1526,20 @@ namespace hb {
 		cv::addWeighted(image, 1 + strength, tmp, -strength, 0, image);
 	}
 
+	void ImageView::sharpen(cv::UMat& image, double strength, double radius) {
+		cv::UMat tmp;
+		cv::GaussianBlur(image, tmp, cv::Size(0, 0), radius);
+		cv::addWeighted(image, 1 + strength, tmp, -strength, 0, image);
+	}
+
+	bool ImageView::isConvertible(QImage::Format) {
+		return (this->image.format() == QImage::Format_RGB888 ||
+				this->image.format() == QImage::Format_Indexed8 ||
+				this->image.format() == QImage::Format_Grayscale8 ||
+				this->image.format() == QImage::Format_ARGB32 ||
+				this->image.format() == QImage::Format_RGB32);
+	}
+
 	void ImageView::shallowCopyMatToImage(const cv::Mat& mat, QImage& destImage) {
 		ImageView::matToImage(mat, destImage, false);
 	}
@@ -1489,23 +1571,18 @@ namespace hb {
 				destImage = QImage(mat.data, mat.cols, mat.rows, mat.step, QImage::Format_RGB888);
 			}
 		} else if (mat.type() == CV_8UC1) {
-			QVector<QRgb> sColorTable;
-			for (int i = 0; i < 256; ++i) {
-				sColorTable.push_back(qRgb(i, i, i));
-			}
 			if (deepCopy) {
-				destImage = QImage((const uchar*)mat.data, mat.cols, mat.rows, mat.step, QImage::Format_Indexed8).copy();
+				destImage = QImage((const uchar*)mat.data, mat.cols, mat.rows, mat.step, QImage::Format_Grayscale8).copy();
 			} else {
-				destImage = QImage(mat.data, mat.cols, mat.rows, mat.step, QImage::Format_Indexed8);
+				destImage = QImage(mat.data, mat.cols, mat.rows, mat.step, QImage::Format_Grayscale8);
 			}
-			destImage.setColorTable(sColorTable);
 		} else {
 			std::cerr << "ERROR: Conversion from cv::Mat to QImage unsuccessfull because type is unknown." << std::endl;
 		}
 	}
 
 	void ImageView::imageToMat(const QImage& image, cv::Mat& destMat, bool deepCopy) {
-		if (image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_ARGB32_Premultiplied) {
+		if (image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_ARGB32_Premultiplied || image.format() == QImage::Format_RGB32) {
 			if (deepCopy) {
 				destMat = cv::Mat(image.height(), image.width(), CV_8UC4, const_cast<uchar*>(image.bits()), image.bytesPerLine()).clone();
 			} else {
@@ -1517,7 +1594,7 @@ namespace hb {
 			} else {
 				destMat = cv::Mat(image.height(), image.width(), CV_8UC3, const_cast<uchar*>(image.bits()), image.bytesPerLine());
 			}
-		} else if (image.format() == QImage::Format_Indexed8) {
+		} else if (image.format() == QImage::Format_Indexed8 || image.format() == QImage::Format_Grayscale8) {
 			if (deepCopy) {
 				destMat = cv::Mat(image.height(), image.width(), CV_8UC1, const_cast<uchar*>(image.bits()), image.bytesPerLine()).clone();
 			} else {
