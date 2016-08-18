@@ -8,6 +8,7 @@
 //OpenCv
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core/ocl.hpp>
 
 //STL libraries
 #include <vector>
@@ -37,10 +38,15 @@ namespace hb {
 		bool getRightClickForHundredPercentView();
 		void setUsePanZooming(bool value);
 		bool getUsesPanZooming();
+		void setUseGpu(bool value);
+		bool getUseGpu();
+		bool OpenClAvailable();
 
 		void rotateLeft();
 		void rotateRight();
 		void setRotation(double degrees);
+		void rotateBy(double degrees);
+		double getRotation() const;
 		void centerViewportOn(QPointF point);
 		void setPreventMagnificationInDefaultZoom(bool value);
 
@@ -97,7 +103,7 @@ namespace hb {
 	public slots:
 		void zoomInKey();
 		void zoomOutKey();
-		void zoomToHundredPercent(QPointF center);
+		void zoomToHundredPercent(QPointF center = QPointF());
 		void resetZoom();
 		void resetMask();
 		void setBrushRadius(int value);
@@ -143,7 +149,9 @@ namespace hb {
 		static double distanceOfPointToLineSegment(QPointF const& lineStart, QPointF const& lineEnd, QPointF const& point);
 
 		static void sharpen(cv::Mat& image, double strength, double radius);
+		static void sharpen(cv::UMat& image, double strength, double radius);
 
+		bool isConvertible(QImage::Format);
 		static void shallowCopyMatToImage(const cv::Mat& mat, QImage& destImage);
 		static void deepCopyMatToImage(const cv::Mat& mat, QImage& destImage);
 		static void shallowCopyImageToMat(const QImage& image, cv::Mat& destMat);
@@ -156,6 +164,7 @@ namespace hb {
 		QColor backgroundColor;
 		bool rightClickForHundredPercentView;
 		bool usePanZooming;
+		bool useGpu = true;
 		//the users transformations (panning, zooming)
 		double zoomExponent;
 		const double zoomBasis;
@@ -187,9 +196,13 @@ namespace hb {
 		//related to displaying the image
 		QImage image;
 		cv::Mat mat;
-		bool isMat;
+		cv::UMat uMat;
+		bool isMat = false;
+		bool hasMat = false;
+		bool hasUmat = false;
 		QImage downsampledImage;
 		cv::Mat downsampledMat;
+		cv::UMat downsampledUmat;
 		bool imageAssigned;
 		bool useHighQualityDownscaling;
 		bool useSmoothTransform;
