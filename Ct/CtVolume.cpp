@@ -969,7 +969,7 @@ namespace ct {
 
 					//if the voxel is inside the reconstructable cylinder
 
-					float reciprocalDistanceWeight, u, w;
+					float reciprocalDistanceWeight, u;
 
 					{
 						float t = (-1)*x*sine + y*cosine;
@@ -978,14 +978,15 @@ namespace ct {
 						float s = x*cosine + y*sine;
 						reciprocalDistanceWeight = FCD / (FCD - s);
 						u = t * reciprocalDistanceWeight;
-						//calculate weight
-						w = reciprocalDistanceWeight*reciprocalDistanceWeight;
 					}
 
 					if (u < imageLowerBoundU || u > imageUpperBoundU) {
 						volumePtr += this->zMax;
 						continue;
 					}
+
+					//calculate weight
+					float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
 
 					for (float z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
