@@ -966,35 +966,42 @@ namespace ct {
 						volumePtr += this->zMax;
 						continue;
 					}
+
 					//if the voxel is inside the reconstructable cylinder
+
+					float reciprocalDistanceWeight, u;
+
+					{
+						float t = (-1)*x*sine + y*cosine;
+						//correct the u-offset
+						t += uOffset;
+						float s = x*cosine + y*sine;
+						reciprocalDistanceWeight = FCD / (FCD - s);
+						u = t * reciprocalDistanceWeight;
+					}
+
+					if (u < imageLowerBoundU || u > imageUpperBoundU) {
+						volumePtr += this->zMax;
+						continue;
+					}
+
 					for (float z = volumeLowerBoundZ; z < volumeUpperBoundZ; ++z, ++volumePtr) {
 
-
-						float reciprocalDistanceWeight, u, v;
-
-						{
-							float t = (-1)*x*sine + y*cosine;
-							//correct the u-offset
-							t += uOffset;
-							float s = x*cosine + y*sine;
-							reciprocalDistanceWeight = FCD / (FCD - s);
-							u = t * reciprocalDistanceWeight;
-							v = (z + heightOffset) * reciprocalDistanceWeight;
-						}
+						float v = (z + heightOffset) * reciprocalDistanceWeight;
 
 						//check if it's inside the image (before the coordinate transformation)
-						if (u >= imageLowerBoundU && u <= imageUpperBoundU && v >= imageLowerBoundV && v <= imageUpperBoundV) {
+						if (v >= imageLowerBoundV && v <= imageUpperBoundV) {
 
-							u = this->imageToMatU(u);
-							v = this->imageToMatV(v);
+							float uIndex = this->imageToMatU(u);
+							float vIndex = this->imageToMatV(v);
 
 							float value;
 
 							{
 								//get the 4 surrounding pixels for the bilinear interpolation (note: u and v are always positive)
-								int u0 = u;
+								int u0 = uIndex;
 								int u1 = u0 + 1;
-								int v0 = v;
+								int v0 = vIndex;
 								int v1 = v0 + 1;
 
 								//check if all the pixels are inside the image (after the coordinate transformation) (probably not necessary)
@@ -1010,7 +1017,7 @@ namespace ct {
 								//calculate weight
 								float w = reciprocalDistanceWeight*reciprocalDistanceWeight;
 
-								value = w * bilinearInterpolation(u - float(u0), v - float(v0), u0v0, u1v0, u0v1, u1v1);
+								value = w * bilinearInterpolation(uIndex - float(u0), vIndex - float(v0), u0v0, u1v0, u0v1, u1v1);
 							}
 
 							(*volumePtr) += value;
