@@ -63,10 +63,13 @@ namespace ct {
 		this->coefficientsGroupBox = new QGroupBox(tr("Multi-GPU coefficients"), this);
 		this->coefficientsGroupBox->setLayout(this->coefficientsLayout);
 
+		this->gpuPreprocessingCheckbox = new QCheckBox("Use GPU Preprocessing", this);
+
 		this->mainLayout = new QVBoxLayout;
 		this->mainLayout->addWidget(devicesGroupBox);
 		this->mainLayout->addWidget(memoryGroupBox);
 		this->mainLayout->addWidget(coefficientsGroupBox);
+		this->mainLayout->addWidget(gpuPreprocessingCheckbox);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
@@ -102,6 +105,10 @@ namespace ct {
 		return this->multiprocessorSpinBox->value();
 	}
 
+	bool CudaSettingsDialog::getUseGpuPreprocessing() const {
+		return this->gpuPreprocessingCheckbox->isChecked();
+	}
+
 	void CudaSettingsDialog::showEvent(QShowEvent * e) {
 		this->setDefaultValues();
 	}
@@ -117,6 +124,7 @@ namespace ct {
 		this->memorySpinBox->setValue(this->settings->value("gpuSpareMemory", 0).toLongLong());
 		this->multiprocessorSpinBox->setValue(this->settings->value("gpuMultiprocessorCoefficient", 1).toDouble());
 		this->memoryCoefficientSpinBox->setValue(this->settings->value("gpuMemoryBandwidthCoefficient", 1).toDouble());
+		this->gpuPreprocessingCheckbox->setChecked(this->settings->value("useGpuPreprocessing", true).toBool());
 	}
 
 	void CudaSettingsDialog::reactToCheckboxToggle() {
@@ -148,6 +156,7 @@ namespace ct {
 		settings->setValue("gpuSpareMemory", this->memorySpinBox->value());
 		settings->setValue("gpuMultiprocessorCoefficient", this->multiprocessorSpinBox->value());
 		settings->setValue("gpuMemoryBandwidthCoefficient", this->memoryCoefficientSpinBox->value());
+		settings->setValue("useGpuPreprocessing", this->gpuPreprocessingCheckbox->isChecked());
 		emit(dialogConfirmed());
 		this->close();
 	}

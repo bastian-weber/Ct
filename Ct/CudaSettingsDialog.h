@@ -20,6 +20,7 @@ namespace ct {
 		int getSpareMemoryAmount() const;
 		double getMemoryBandwidthCoefficient() const;
 		double getMultiprocessorCoefficient() const;
+		bool getUseGpuPreprocessing() const;
 	protected:
 		void showEvent(QShowEvent* e);
 	private:
@@ -43,6 +44,7 @@ namespace ct {
 		std::vector<QCheckBox*> checkboxes;
 		QHBoxLayout* buttonLayout;
 		QPushButton* cancelButton;
+		QCheckBox* gpuPreprocessingCheckbox;
 	private slots:
 		void reactToOkButtonClick();
 		void reactToCheckboxToggle();

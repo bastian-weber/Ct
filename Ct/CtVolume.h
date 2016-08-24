@@ -91,6 +91,7 @@ namespace ct {
 		double getMultiprocessorCoefficient() const;
 		double getMemoryBandwidthCoefficient() const;
 		size_t getRequiredMemoryUpperBound() const;
+		bool getUseCpuPreprocessing() const;
 
 		//setters
 		void setCrossSectionIndex(unsigned int index);
@@ -107,6 +108,7 @@ namespace ct {
 		void setGpuSpareMemory(size_t memory);									//sets the amount of VRAM to spare in Mb
 		void setGpuCoefficients(double multiprocessorCoefficient,
 								double memoryBandwidthCoefficient);
+		void setUseCpuPreprocessing(bool value);
 		void setFrequencyFilterType(FilterType filterType);
 		void setSkipProjections(unsigned int value = 0);
 
