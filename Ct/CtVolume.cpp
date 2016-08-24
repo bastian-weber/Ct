@@ -806,6 +806,7 @@ namespace ct {
 		CV_Assert(image.depth() == CV_32F);
 
 		float* ptr;
+#pragma omp parallel for private(ptr)
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
@@ -823,6 +824,7 @@ namespace ct {
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
 		cv::Vec2f* ptr;
+#pragma omp parallel for private(ptr)
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (unsigned int column = 0; column < nyquist; ++column) {
@@ -1038,7 +1040,7 @@ namespace ct {
 		return (1.0f - v)*v0 + v*v1;
 	}
 
-	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId) {
+	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId, bool useCpuPreprocessing) {
 
 		try {
 
@@ -1183,7 +1185,11 @@ namespace ct {
 					double cosine = cos(angle_rad);
 
 					//read next image from disk
-					image = this->sinogram[projection].getImage();
+					if (!useCpuPreprocessing) {
+						image = this->sinogram[projection].getImage();
+					} else {
+						image = this->prepareProjection(projection);
+					}
 					if (!image.data) {
 						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
 						stopCudaThreads = true;
@@ -1192,12 +1198,14 @@ namespace ct {
 						return false;
 					}
 					try {
-						//wait for this stream to finish the last reconstruction (otherwise we overwrite the image while it's still in use)
-						//stream[current].waitForCompletion();	<- unnecessary
 						//then copy image to page locked memory and upload it to the gpu
 						image.copyTo(memory[current]);
-						gpuImage[current].upload(memory[current], stream[current]);
-						this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
+						if (!useCpuPreprocessing) {
+							gpuImage[current].upload(memory[current], stream[current]);
+							this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
+						} else {
+							preprocessedGpuImage[current].upload(memory[current], stream[current]);
+						}
 					} catch (...) {
 						this->lastErrorMessage = "An error occured during preprocessing of the image on the GPU. Maybe there was insufficient VRAM. You can try increasing the GPU spare memory value.";
 						stopCudaThreads = true;
@@ -1314,7 +1322,7 @@ namespace ct {
 		unsigned int currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], true);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish
