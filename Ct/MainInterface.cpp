@@ -856,7 +856,7 @@ namespace ct {
 		QString saveDialogFiletype = "Command Line Scripts (*.cmd);;";
 		QString promptWindowTitle = tr("Batch File Creation");
 		QString status = tr("Batch file saved.");
-		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, QDir::rootPath(), saveDialogFiletype);
+		QString filepath = QFileDialog::getSaveFileName(this, saveDialogCaption, this->settings->value("lastSavingPath", QDir::rootPath()).toString(), saveDialogFiletype);
 #else
 	//The strings for a linux system
 		QString saveDialogCaption = tr("Create Shell Script");
@@ -867,6 +867,7 @@ namespace ct {
 #endif
 		QDir cmdDir(QFileInfo(filepath).absoluteDir());
 		if (!filepath.isEmpty()) {
+			this->settings->setValue("lastSavingPath", QFileInfo(filepath).path());
 			bool relativeExePath = false;
 			bool relativeConfigPath = false;
 			QMessageBox msgBox;
@@ -913,6 +914,7 @@ namespace ct {
 				}
 				if (volume.cudaAvailable()) {
 					if (!this->cudaCheckBox->isChecked()) stream << " -n";
+					if(!this->cudaSettingsDialog->getUseGpuPreprocessing()) stream << " -c";
 					QStringList devices;
 					std::vector<int> deviceIds = this->cudaSettingsDialog->getActiveCudaDevices();
 					for (int& deviceId : deviceIds) {

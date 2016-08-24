@@ -28,6 +28,8 @@ The command line options are:
 						Long: --filter
 						Default: ramlak
 	-n 					Optional. Disables CUDA. Long: --nocuda.
+	-c 					Optional. Selects the use of CPU processing when using CUDA for the reconstruction.
+						Long: --cpuPreprocessing 
 	-d 0,1,..,n 		Optional. Sets the cuda devices that shall be used. Option is a list of device ids seperated
 						by comma.
 						Long: --cudadevices
@@ -36,7 +38,7 @@ The command line options are:
 						X is the multiprocessor coefficient and y the memory bandwidth coefficient. 
 						Long: --weights
 						Default: 1,1
-	-d [number] 		Optional. Sets the amount of VRAM to spare in Mb. Option is a positive integer. 
+	-m [number] 		Optional. Sets the amount of VRAM to spare in Mb. Option is a positive integer. 
 						Long: --cudasparememory.
 						Default: 200
 	-e [option]			Optional. Sets the byte order of the output. Options are 'littleendian' and 'bigendian'.
