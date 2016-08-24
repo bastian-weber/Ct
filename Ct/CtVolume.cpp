@@ -1080,8 +1080,10 @@ namespace ct {
 			std::vector<cv::cuda::HostMem> memory(2, cv::cuda::HostMem(this->imageHeight, this->imageWidth, this->imageType, cv::cuda::HostMem::PAGE_LOCKED));
 			//image on gpu
 			std::vector<cv::cuda::GpuMat> gpuImage(2);
-			gpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
-			gpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+			if(!this->useCpuPreprocessing){
+				gpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+				gpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, this->imageType);
+			}
 			//streams for alternation
 			std::vector<cv::cuda::Stream> stream(2);
 			//temporary gpu mats for preprocessing
@@ -1089,8 +1091,10 @@ namespace ct {
 			preprocessedGpuImage[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			preprocessedGpuImage[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth, CV_32FC1);
 			std::vector<cv::cuda::GpuMat> fftTmp(2);
-			fftTmp[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
-			fftTmp[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			if(!this->useCpuPreprocessing){;
+				fftTmp[0] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+				fftTmp[1] = cv::cuda::createContinuous(this->imageHeight, this->imageWidth / 2 + 1, CV_32FC2);
+			}
 			std::vector<FftFilter> fftFilter(2, FftFilter(this->imageWidth, this->imageHeight));
 			if(!fftFilter[0].good() || !fftFilter[1].good()){
 				this->lastErrorMessage = "An error occured during creation of the FFT filter. Maybe the amount of free VRAM was insufficient. You can try changing the GPU spare memory setting.";
