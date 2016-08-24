@@ -480,6 +480,10 @@ namespace ct {
 		return requiredMemory;
 	}
 
+	bool CtVolume::getUseCpuPreprocessing() const {
+		return this->getUseCpuPreprocessing();
+	}
+
 	void CtVolume::setVolumeBounds(float xFrom, float xTo, float yFrom, float yTo, float zFrom, float zTo) {
 		std::lock_guard<std::mutex> lock(this->exclusiveFunctionsMutex);
 		if (xFrom == xTo || yFrom == yTo || zFrom == zTo) {
@@ -522,6 +526,10 @@ namespace ct {
 	void CtVolume::setGpuCoefficients(double multiprocessorCoefficient, double memoryBandwidthCoefficient) {
 		this->multiprocessorCoefficient = multiprocessorCoefficient;
 		this->memoryBandwidthCoefficient = memoryBandwidthCoefficient;
+	}
+
+	void CtVolume::setUseCpuPreprocessing(bool value) {
+		this->useCpuPreprocessing = value;
 	}
 
 	void CtVolume::setFrequencyFilterType(FilterType filterType) {
