@@ -776,19 +776,19 @@ namespace ct {
 		return normalizedImage;
 	}
 
-	cv::Mat CtVolume::prepareProjection(unsigned int index) const {
+	cv::Mat CtVolume::prepareProjection(unsigned int index, bool multithreading) const {
 		cv::Mat image = this->sinogram[index].getImage();
 		if (image.data) {
 			convertTo32bit(image);
-			this->preprocessImage(image);
+			this->preprocessImage(image, multithreading);
 		}
 		return image;
 	}
 
-	void CtVolume::preprocessImage(cv::Mat& image) const {
+	void CtVolume::preprocessImage(cv::Mat& image, bool multithreading) const {
 		this->applyLogScaling(image);
-		this->applyFeldkampWeight(image);
-		applyFourierFilter(image, this->filterType);
+		this->applyFeldkampWeight(image, multithreading);
+		applyFourierFilter(image, this->filterType, multithreading);
 	}
 
 	void CtVolume::convertTo32bit(cv::Mat& img) {
@@ -801,12 +801,15 @@ namespace ct {
 		}
 	}
 
-	void CtVolume::applyFeldkampWeight(cv::Mat& image) const {
+	void CtVolume::applyFeldkampWeight(cv::Mat& image, bool multithreading) const {
 		CV_Assert(image.channels() == 1);
 		CV_Assert(image.depth() == CV_32F);
 
+		unsigned int numThreads;
+		numThreads = multithreading ? omp_get_max_threads() : 1;
+
 		float* ptr;
-#pragma omp parallel for private(ptr)
+#pragma omp parallel for private(ptr) num_threads(numThreads)
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
@@ -819,12 +822,16 @@ namespace ct {
 		return D / sqrt(D*D + u*u + v*v);
 	}
 
-	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType filterType) {
+	void CtVolume::applyFourierFilter(cv::Mat& image, FilterType filterType, bool multithreading) {
 		cv::Mat freq;
 		cv::dft(image, freq, cv::DFT_COMPLEX_OUTPUT | cv::DFT_ROWS);
 		unsigned int nyquist = (freq.cols / 2) + 1;
 		cv::Vec2f* ptr;
-#pragma omp parallel for private(ptr)
+
+		unsigned int numThreads;
+		numThreads = multithreading ? omp_get_max_threads() : 1;
+
+#pragma omp parallel for private(ptr) num_threads(numThreads)
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (unsigned int column = 0; column < nyquist; ++column) {
@@ -948,7 +955,7 @@ namespace ct {
 				image = future.get();
 			}
 			if (projection + this->projectionStep < this->sinogram.size()) {
-				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + this->projectionStep);
+				future = std::async(std::launch::async, &CtVolume::prepareProjection, this, projection + this->projectionStep, false);
 			}
 			//check if the image is good
 			if (!image.data) {
@@ -1040,7 +1047,7 @@ namespace ct {
 		return (1.0f - v)*v0 + v*v1;
 	}
 
-	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId, bool useCpuPreprocessing) {
+	bool CtVolume::cudaReconstructionCore(unsigned int threadZMin, unsigned int threadZMax, int deviceId) {
 
 		try {
 
@@ -1185,10 +1192,10 @@ namespace ct {
 					double cosine = cos(angle_rad);
 
 					//read next image from disk
-					if (!useCpuPreprocessing) {
+					if (!this->useCpuPreprocessing) {
 						image = this->sinogram[projection].getImage();
 					} else {
-						image = this->prepareProjection(projection);
+						image = this->prepareProjection(projection, true);
 					}
 					if (!image.data) {
 						this->lastErrorMessage = "The image " + this->sinogram[projection].imagePath.toStdString() + " could not be accessed. Maybe it doesn't exist or has an unsupported format.";
@@ -1200,7 +1207,7 @@ namespace ct {
 					try {
 						//then copy image to page locked memory and upload it to the gpu
 						image.copyTo(memory[current]);
-						if (!useCpuPreprocessing) {
+						if (!this->useCpuPreprocessing) {
 							gpuImage[current].upload(memory[current], stream[current]);
 							this->cudaPreprocessImage(gpuImage[current], preprocessedGpuImage[current], fftTmp[current], fftFilter[current], success, stream[current]);
 						} else {
@@ -1322,7 +1329,7 @@ namespace ct {
 		unsigned int currentSlice = 0;
 		for (int i = 0; i < this->activeCudaDevices.size(); ++i) {
 			unsigned int sliceCnt = std::round(this->cudaGpuWeights[this->activeCudaDevices[i]] * double(zMax));
-			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i], true);
+			threads[i] = std::async(std::launch::async, &CtVolume::cudaReconstructionCore, this, currentSlice, currentSlice + sliceCnt, this->activeCudaDevices[i]);
 			currentSlice += sliceCnt;
 		}
 		//wait for threads to finish

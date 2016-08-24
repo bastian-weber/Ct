@@ -163,12 +163,17 @@ namespace ct {
 		cv::Mat normalizeImage(cv::Mat const& image,						//returns a new image which is a version of the old image that is normalized by min and max value
 							   float minValue,
 							   float maxValue) const;
-		cv::Mat prepareProjection(unsigned int index) const;						//returns the image of the projection at position index preprocessed and converted
-		void preprocessImage(cv::Mat& image) const;
+		cv::Mat prepareProjection(unsigned int index,						//returns the image of the projection at position index preprocessed and converted
+								  bool multithreading = false) const;						
+		void preprocessImage(cv::Mat& image,
+							 bool multithreading = false) const;
 		static void convertTo32bit(cv::Mat& img);							//converts an image to 32bit float
-		void applyFeldkampWeight(cv::Mat& image) const;
+		void applyFeldkampWeight(cv::Mat& image,
+								 bool multithreading = false) const;
 		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		
-		static void applyFourierFilter(cv::Mat& image, FilterType filterType);
+		static void applyFourierFilter(cv::Mat& image, 
+									   FilterType filterType,
+									   bool multithreading = false);
 		void applyLogScaling(cv::Mat& image) const;								//applies a logarithmic scaling to an image
 		static float ramLakWindowFilter(float n, float N);					//these functions return the scaling coefficients for the
 		static float sheppLoganWindowFilter(float n, float N);				//fourier filters for each n out of N
@@ -194,8 +199,7 @@ namespace ct {
 		//related to the GPU reconstruction
 		bool cudaReconstructionCore(unsigned int threadZMin,
 									unsigned int threadZMax,
-									int deviceId,
-									bool useCpuPreprocessing = false);
+									int deviceId);
 		bool launchCudaThreads();
 		std::map<int, double> getGpuWeights(std::vector<int> const& devices) const;
 		unsigned int getMaxChunkSize() const;							//returns the maximum amount of slices in z-direction that fit into VRAM for current GPU
@@ -235,6 +239,7 @@ namespace ct {
 		std::vector<int> activeCudaDevices;									//containing the deviceIds of the gpus that shall be used
 		size_t gpuSpareMemory = 200;										//the amount of gpu memory to spare in Mb
 		double multiprocessorCoefficient = 1, memoryBandwidthCoefficient = 1;//conrols the weighting of multiprocessor count and memory speed amongst multiple gpus
+		bool useCpuPreprocessing = false;
 		mutable std::atomic<bool> stopActiveProcess{ false };				//is set to true when stop() is called
 		float xFrom_float = 0, xTo_float = 1;								//these values control the ROI of the volume that is reconstructed within 0 <= x <= 1
 		float yFrom_float = 0, yTo_float = 1;
