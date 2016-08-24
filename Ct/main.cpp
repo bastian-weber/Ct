@@ -57,6 +57,7 @@ int initConsoleMode(int argc, char* argv[]) {
 	bool outputProvided = false;
 	bool lowerPriority = false;
 	bool useCuda = volume.cudaAvailable();
+	bool useCpuPreprocessing = false;
 	ct::FilterType filterType = ct::FilterType::RAMLAK;
 	ct::IndexOrder indexOrder = ct::IndexOrder::X_FASTEST;
 	QDataStream::ByteOrder byteOrder = QDataStream::LittleEndian;
@@ -76,9 +77,13 @@ int initConsoleMode(int argc, char* argv[]) {
 		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 		std::cout << "\t-n \t\tOptional. Disables CUDA. Long: --nocuda." << std::endl;
 		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
+		std::cout << "\t-c \t\tOptional. Selects the use of CPU processing when using\n\t\t\tCUDA for the reconstruction. Long: --cpuPreprocessing." << std::endl;
+		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 		std::cout << "\t-d 0,1,..,n \tOptional. Sets the cuda devices that shall be used.\n\t\t\tOption is a list of device ids seperated by comma.\n\t\t\tLong: --cudadevices.\n\t\t\tDefault: 0" << std::endl;
 		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
-		std::cout << "\t-d [number] \tOptional. Sets the amount of VRAM to spare in Mb. \n\t\t\tOption is a positive integer. Long: --cudasparememory.\n\t\t\tDefault: 200" << std::endl;
+		std::cout << "\t-w x,y \tSpecifies the coefficients for the GPU weights; both are\n\t\t\tfloating point values. X is the multiprocessor\n\t\t\tcoefficient and y the memory bandwidth coefficient.\n\t\t\tLong: --weights.\n\t\t\tDefault: 1,1" << std::endl;
+		std::cout << "\t-----------------------------------------------------------------------" << std::endl;		
+		std::cout << "\t-m [number] \tOptional. Sets the amount of VRAM to spare in Mb. \n\t\t\tOption is a positive integer. Long: --cudasparememory.\n\t\t\tDefault: 200" << std::endl;
 		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
 		std::cout << "\t-e [option] \tOptional. Sets the byte order of the output. Options\n\t\t\tare 'littleendian' and 'bigendian'. Long: --byteorder.\n\t\t\tDefault: littleendian" << std::endl;
 		std::cout << "\t-----------------------------------------------------------------------" << std::endl;
@@ -137,6 +142,8 @@ int initConsoleMode(int argc, char* argv[]) {
 				lowerPriority = true;
 			} else if (std::string(argv[i]).compare("-n") == 0 || std::string(argv[i]).compare("--nocuda") == 0) {
 				useCuda = false;
+			} else if (std::string(argv[i]).compare("-c") == 0 || std::string(argv[i]).compare("--cpuPreprocessing") == 0) {
+				useCpuPreprocessing = true;
 			} else if (std::string(argv[i]).compare("-d") == 0 || std::string(argv[i]).compare("--cudadevices") == 0) {
 				if (++i < argc) {
 					QStringList devices = QString(argv[i]).split(",");
@@ -173,7 +180,6 @@ int initConsoleMode(int argc, char* argv[]) {
 						std::cout << "When using the flag -w you have to specify exactly two coefficients." << std::endl;
 						return 1;
 					}
-					double multiProcessorCoefficient, memoryBandwidthCoefficient;
 					volume.setGpuCoefficients(coefficients.at(0).toDouble(), coefficients.at(1).toDouble());
 				}
 			} else {
@@ -197,6 +203,7 @@ int initConsoleMode(int argc, char* argv[]) {
 			std::cout << "\tOutput:\t\t\t" << output.toStdString() << std::endl;
 			std::cout << "\tFilter type:\t\t" << filterTypeString << std::endl;
 			std::cout << "\tUsing CUDA:\t\t" << (useCuda ? "YES" : "NO") << std::endl;
+			std::cout << "\tUsing GPU preprocessing: " << (useCpuPreprocessing ? "NO" : "YES") << std::endl;
 			if (volume.cudaAvailable()) {
 				std::cout << "\tCUDA devices:" << std::endl;
 				for (int i = 0; i < cudaDeviceNames.size(); ++i) {
@@ -214,6 +221,8 @@ int initConsoleMode(int argc, char* argv[]) {
 			volume.setVolumeBounds(xmin, xmax, ymin, ymax, zmin, zmax);
 			std::cout << std::endl << "The resulting volume dimensions will be:" << std::endl << std::endl << "\t" << volume.getXSize() << "x" << volume.getYSize() << "x" << volume.getZSize() << " (x:y:z)" << std::endl << std::endl;
 			volume.setFrequencyFilterType(filterType);
+			volume.setUseCuda(useCuda);
+			volume.setUseCpuPreprocessing(useCpuPreprocessing);
 			volume.reconstructVolume();
 			volume.saveVolumeToBinaryFile(output, indexOrder, byteOrder);
 		} else {
