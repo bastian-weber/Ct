@@ -813,11 +813,8 @@ namespace ct {
 		CV_Assert(image.channels() == 1);
 		CV_Assert(image.depth() == CV_32F);
 
-		unsigned int numThreads;
-		numThreads = multithreading ? omp_get_max_threads() : 1;
-
 		float* ptr;
-#pragma omp parallel for private(ptr) num_threads(numThreads)
+#pragma omp parallel for private(ptr) if(multithreading)
 		for (int r = 0; r < image.rows; ++r) {
 			ptr = image.ptr<float>(r);
 			for (int c = 0; c < image.cols; ++c) {
@@ -836,10 +833,7 @@ namespace ct {
 		unsigned int nyquist = (freq.cols / 2) + 1;
 		cv::Vec2f* ptr;
 
-		unsigned int numThreads;
-		numThreads = multithreading ? omp_get_max_threads() : 1;
-
-#pragma omp parallel for private(ptr) num_threads(numThreads)
+#pragma omp parallel for private(ptr) if(multithreading)
 		for (int row = 0; row < freq.rows; ++row) {
 			ptr = freq.ptr<cv::Vec2f>(row);
 			for (unsigned int column = 0; column < nyquist; ++column) {
