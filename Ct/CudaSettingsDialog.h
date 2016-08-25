@@ -34,10 +34,12 @@ namespace ct {
 		QVBoxLayout* devicesLayout;
 		QVBoxLayout* memoryLayout;
 		QFormLayout* coefficientsLayout;
+		QVBoxLayout* preprocessingLayout;
 		QPushButton* okButton;
 		QGroupBox* devicesGroupBox;
 		QGroupBox* memoryGroupBox;
 		QGroupBox* coefficientsGroupBox;
+		QGroupBox* preprocessingGroupBox;
 		QSpinBox* memorySpinBox;
 		QDoubleSpinBox* memoryCoefficientSpinBox;
 		QDoubleSpinBox* multiprocessorSpinBox;

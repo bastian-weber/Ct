@@ -64,12 +64,16 @@ namespace ct {
 		this->coefficientsGroupBox->setLayout(this->coefficientsLayout);
 
 		this->gpuPreprocessingCheckbox = new QCheckBox("Use GPU Preprocessing", this);
+		this->preprocessingLayout = new QVBoxLayout;
+		this->preprocessingLayout->addWidget(this->gpuPreprocessingCheckbox);
+		this->preprocessingGroupBox = new QGroupBox(tr("Preprocessing"), this);
+		this->preprocessingGroupBox->setLayout(this->preprocessingLayout);
 
 		this->mainLayout = new QVBoxLayout;
-		this->mainLayout->addWidget(devicesGroupBox);
-		this->mainLayout->addWidget(memoryGroupBox);
-		this->mainLayout->addWidget(coefficientsGroupBox);
-		this->mainLayout->addWidget(gpuPreprocessingCheckbox);
+		this->mainLayout->addWidget(this->devicesGroupBox);
+		this->mainLayout->addWidget(this->memoryGroupBox);
+		this->mainLayout->addWidget(this->coefficientsGroupBox);
+		this->mainLayout->addWidget(this->preprocessingGroupBox);
 		this->mainLayout->addLayout(this->buttonLayout);
 
 		this->setLayout(this->mainLayout);
