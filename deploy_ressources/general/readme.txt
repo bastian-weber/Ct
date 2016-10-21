@@ -74,4 +74,4 @@ Controls:
 
 ===================================================== Contact ======================================================
 
-If you wish to contact the author, please write to the e-mail address bastian.weber@uni-weimar.de.
+If you wish to contact the author, please write to the e-mail address bastian.weber@tuxzone.org.
