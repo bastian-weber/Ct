@@ -132,6 +132,10 @@ endif(MSVC)
 if(CMAKE_COMPILER_IS_GNUCC)
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fPIC")
 endif(CMAKE_COMPILER_IS_GNUCC)
+if(UNIX)
+	#make executable find libs in same folder
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,-rpath='$ORIGIN/lib'")
+endif()
 
 #add custom target for copying ressources
 add_custom_target(COPY_RESSOURCES)
