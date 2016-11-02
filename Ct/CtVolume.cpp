@@ -799,13 +799,15 @@ namespace ct {
 		applyFourierFilter(image, this->filterType, multithreading);
 	}
 
-	void CtVolume::convertTo32bit(cv::Mat& img) {
+	void CtVolume::convertTo32bit(cv::Mat& img) const {
 		CV_Assert(img.depth() == CV_8U || img.depth() == CV_16U || img.depth() == CV_32F);
 		//images must be scaled in case different depths are mixed (-> equal value range)
 		if (img.depth() == CV_8U) {
-			img.convertTo(img, CV_32F, 1.0 / 255.0);
+			//small constant is added to prevent ln(0), due to OpenCV bug
+			img.convertTo(img, CV_32F, 1.0 / 255.0, 0.000001 * this->baseIntensity);
 		} else if (img.depth() == CV_16U) {
-			img.convertTo(img, CV_32F, 1.0 / 65535.0);
+			//small constant is added to prevent ln(0), due to OpenCV bug
+			img.convertTo(img, CV_32F, 1.0 / 65535.0, 0.000001 * this->baseIntensity);
 		}
 	}
 
@@ -856,7 +858,8 @@ namespace ct {
 	}
 
 	void CtVolume::applyLogScaling(cv::Mat& image) const {
-		image *= 1/this->baseIntensity;
+		//small constant is added to prevent ln(0), due to OpenCV bug
+		image *= 1/(this->baseIntensity + 0.000001 * this->baseIntensity);
 		// -ln(x)
 		cv::log(image, image);
 		image *= -1;
@@ -893,7 +896,8 @@ namespace ct {
 			scalingFactor = 65535.0;
 		}
 		//convert to 32bit and normalise black
-		imageIn.convertTo(imageOut, CV_32FC1, 1.0 / (scalingFactor*this->baseIntensity), stream);
+		//small constant is added to prevent ln(0), due to OpenCV bug
+		imageIn.convertTo(imageOut, CV_32FC1, (1.0 - 0.000001) / (scalingFactor*this->baseIntensity), 0.000001, stream);
 		//logarithmic scale
 		cv::cuda::log(imageOut, imageOut, stream);
 		//multiply by -1
