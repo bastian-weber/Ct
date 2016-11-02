@@ -169,7 +169,7 @@ namespace ct {
 								  bool multithreading = false) const;						
 		void preprocessImage(cv::Mat& image,
 							 bool multithreading = false) const;
-		static void convertTo32bit(cv::Mat& img);							//converts an image to 32bit float
+		void convertTo32bit(cv::Mat& img) const;							//converts an image to 32bit float
 		void applyFeldkampWeight(cv::Mat& image,
 								 bool multithreading = false) const;
 		static float W(float D, float u, float v);							//weight function for the reconstruction of the volume		

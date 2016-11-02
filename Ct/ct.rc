@@ -16,10 +16,10 @@ FILESUBTYPE 0x0L
 			VALUE "FileDescription", "Ct\0"
 				VALUE "OriginalFilename", "Ct.exe\0"
 				VALUE "ProductName", "Ct\0"
-				VALUE "ProductVersion", "1.3\0"
+				VALUE "ProductVersion", "1.41\0"
 				VALUE "CompanyName", "Bastian Weber\0"
 				VALUE "InternalName", "Ct\0"
-				VALUE "FileVersion", "1.3\0"
+				VALUE "FileVersion", "1.41\0"
 		}
 	}
 	BLOCK "VarFileInfo" {
